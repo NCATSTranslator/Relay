@@ -1,0 +1,26 @@
+{
+    edges: [
+	{
+	    id: "e00",
+	    source_id: "n00",
+	    target_id: "n01"
+	},
+	{
+	    id: "e01",
+	    source_id: "n01",
+	    target_id: "n02"
+	}
+    ],
+    nodes: [
+	{
+	    curie: "DOID:14330",
+	    id: "n00"
+	},
+	{
+	    id: "n01"
+	},
+	{
+	    id: "n02"
+	}
+    ]
+}
