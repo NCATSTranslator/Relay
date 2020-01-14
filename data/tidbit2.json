@@ -1,5 +1,6 @@
 {
     edges: [
+	_comment: "Allowed types from: https://github.com/biolink/biolink-model/blob/master/biolink-model.yaml"
 	{
 	    id: "e00",
 	    source_id: "n00",
@@ -12,15 +13,18 @@
 	}
     ],
     nodes: [
+	_comment: "Allowed types from: https://github.com/biolink/biolink-model/blob/master/biolink-model.yaml"
 	{
 	    curie: "DOID:14330",
 	    id: "n00"
 	},
 	{
-	    id: "n01"
+	    id: "n01",
+	    type: "protein"
 	},
 	{
-	    id: "n02"
+	    id: "n02",
+	    type: "chemical_substance"
 	}
     ]
 }
