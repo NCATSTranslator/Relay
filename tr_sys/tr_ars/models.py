@@ -1,9 +1,14 @@
 from django.db import models
 from django.utils import timezone
+from django.core import serializers
+import uuid, requests, logging, json
+
+logger = logging.getLogger(__name__)
 
 # Create your models here.
 class Agent(models.Model):
-    name = models.SlugField('agent unique name', null=False)
+    name = models.SlugField('agent unique name',
+                            null=False, unique=True, max_length=128)
     description = models.TextField('description of agent')
     uri = models.URLField('base url of agent', null=False, max_length=256)
     contact = models.EmailField()
@@ -14,7 +19,8 @@ class Agent(models.Model):
         return self.name
 
 class Channel(models.Model):
-    name = models.SlugField('channel name', null=False, primary_key=True)
+    name = models.SlugField('channel name', unique=True,
+                            null=False, max_length=128)
     description = models.TextField('description of channel')
 
     def __str__(self):
@@ -32,26 +38,40 @@ class Actor(models.Model):
         ]
 
     def __str__(self):
-        return "actor[%s]{agent:%s, channel:%s, path:%s}" % (
-            self.id, self.agent, self.channel, self.path)
+        return "actor{agent:%s, channel:%s, path:%s}" % (
+            self.agent, self.channel, self.path)
+
+    def url(self):
+        return self.agent.uri+self.path
     
-class State(models.Model):
-    STATUES = (
+    def consumes(self, message, timeout=60):
+        if (self == message.actor or len(self.path) == 0
+            or len(self.agent.uri) == 0):
+            return None
+        url = self.url()
+        logger.debug('sending message %s to %s...' % (message.id, url))
+        data = json.loads(serializers.serialize('json', [message]))[0]
+        return requests.post(url, json=data, timeout=timeout)
+        
+    
+class Message(models.Model):
+    STATUS = (
         ('D', 'Done'),
         ('S', 'Stopped'),
         ('R', 'Running'),
         ('E', 'Error'),
         ('W', 'Waiting')
     )
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.SlugField('state name', null=False)
-    status = models.CharField(max_length=2, choices=STATUES)
+    status = models.CharField(max_length=2, choices=STATUS)
     actor = models.ForeignKey(Actor, null=False, on_delete=models.CASCADE)
     timestamp = models.DateTimeField(null=False, default=timezone.now)
-    data = models.BinaryField('data payload', null=True)
+    data = models.TextField('data payload', null=True)
     url = models.URLField('location of data', max_length=256, null=True)
     ref = models.ForeignKey('self', null=True, blank=True,
-                            related_name='state', on_delete=models.CASCADE)
+                            on_delete=models.CASCADE)
     
     def __str__(self):
-        return "state[%s]{name:%s, status:%s}" % (self.id,
-                                                  self.name, self.status)
+        return "message[%s]{name:%s, status:%s}" % (self.id,
+                                                    self.name, self.status)

@@ -33,6 +33,7 @@ ALLOWED_HOSTS = []
 INSTALLED_APPS = [
     'channels',
     'tr_ars.apps.ARSConfig',
+    'tr_ara_robokop.apps.RobokopConfig',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
