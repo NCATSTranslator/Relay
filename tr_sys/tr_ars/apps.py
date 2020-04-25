@@ -56,6 +56,6 @@ class ARSConfig(AppConfig):
 
     def ready(self):
         # connect signals
-        from .pubsub import actor_post_save
+        from . import pubsub
         logger.debug('### %s ready...' % self.name)
         post_migrate.connect(setup_schema, sender=self)

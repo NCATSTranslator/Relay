@@ -13,8 +13,8 @@ def index(req):
                         % req.build_absolute_uri(
                             reverse('ara-robokop-runquick')))
 
-def eval(data):
-    r = requests.post(ROBOKOP_URL, verify=False, json=data, timeout=60)
+def robokop(data, timeout=60):
+    r = requests.post(ROBOKOP_URL, verify=False, json=data, timeout=timeout)
     logger.debug('%d: %s\n%s' % (r.status_code, r.headers, r.text))
     return r
 
@@ -23,26 +23,72 @@ def runquick(req):
     if req.method != 'POST':
         return HttpResponse('Method %s not supported!' % req.method, status=400)
 
+    mesg = ''
+    code = 204
     try:
         data = json.loads(req.body)
-        logger.debug('%s: received payload...\n%s' % (__name__, data))
-        if 'model' in data:
-            logger.debug('%s: processing message %s\n%s'
-                         % (__name__, data['pk'], data['fields']))
+        logger.debug('%s: received payload...\n%s' % (req.path, req.body))
+        if 'model' in data and data['model'] == 'tr_ars.message':
             data = data['fields']
-            if 'data' in data and data['data'] != None:
+            if 'ref' in data and data['ref'] != None:
+                data = None # only work on query message
+                mesg = 'Not head message'
+            elif 'data' in data and data['data'] != None:
                 data = json.loads(data['data'])
             elif 'url' in data and data['url'] != None:
                 data = requests.get(data['url'], timeout=60).json()
             else:
                 data = None
+                mesg = 'Not a valid tr_ars.message'
 
             if data != None:
-                r = eval (data)
-                return HttpResponse(r.text,
-                                    content_type='application/json',
-                                    status=r.status_code)
-        return HttpResponse('Not a valid ARS message!', status=400)
+                r = robokop(data)
+                resp =  HttpResponse(r.text,
+                                     content_type='application/json',
+                                     status=r.status_code)
+                resp['tr_ars.message.status'] = 'R'
+                return resp
     except:
-        logger.debug("Unexpected error: %s" % sys.exc_info())
-        return HttpResponse('Content is not JSON', status=400)
+        mesg = 'Unexpected error: %s' % sys.exc_info()
+        logger.debug(mesg)
+        code = 500
+        
+    # notify the ARS that we have nothing to contribute
+    resp = HttpResponse(mesg, status=code)
+    resp['tr_ars.message.status'] = 'E'
+    return resp
+
+@csrf_exempt
+def runpost(req):
+    if req.method != 'POST':
+        return HttpResponse('Method %s not supported!' % req.method, status=400)
+
+    # this endpoint serves to illustrate another actor that can be used
+    # to interact with the messaging queue based on some condition
+    mesg = ''
+    code = 204
+    try:
+        data = json.loads(req.body)
+        logger.debug('%s: received payload...\n%s' % (req.path, req.body))
+        if 'model' in data and data['model'] == 'tr_ars.message':
+            data = data['fields']
+            # all we're doing here is to only contribute if the parent
+            # message is coming from the ara-robokop-agent
+            if (data['actor']['agent'] == 'ara-robokop-agent'
+                and data['status'] == 'R'):
+                resp = HttpResponse(data['data'],
+                                    content_type='application/json',
+                                    status=200)
+                resp['tr_ars.message.status'] = 'D'
+                return resp
+        else:
+            mesg = 'Not a valid Translator message'
+    except:
+        mesg = "Unexpected error: %s" % sys.exc_info()
+        logger.debug(mesg)
+        code = 500
+    # nothing to contribute
+    resp = HttpResponse(mesg, status=code)
+    resp['tr_ars.message.status'] = 'E'
+    return resp
+        

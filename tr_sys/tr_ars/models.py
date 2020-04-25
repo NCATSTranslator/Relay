@@ -51,6 +51,13 @@ class Actor(models.Model):
         url = self.url()
         logger.debug('sending message %s to %s...' % (message.id, url))
         data = json.loads(serializers.serialize('json', [message]))[0]
+        actor = {
+            'id': self.id,
+            'channel': self.channel.name,
+            'agent': self.agent.name,
+            'uri': url
+        }
+        data['fields']['actor'] = actor
         return requests.post(url, json=data, timeout=timeout)
         
     
@@ -60,10 +67,14 @@ class Message(models.Model):
         ('S', 'Stopped'),
         ('R', 'Running'),
         ('E', 'Error'),
-        ('W', 'Waiting')
+        ('W', 'Waiting'),
+        ('U', 'Unknown')
     )
+    
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.SlugField('state name', null=False)
+    code = models.PositiveSmallIntegerField('HTTP status code',
+                                            null=False, default=200)
     status = models.CharField(max_length=2, choices=STATUS)
     actor = models.ForeignKey(Actor, null=False, on_delete=models.CASCADE)
     timestamp = models.DateTimeField(null=False, default=timezone.now)

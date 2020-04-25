@@ -50,18 +50,18 @@ def submit(req):
         return HttpResponse('Only POST is permitted!', status=405)
     try:
         data = json.loads(req.body)
-        if 'query' not in data:
-            return HttpResponse('Not a valid query json', status=400)
+        if 'machine_question' not in data:
+            return HttpResponse('Not a valid Translator query json', status=400)
         # create a head message
-        query = data['query']
-        message = Message (status='D', data=json.dumps(query),
+        message = Message (code=200, status='D', data=json.dumps(data),
                            actor=get_default_actor())
         if 'name' in data:
             message.name = data['name']
         # save and broadcast
         message.save()
+        payload = data
         data = json.loads(serializers.serialize('json', [message]))[0]
-        data['fields']['data'] = query
+        data['fields']['data'] = payload
         return HttpResponse(json.dumps(data),
                             content_type='application/json', status=201)
     except:
@@ -106,6 +106,23 @@ def messages(req):
             
         return HttpResponse('Internal server error', status=500)
 
+def message(req, key):
+    if req.method != 'GET':
+        return HttpResponse('Method %s not supported!' % req.method, status=400)
+    try:
+        mesg = Message.objects.get(pk=key)
+        data = json.loads(serializers.serialize('json', [mesg]))[0]
+        # now get children if any
+        children = Message.objects.filter(ref=mesg)
+        if children.count() > 0:
+            data['children'] = json.loads(serializers.serialize('json',
+                                                                children))
+        return HttpResponse(json.dumps(data), content_type='application/json',
+                            status=200)
+    except:
+        logger.debug("Unexpected error: %s" % sys.exc_info())
+        return HttpResponse('Internal server error', status=500)        
+
 @csrf_exempt
 def channels(req):
     if req.method == 'GET':
@@ -140,7 +157,8 @@ def agents(req):
 def agent(req, name):
     try:
         agent = Agent.objects.get(name=name)
-        return HttpResponse(serializers.serialize('json', [agent]),
+        data = json.loads(serializers.serialize('json', [agent]))[0]
+        return HttpResponse(json.dumps(data),
                             content_type='application/json', status=200)
     except Agent.DoesNotExist:
         return HttpResponse('Unknown agent: %s' % name, status=400)

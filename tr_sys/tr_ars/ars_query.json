@@ -1,6 +1,4 @@
 {
-    "name": "test query",
-    "query": {
   "machine_question": {
     "edges": [
       {
@@ -24,12 +22,11 @@
       },
       {
         "id": "n2",
-        "type": "genetic_condition"
+        "type": "disease"
       }
     ]
   },
   "name": "Ebola--(gene)--(genetic_condition)",
   "natural_question": "What genetic conditions might provide protection against Ebola?",
   "notes": "#ebola #q1"
-    }
 }
