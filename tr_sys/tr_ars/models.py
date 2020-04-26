@@ -1,7 +1,7 @@
 from django.db import models
 from django.utils import timezone
 from django.core import serializers
-import uuid, requests, logging, json
+import uuid, logging, json
 
 logger = logging.getLogger(__name__)
 
@@ -43,23 +43,6 @@ class Actor(models.Model):
 
     def url(self):
         return self.agent.uri+self.path
-    
-    def consumes(self, message, timeout=60):
-        if (self == message.actor or len(self.path) == 0
-            or len(self.agent.uri) == 0):
-            return None
-        url = self.url()
-        logger.debug('sending message %s to %s...' % (message.id, url))
-        data = json.loads(serializers.serialize('json', [message]))[0]
-        actor = {
-            'id': self.id,
-            'channel': self.channel.name,
-            'agent': self.agent.name,
-            'uri': url
-        }
-        data['fields']['actor'] = actor
-        return requests.post(url, json=data, timeout=timeout)
-        
     
 class Message(models.Model):
     STATUS = (

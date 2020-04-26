@@ -1,68 +1,54 @@
-from django.db.models.signals import post_save, pre_save
-from django.dispatch import receiver
-import sys, logging, threading
-from .models import Actor, Agent, Message, Channel
+from django.core import serializers
+import sys, logging, json, threading, queue, requests
+from .models import Message
 
 logger = logging.getLogger(__name__)
 
-@receiver(post_save, sender=Actor)
-def actor_post_save(sender, instance, **kwargs):
-    actor = instance
-    logger.debug('+++ new actor created: %s...%s' % (actor, actor.id))
-    # now iterate through each message and pass it to the new actor
-    SendMessage([actor], Message.objects.filter(code=200)
-                .order_by('timestamp')).start()
-            
-
-@receiver(post_save, sender=Message)
-def message_post_save(sender, instance, **kwargs):
-    message = instance
-    logger.debug('+++ new message created: %s' % (message))
-    # now broadcast the message to all actors only if it has code=200
-    if message.code == 200:
-        SendMessage(Actor.objects.all(), [message]).start()
-
-@receiver(pre_save, sender=Message)
-def message_pre_save(sender, instance, **kwargs):
-    # make sure no cycle
-    message = instance
-    if message.ref == message:
-        logger.warning('Self-referencing message; removing reference!')
-        message.ref = None
-
-@receiver(post_save, sender=Channel)
-def channel_post_save(sender, instance, **kwargs):
-    channel = instance
-    logger.debug('+++ new channel created: %s...%s' % (channel, channel.id))
-
-@receiver(post_save, sender=Agent)
-def agent_post_save(sender, instance, **kwargs):
-    agent = instance
-    logger.debug('+++ new agent created: %s...%s' % (agent, agent.id))
+def send_message(actor, mesg, timeout=60):
+    url = actor.url()
+    logger.debug('sending message %s to %s...' % (mesg.id, url))
+    data = json.loads(serializers.serialize('json', [mesg]))[0]
+    data['fields']['actor'] = {
+        'id': actor.id,
+        'channel': actor.channel.name,
+        'agent': actor.agent.name,
+        'uri': url
+    }
+    r = requests.post(url, json=data, timeout=timeout)
+    logger.debug('%d: receive message from actor %s...\n%s.\n'
+                     % (r.status_code, url, r.text))
+    if r.status_code == 200:
+        # now create a new message here
+        status = 'U'
+        if 'tr_ars.message.status' in r.headers:
+            status = r.headers['tr_ars.message.status']
+        mesg = Message(code=r.status_code, status=status,
+                       data=r.text, actor=actor,
+                       name=mesg.name, ref=mesg)
+        mesg.save()
+    
+def send_messages(actors, messages):
+    for mesg in messages:
+        for actor in actors:
+            if (actor == mesg.actor or len(actor.path) == 0
+                or len(actor.agent.uri) == 0):
+                pass
+            else:
+                queue.put((actor, mesg))
 
 
-class SendMessage(threading.Thread):
-    def __init__(self, actors, mesgs, **kwargs):
-        self.actors = actors
-        self.messages = mesgs
-        super(SendMessage, self).__init__(**kwargs)
+class BackgroundWorker(threading.Thread):
+    def __init__(self, **kwargs):
+        super(BackgroundWorker, self).__init__(**kwargs)
 
     def run(self):
-        messages = []
-        for mesg in self.messages:
-            for actor in self.actors:
-                r = actor.consumes(mesg)
-                if r != None:
-                    logger.debug('%d: receive message from actor %s...\n%s.\n'
-                                 % (r.status_code, actor, r.text))
-                    if r.status_code != 204:
-                        # now create a new message here
-                        status = 'U'
-                        if 'tr_ars.message.status' in r.headers:
-                            status = r.headers['tr_ars.message.status']
-                        mesg = Message(code=r.status_code, status=status,
-                                       data=r.text, actor=actor,
-                                       name=mesg.name, ref=mesg)
-                        messages.append(mesg)
-        for mesg in messages:
-            mesg.save()
+        while True:
+            actor, mesg = queue.get()
+            if actor is None:
+                break
+            send_message(actor, mesg)
+            queue.task_done()
+        logger.debug('%s: BackgroundWorker stopped!' % __name__)
+
+queue = queue.Queue()
+BackgroundWorker().start()

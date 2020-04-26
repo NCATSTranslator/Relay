@@ -24,7 +24,6 @@ def runquick(req):
         return HttpResponse('Method %s not supported!' % req.method, status=400)
 
     mesg = ''
-    code = 204
     try:
         data = json.loads(req.body)
         logger.debug('%s: received payload...\n%s' % (req.path, req.body))
@@ -51,11 +50,9 @@ def runquick(req):
     except:
         mesg = 'Unexpected error: %s' % sys.exc_info()
         logger.debug(mesg)
-        code = 500
         
     # notify the ARS that we have nothing to contribute
-    resp = HttpResponse(mesg, status=code)
-    resp['tr_ars.message.status'] = 'E'
+    resp = HttpResponse(mesg, status=400)
     return resp
 
 @csrf_exempt
@@ -66,7 +63,6 @@ def runpost(req):
     # this endpoint serves to illustrate another actor that can be used
     # to interact with the messaging queue based on some condition
     mesg = ''
-    code = 204
     try:
         data = json.loads(req.body)
         logger.debug('%s: received payload...\n%s' % (req.path, req.body))
@@ -86,9 +82,8 @@ def runpost(req):
     except:
         mesg = "Unexpected error: %s" % sys.exc_info()
         logger.debug(mesg)
-        code = 500
+
     # nothing to contribute
-    resp = HttpResponse(mesg, status=code)
-    resp['tr_ars.message.status'] = 'E'
+    resp = HttpResponse(mesg, status=400)
     return resp
         

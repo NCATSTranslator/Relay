@@ -1,7 +1,7 @@
 from django.urls import reverse
 from django.apps import AppConfig
 from django.db.models.signals import post_migrate
-import logging
+import logging, os, signal, sys
 
 logger = logging.getLogger(__name__)
 
@@ -51,11 +51,19 @@ def setup_schema(sender, **kwargs):
             channel=channels[a['channel']], agent=agents[a['agent']],
             defaults={'path': a['path']})
 
+def my_signal_handler(*args):
+    from . import pubsub    
+    if os.environ.get('RUN_MAIN') == 'true':  
+        logger.debug('STOPPED')
+    pubsub.queue.put((None, None))
+    sys.exit(0)
+        
 class ARSConfig(AppConfig):
     name = 'tr_ars'
 
     def ready(self):
         # connect signals
-        from . import pubsub
+        from . import signals
         logger.debug('### %s ready...' % self.name)
         post_migrate.connect(setup_schema, sender=self)
+        signal.signal(signal.SIGINT, my_signal_handler)
