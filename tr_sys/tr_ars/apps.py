@@ -52,10 +52,11 @@ def setup_schema(sender, **kwargs):
             defaults={'path': a['path']})
 
 def my_signal_handler(*args):
-    from . import pubsub    
     if os.environ.get('RUN_MAIN') == 'true':  
         logger.debug('STOPPED')
-    pubsub.queue.put((None, None))
+    if len(sys.argv) > 1 and sys.argv[1] == 'runserver':
+        from . import pubsub    
+        pubsub.queue.put((None, None))
     sys.exit(0)
         
 class ARSConfig(AppConfig):
@@ -64,6 +65,6 @@ class ARSConfig(AppConfig):
     def ready(self):
         # connect signals
         from . import signals
-        logger.debug('### %s ready...' % self.name)
+        logger.debug('### %s ready...' % (self.name))
         post_migrate.connect(setup_schema, sender=self)
         signal.signal(signal.SIGINT, my_signal_handler)

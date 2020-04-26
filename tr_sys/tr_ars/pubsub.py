@@ -42,6 +42,7 @@ class BackgroundWorker(threading.Thread):
         super(BackgroundWorker, self).__init__(**kwargs)
 
     def run(self):
+        logger.debug('%s: BackgroundWorker started!' % __name__)
         while True:
             actor, mesg = queue.get()
             if actor is None:
@@ -51,4 +52,6 @@ class BackgroundWorker(threading.Thread):
         logger.debug('%s: BackgroundWorker stopped!' % __name__)
 
 queue = queue.Queue()
-BackgroundWorker().start()
+# FIXME: handle properly for deployment
+if len(sys.argv) > 1 and sys.argv[1] == 'runserver':
+    BackgroundWorker().start()
