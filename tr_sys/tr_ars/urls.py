@@ -10,7 +10,7 @@ apipatterns = [
     path(r'agents', api.agents, name='ars-agents'),
     path(r'actors', api.actors, name='ars-actors'),
     path(r'channels', api.channels, name='ars-channels'),
-    path(r'agents/<name>', api.agent, name='ars-agent'),
+    path(r'agents/<name>', api.get_agent, name='ars-agent'),
     path(r'messages/<uuid:key>', api.message, name='ars-message'),
 ]
 

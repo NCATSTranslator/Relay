@@ -9,19 +9,19 @@ logger = logging.getLogger(__name__)
 class Agent(models.Model):
     name = models.SlugField('agent unique name',
                             null=False, unique=True, max_length=128)
-    description = models.TextField('description of agent')
+    description = models.TextField('description of agent', null=True)
     uri = models.URLField('base url of agent', null=False, max_length=256)
-    contact = models.EmailField()
+    contact = models.EmailField(null=True)
     registered = models.DateTimeField(default=timezone.now)
     updated = models.DateTimeField(auto_now=True)
-
+        
     def __str__(self):
-        return self.name
+        return 'agent{name:%s, uri:%s}' % (self.name, self.uri)
 
 class Channel(models.Model):
     name = models.SlugField('channel name', unique=True,
                             null=False, max_length=128)
-    description = models.TextField('description of channel')
+    description = models.TextField('description of channel', null=True)
 
     def __str__(self):
         return self.name

@@ -133,28 +133,72 @@ def channels(req):
         code = 200
         try:
             data = json.loads(req.body)
-            if 'name' in data and 'description' in data:
-                channel = Channel.objects.get(name=data['name'])
-        except Channel.DoesNotExit:
-            channel = Channel(name=data['name'],
-                              description=data['description'])
-            channel.save()
-            code = 201
+            if 'model' in data and 'tr_ars.channel' == data['model']:
+                data = data['fields']
+                
+            if 'name' not in data:
+                return HttpResponse('JSON does not contain "name" field',
+                                    status=400)
+            channel, created = Channel.objects.get_or_create(
+                name=data['name'], defaults=data)
+            status = 201
+            if not created:
+                if 'description' in data:
+                    channel.description = data['description']
+                    channel.save()
+                status = 302
+            data = json.loads(serializers.serialize('json', [channel]))[0]
+            return HttpResponse(json.dumps(data),
+                                content_type='application/json', status=status)
         except:
             logger.debug("Unexpected error: %s" % sys.exc_info())
             return HttpResponse('Internal server error', status=500)
-        return HttpResponse(serializers.serialize('json', channel),
-                            content_type='application/json', status=code)
     return HttpResponse('Unsupported method %s' % req.method, status=400)
 
+@csrf_exempt
 def agents(req):
     if req.method == 'GET':
         agents = Agent.objects.order_by('name')
         return HttpResponse(serializers.serialize('json', agents),
                             content_type='application/json', status=200)
+    elif req.method == 'POST':
+        try:
+            data = json.loads(req.body)
+            logger.debug('%s: payload...\n%s' % (req.path, req.body))
+            if 'model' in data and 'tr_ars.agent' == data['model']:
+                # this in the serialized model of agent
+                data = data['fields']
+                
+            if 'name' not in data or 'uri' not in data:
+                return HttpResponse(
+                    'JSON does not contain "name" and "uri" fields',
+                    status=400)
+            defs = {
+                'uri': data['uri']
+            }
+            if 'description' in data:
+                defs['description'] = data['description']
+            if 'contact' in data:
+                defs['contact'] = data['contact']
+            agent, created = Agent.objects.get_or_create(
+                name=data['name'], defaults=defs)
+
+            status = 201
+            if not created:
+                if data['uri'] != agent.uri:
+                    # update uri
+                    agent.uri = data['uri']
+                    agent.save()
+                status = 302
+            data = json.loads(serializers.serialize('json', [agent]))[0]
+            return HttpResponse(json.dumps(data),
+                                content_type='application/json', status=status)
+        except:
+            logger.debug("Unexpected error: %s" % sys.exc_info())
+            return HttpResponse('Not a valid json format', status=400)
     return HttpResponse('Unsupported method %s' % req.method, status=400)
 
-def agent(req, name):
+def get_agent(req, name):
     try:
         agent = Agent.objects.get(name=name)
         data = json.loads(serializers.serialize('json', [agent]))[0]
@@ -162,9 +206,74 @@ def agent(req, name):
                             content_type='application/json', status=200)
     except Agent.DoesNotExist:
         return HttpResponse('Unknown agent: %s' % name, status=400)
-    
+
+@csrf_exempt
 def actors(req):
     if req.method == 'GET':
-        return HttpResponse(serializers.serialize('json', Actor.objects.all()),
+        actors = []
+        for a in Actor.objects.exclude(path__exact=''):
+            actor = json.loads(serializers.serialize('json', [a]))[0]
+            actor['fields']['channel'] = a.channel.name
+            actor['fields']['agent'] = a.agent.name
+            actors.append(actor)
+        return HttpResponse(json.dumps(actors),
                             content_type='application/json', status=200)
+    elif req.method == 'POST':
+        try:
+            data = json.loads(req.body)
+            logger.debug('%s: payload...\n%s' % (req.path, req.body))
+            if 'model' in data and 'tr_ars.agent' == data['model']:
+                # this in the serialized model of agent
+                data = data['fields']
+            if ('channel' not in data or
+                'agent' not in data or 'path' not in data):
+                return HttpResponse(
+                    'JSON does not contain "channel", "agent", and "path" fields', status=400)
+            
+            channel = data['channel']
+            if isinstance(channel, int):
+                channel = Channel.objects.get(pk=channel)
+            elif channel.isnumeric():
+                # primary channel key
+                channel = Channel.objects.get(pk=int(channel))
+            else:
+                # name
+                channel, created = Channel.objects.get_or_create(name=channel)
+                if created:
+                    logger.debug('%s: new channel created "%s"'
+                                 % (req.path, data['channel']))
+
+            agent = data['agent']
+            if isinstance(agent, int):
+                agent = Agent.objects.get(pk=agent)
+            elif agent.isnumeric():
+                agent = Agent.objects.get(pk=int(agent))
+            else:
+                agent, created = Agent.objects.get_or_create(name=agent)
+                if created:
+                    logger.debug('%s: new agent created "%s"'
+                                 % (req.path, data['agent']))
+                    
+            actor, created = Actor.objects.get_or_create(
+                channel=channel, agent=agent, path=data['path'])
+            
+            status = 201
+            if not created:
+                if actor.path != data['path']:
+                    actor.path = data['path']
+                    actor.save() # update
+                status = 302
+            data = json.loads(serializers.serialize('json', [actor]))[0]
+            return HttpResponse(json.dumps(data),
+                                content_type='application/json',
+                                status=status)
+        except Channel.DoesNotExist:
+            logger.debug('Unknown channel: %s' % channel)
+            return HttpResponse('Unknown channel: %s' % channel, status=404)
+        except Agent.DoesNotExit:
+            logger.debug('Unknown agent: %s' % agent)
+            return HttpResponse('Unknown agent: %s' % agent, status=404)
+        except:
+            logger.debug("Unexpected error: %s" % sys.exc_info())
+            return HttpResponse('Not a valid json format', status=400)
     return HttpResponse('Unsupported method %s' % req.method, status=400)
