@@ -7,7 +7,7 @@ logger = logging.getLogger(__name__)
 def send_message(actor, mesg, timeout=60):
     url = actor.url()
     logger.debug('sending message %s to %s...' % (mesg.id, url))
-    data = json.loads(serializers.serialize('json', [mesg]))[0]
+    data = mesg.to_dict()
     data['fields']['actor'] = {
         'id': actor.id,
         'channel': actor.channel.name,
@@ -37,6 +37,8 @@ def send_messages(actors, messages):
                 queue.put((actor, mesg))
 
 
+# TODO: unable to use celery.. need to figure out why there are
+# de/serialization with Message model
 class BackgroundWorker(threading.Thread):
     def __init__(self, **kwargs):
         super(BackgroundWorker, self).__init__(**kwargs)

@@ -6,7 +6,14 @@ import uuid, logging, json
 logger = logging.getLogger(__name__)
 
 # Create your models here.
-class Agent(models.Model):
+class ARSModel(models.Model):
+    class Meta:
+        abstract = True
+
+    def to_dict(self):
+        return json.loads(serializers.serialize('json', [self]))[0]
+    
+class Agent(ARSModel):
     name = models.SlugField('agent unique name',
                             null=False, unique=True, max_length=128)
     description = models.TextField('description of agent', null=True)
@@ -18,15 +25,16 @@ class Agent(models.Model):
     def __str__(self):
         return 'agent{name:%s, uri:%s}' % (self.name, self.uri)
 
-class Channel(models.Model):
+class Channel(ARSModel):
     name = models.SlugField('channel name', unique=True,
                             null=False, max_length=128)
     description = models.TextField('description of channel', null=True)
 
     def __str__(self):
         return self.name
+
     
-class Actor(models.Model):
+class Actor(ARSModel):
     channel = models.ForeignKey(Channel, on_delete=models.CASCADE)
     agent = models.ForeignKey(Agent, on_delete=models.CASCADE)
     path = models.CharField('relative path of agent', max_length=64)
@@ -44,7 +52,7 @@ class Actor(models.Model):
     def url(self):
         return self.agent.uri+self.path
     
-class Message(models.Model):
+class Message(ARSModel):
     STATUS = (
         ('D', 'Done'),
         ('S', 'Stopped'),
@@ -55,7 +63,7 @@ class Message(models.Model):
     )
     
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    name = models.SlugField('state name', null=False)
+    name = models.SlugField('Message name', null=False)
     code = models.PositiveSmallIntegerField('HTTP status code',
                                             null=False, default=200)
     status = models.CharField(max_length=2, choices=STATUS)

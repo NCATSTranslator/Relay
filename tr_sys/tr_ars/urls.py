@@ -4,7 +4,6 @@ from . import api
 
 apipatterns = [
     path(r'', api.index, name='ars-api'),
-#    path(r'registration', api.registration, name='ars-registration'),
     path(r'submit', api.submit, name='ars-submit'),
     path(r'messages', api.messages, name='ars-messages'),
     path(r'agents', api.agents, name='ars-agents'),

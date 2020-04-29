@@ -6,7 +6,7 @@ import json, sys, logging, requests
 
 logger = logging.getLogger(__name__)
 
-ROBOKOP_URL = 'https://robokop.renci.org/api/simple/quick/?rebuild=false&output_format=MESSAGE&max_connectivity=0&max_results=500'
+ROBOKOP_URL = 'https://robokop.renci.org/api/simple/quick/?rebuild=false&output_format=MESSAGE&max_connectivity=0&max_results=10'
 
 def index(req):
     return HttpResponse('Robokop ARA wrapper API available via POST at %s\n'
