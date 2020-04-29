@@ -1,2 +1,4 @@
+import logging
+logger = logging.getLogger(__name__)
 
-print ('initializing module %s...' % __name__)
+logger.debug('Initializing module %s...' % __name__)
