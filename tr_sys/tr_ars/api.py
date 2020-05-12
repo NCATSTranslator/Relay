@@ -34,7 +34,7 @@ def submit(req):
         return HttpResponse('Only POST is permitted!', status=405)
     try:
         data = json.loads(req.body)
-        if 'machine_question' not in data:
+        if 'message' not in data:
             return HttpResponse('Not a valid Translator query json', status=400)
         # create a head message
         message = Message (code=200, status='D', data=json.dumps(data),
@@ -97,6 +97,12 @@ def trace_message_deepfirst(node):
     for child in children:
         n = {
             'message': str(child.id),
+            'status': child.status,
+            'actor': {
+                'channel': child.actor.channel.name,
+                'agent': child.actor.agent.name,
+                'path': child.actor.path
+            },
             'children': []
         }
         trace_message_deepfirst(n)
@@ -107,6 +113,12 @@ def trace_message(req, key):
         mesg = Message.objects.get(pk=key)
         tree = {
             'message': str(mesg.id),
+            'status': mesg.status,
+            'actor': {
+                'channel': mesg.actor.channel.name,
+                'agent': mesg.actor.agent.name,
+                'path': mesg.actor.path
+            },
             'children': []
         }
         trace_message_deepfirst(tree)

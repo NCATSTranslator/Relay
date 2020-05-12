@@ -1,16 +1,17 @@
 from flask import Flask, request, url_for, jsonify, abort
-import requests, sys, threading, time
+import requests, sys, threading, time, json
 
 ARS_API = 'http://localhost:8000/ars/api'
+RTX_URL = 'https://arax.rtx.ai/api/rtx/v1/query'
 
 def setup_app():
     DEFAULT_ACTOR = {
         'channel': 'general',
         'agent': {
-            'name': 'ara-simple-agent',
+            'name': 'ara-rtx-agent',
             'uri': 'http://localhost:5000'
         },
-        'path': '/simple' # relative to agent's uri
+        'path': '/rtxquery' # relative to agent's uri
     }
 
     # wait for flask to finish intializing before it can accept
@@ -29,10 +30,10 @@ threading.Thread(target=setup_app).start()
 
 @app.route('/', methods=['GET'])
 def index():
-    return 'A simple ARA that does nothing!'
+    return 'A wrapper ARA for RTX!'
 
-@app.route('/simple', methods=['POST'])
-def simple():
+@app.route('/rtxquery', methods=['POST'])
+def rtxquery():
     data = request.get_json()
     if 'model' not in data or data['model'] != 'tr_ars.message':
         return abort(400)
@@ -41,10 +42,15 @@ def simple():
     if 'ref' not in mesg or mesg['ref'] != None:
         # this is not a head message, so we're not interested
         return abort(400)
+    try:
+        data = json.loads(mesg['data'])
+        r = requests.post(RTX_URL, json=data, timeout=60)
+        return (jsonify(r.text),
+                r.status_code, # return status code
+                {'tr_ars.message.status': 'D'}) # set the status of the message
+    except:
+        app.logger.error('RTX failed: %s' % sys.exc_info())
     
-    return (jsonify(message="This is an acknowledgement that I have nothing to contribute to this query!"),
-            200, # return status code
-            {'tr_ars.message.status': 'D'}) # set the status of the message
             
 if __name__ == '__main__':
     app.run()

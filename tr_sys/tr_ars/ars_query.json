@@ -1,32 +1,24 @@
 {
-  "machine_question": {
-    "edges": [
-      {
-        "source_id": "n0",
-        "target_id": "n1"
-      },
-      {
-        "source_id": "n1",
-        "target_id": "n2"
-      }
-    ],
-    "nodes": [
-      {
-        "curie": "MONDO:0005737",
-        "id": "n0",
-        "type": "disease"
-      },
-      {
-        "id": "n1",
-        "type": "gene"
-      },
-      {
-        "id": "n2",
-        "type": "disease"
-      }
-    ]
-  },
-  "name": "Ebola--(gene)--(genetic_condition)",
-  "natural_question": "What genetic conditions might provide protection against Ebola?",
-  "notes": "#ebola #q1"
+    "message": {
+        "query_graph": {
+            "edges": [
+                {
+                    "id": "e00",
+                    "source_id": "n00",
+                    "target_id": "n01"
+                }
+            ],
+            "nodes": [
+                {
+                    "curie": "DOID:14330",
+                    "id": "n00",
+                    "type": "disease"
+                },
+                {
+                    "id": "n01",
+                    "type": "phenotypic_feature"
+                }
+            ]
+        }
+    }
 }
