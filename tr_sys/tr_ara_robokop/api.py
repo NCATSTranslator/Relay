@@ -6,12 +6,14 @@ import json, sys, logging, requests
 
 logger = logging.getLogger(__name__)
 
-ROBOKOP_URL = 'https://robokop.renci.org/api/simple/quick/?rebuild=false&output_format=MESSAGE&max_connectivity=0&max_results=10'
+#ROBOKOP_URL = 'https://robokop.renci.org/api/simple/quick/?rebuild=false&output_format=MESSAGE&max_connectivity=0&max_results=10'
+
+ROBOKOP_URL = 'https://robokop.renci.org/ranker/api/query/?max_results=-1&output_format=STD&max_connectivity=-1&use_novelty=false'
 
 def index(req):
     return HttpResponse('Robokop ARA wrapper API available via POST at %s\n'
                         % req.build_absolute_uri(
-                            reverse('ara-robokop-runquick')))
+                            reverse('ara-robokop-runquery')))
 
 def robokop(data, timeout=60):
     r = requests.post(ROBOKOP_URL, verify=False, json=data, timeout=timeout)
