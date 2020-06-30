@@ -21,4 +21,5 @@ urlpatterns = [
     url(r'^admin/', admin.site.urls),
     url(r'^ars/', include('tr_ars.urls')),
     url(r'^robokop/', include('tr_ara_robokop.urls')),
+    url(r'^bte/', include('tr_ara_bte.urls'))
 ]
