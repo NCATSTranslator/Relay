@@ -1,0 +1,1 @@
+In addition to the changes needed to api.py and urls.py, you'll need to add your service to tr_sys/tr_sys/settings.py and tr_sys/tr_sys/urls.py

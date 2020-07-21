@@ -35,6 +35,8 @@ INSTALLED_APPS = [
     'tr_ars.apps.ARSConfig',
     'tr_ara_robokop.apps.RobokopConfig',
     'tr_ara_bte.apps.BTEConfig',
+    'tr_ara_ncats.apps.NCATSConfig',
+    'tr_ara_unsecret.apps.UnsecretConfig',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',

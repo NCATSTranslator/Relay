@@ -1,0 +1,9 @@
+{
+    "channel": "general",
+    "agent": {
+        "name": "kp-genetics-agent",
+        "uri": "https://translator.broadinstitute.org/genetics_data_provider"
+    },
+    "path":"/query"
+    
+}
