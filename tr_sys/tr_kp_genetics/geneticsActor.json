@@ -2,8 +2,8 @@
     "channel": "general",
     "agent": {
         "name": "kp-genetics-agent",
-        "uri": "https://translator.broadinstitute.org/genetics_data_provider"
+        "uri": "http://localhost:8000/genetics/api"
     },
-    "path":"/query"
+    "path":"/rungeneticsquery"
     
 }

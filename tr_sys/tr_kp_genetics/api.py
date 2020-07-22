@@ -31,8 +31,10 @@ def runkp(req):
         if 'model' in data and data['model'] == 'tr_ars.message':
             data = data['fields']
             if 'ref' in data and data['ref'] != None:
-                data = None # only work on query message
-                mesg = 'Not head message'
+                #data = None # only work on query message
+                #mesg = 'Not head message'
+                logger.debug(data)
+                pass 
             elif 'data' in data and data['data'] != None:
                 data = json.loads(data['data'])
             elif 'url' in data and data['url'] != None:

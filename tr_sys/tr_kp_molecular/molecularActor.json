@@ -2,8 +2,8 @@
     "channel": "general",
     "agent": {
         "name": "kp-molecular-agent",
-        "uri": "https://translator.broadinstitute.org/molepro_reasoner"
+        "uri": "http://localhost:8000/molecular/api"
     },
-    "path":"/query"
+    "path":"/runmolecularquery"
     
 }

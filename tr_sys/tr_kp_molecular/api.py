@@ -21,6 +21,7 @@ def query(data, timeout=600):
 
 @csrf_exempt
 def runkp(req):
+
     if req.method != 'POST':
         return HttpResponse('Method %s not supported!' % req.method, status=400)
 
