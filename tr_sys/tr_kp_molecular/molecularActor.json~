@@ -1,9 +1,0 @@
-{
-    "channel": "general",
-    "agent": {
-        "name": "ara-unsecret-agent",
-        "uri": "https://unsecret.ncats.io"
-    },
-    "path":"/query"
-    
-}

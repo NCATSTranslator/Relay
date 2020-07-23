@@ -23,5 +23,7 @@ urlpatterns = [
     url(r'^robokop/', include('tr_ara_robokop.urls')),
     url(r'^bte/', include('tr_ara_bte.urls')),
     url(r'^ncats/',include('tr_ara_ncats.urls')),
-    url(r'^unsecret/',include('tr_ara_unsecret.urls'))
+    url(r'^unsecret/',include('tr_ara_unsecret.urls')),
+    url(r'^molecular/',include('tr_kp_molecular.urls')),
+    url(r'^genetics/',include('tr_kp_genetics.urls'))
 ]
