@@ -1,0 +1,4 @@
+{
+    name: "ara-arax-agent",
+    uri: "https://arax.rtx.ai/api/rtx/v1"
+}
