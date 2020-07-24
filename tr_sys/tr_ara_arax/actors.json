@@ -1,9 +1,9 @@
 {
-    channel: "general",
-    agent: 
+    "channel": "general",
+    "agent": 
     {
-        name: "ara-arax-agent",
-        uri: "https://arax.rtx.ai/api/rtx/v1"
+        "name": "ara-arax-agent",
+        "uri": "https://arax.rtx.ai/api/rtx/v1"
     },
-    path: "/query"
+    "path": "/query"
 }
