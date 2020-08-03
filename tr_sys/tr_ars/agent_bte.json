@@ -1,0 +1,4 @@
+{
+    "name": "ara-bte-agent",
+    "uri": "http://localhost:8000/bte/api"
+}
