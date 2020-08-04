@@ -32,14 +32,23 @@ def query(req):
         logger.debug('%s: received payload...\n%s' % (req.path, req.body))
         if 'model' in data and data['model'] == 'tr_ars.message':
             data = data['fields']
-            # all we're doing here is to only contribute if the parent
-            # message is coming from the ara-arax-agent
-            if (data['actor']['agent'] == 'ara-arax-agent'
-                and data['status'] == 'R'):
-                resp = HttpResponse(data['data'],
-                                    content_type='application/json',
-                                    status=200)
-                resp['tr_ars.message.status'] = 'D'
+            if 'ref' in data and data['ref'] != None:
+                data = None # only work on query message
+                mesg = 'Not head message'
+            elif 'data' in data and data['data'] != None:
+                data = json.loads(data['data'])
+            elif 'url' in data and data['url'] != None:
+                data = requests.get(data['url'], timeout=60).json()
+            else:
+                data = None
+                mesg = 'Not a valid tr_ars.message'
+
+            if data != None:
+                r = arax(data)
+                resp =  HttpResponse(r.text,
+                                     content_type='application/json',
+                                     status=r.status_code)
+                resp['tr_ars.message.status'] = 'R'
                 return resp
         else:
             mesg = 'Not a valid Translator message'
@@ -49,5 +58,6 @@ def query(req):
 
     # nothing to contribute
     resp = HttpResponse(mesg, status=400)
+    logger.debug("nothing to contribute")
     return resp
         

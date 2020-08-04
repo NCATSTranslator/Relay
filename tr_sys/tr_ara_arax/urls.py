@@ -3,7 +3,7 @@ from . import api
 
 apipatterns = [
     path(r'', api.index, name='ara-arax-api'),
-    path(r'query', api.runquery, name='ara-arax-query'),
+    path(r'query', api.query, name='ara-arax-query'),
 ]
 
 urlpatterns = [

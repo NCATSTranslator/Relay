@@ -3,7 +3,7 @@
     "agent": 
     {
         "name": "ara-arax-agent",
-        "uri": "https://arax.rtx.ai/api/rtx/v1"
+        "uri": "http://localhost:8000/arax/api"
     },
     "path": "/query"
 }
