@@ -22,3 +22,6 @@ ARS will assign 'topics' to a query (or parts) it receives. These topics might i
 ## Deploy
 
 See to [the tr_sys folder](https://github.com/NCATSTranslator/Relay/tree/master/tr_sys) for deployment instructions.
+
+## Register a service
+Documentation can be found [here](https://docs.google.com/document/d/1w54dlbep2BtmLorGaeJ86l1YpSgjqSt1Ra9Ye15hBzs/edit?usp=sharing)
