@@ -66,26 +66,12 @@ def submit(req):
         logger.debug("Unexpected error: %s" % sys.exc_info())
         return HttpResponse('Content is not JSON', status=400)
 
-def formatMessageObj(entry):
-    if 'fields' in entry:
-        if 'status' in entry['fields']:
-            for elem in Message.STATUS:
-                if elem[0] == entry['fields']['status']:
-                    entry['fields']['status'] = elem[1]
-    if 'data' in entry['fields']:
-        try:
-            jsonD = json.loads(entry['fields']['data'])
-            entry['fields']['data'] = jsonD
-        except:
-            pass
-    return entry
-
 @csrf_exempt
 def messages(req):
     if req.method == 'GET':
         response = []
         for mesg in  Message.objects.order_by('-timestamp')[:10]:
-            response.append(formatMessageObj(Message.objects.get(pk=mesg.pk).to_dict()))
+            response.append(Message.objects.get(pk=mesg.pk).to_dict())
         return HttpResponse(json.dumps(response),
                             content_type='application/json', status=200)
     elif req.method == 'POST':
@@ -170,7 +156,7 @@ def message(req, key):
         return trace_message(req, key)
     try:
         mesg = Message.objects.get(pk=key)
-        return HttpResponse(json.dumps(formatMessageObj(mesg.to_dict()), indent=2),
+        return HttpResponse(json.dumps(mesg.to_dict(), indent=2),
                             status=200)
 
     except Message.DoesNotExit:

@@ -1,3 +1,4 @@
+from json import JSONDecodeError
 from django.db import models
 from django.utils import timezone
 from django.core import serializers
@@ -77,3 +78,19 @@ class Message(ARSModel):
     def __str__(self):
         return "message[%s]{name:%s, status:%s}" % (self.id,
                                                     self.name, self.status)
+    def to_dict(self):
+        jsonobj = ARSModel.to_dict(self)
+        if 'fields' in jsonobj:
+            if 'status' in jsonobj['fields']:
+                for elem in Message.STATUS:
+                    if elem[0] == jsonobj['fields']['status']:
+                        jsonobj['fields']['status'] = elem[1]
+            if 'data' in jsonobj['fields']:
+                try:
+                    jsonD = json.loads(jsonobj['fields']['data'])
+                    jsonobj['fields']['data'] = jsonD
+                except JSONDecodeError:
+                    pass
+        return jsonobj
+
+
