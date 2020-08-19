@@ -1,0 +1,76 @@
+[
+    {
+        "model": "tr_ars.actor",
+        "pk": 10,
+        "fields": {
+            "channel": 1,
+            "agent": 10,
+            "path": "/query"
+        }
+    },
+    {
+        "model": "tr_ars.actor",
+        "pk": 20,
+        "fields": {
+            "channel": 1,
+            "agent": 20,
+            "path": "/runbtequery"
+        }
+    },
+    {
+        "model": "tr_ars.actor",
+        "pk": 30,
+        "fields": {
+            "channel": 1,
+            "agent": 30,
+            "path": "/runquery"
+        }
+    },
+    {
+        "model": "tr_ars.actor",
+        "pk": 40,
+        "fields": {
+            "channel": 1,
+            "agent": 40,
+            "path": "/rtxquery"
+        }
+    },
+    {
+        "model": "tr_ars.actor",
+        "pk": 50,
+        "fields": {
+            "channel": 1,
+            "agent": 50,
+            "path": "/rununsecretquery"
+        }
+    },
+    {
+        "model": "tr_ars.actor",
+        "pk": 60,
+        "fields": {
+            "channel": 1,
+            "agent": 60,
+            "path": "/ars"
+        }
+    },
+
+
+    {
+        "model": "tr_ars.actor",
+        "pk": 80,
+        "fields": {
+            "channel": 1,
+            "agent": 80,
+            "path": "/rungeneticsquery"
+        }
+    },
+    {
+        "model": "tr_ars.actor",
+        "pk": 90,
+        "fields": {
+            "channel": 1,
+            "agent": 90,
+            "path": "/runmolecularquery"
+        }
+    }
+]

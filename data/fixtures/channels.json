@@ -1,0 +1,10 @@
+[
+    {
+        "model": "tr_ars.channel",
+        "pk": 1,
+        "fields": {
+            "name": "general",
+            "description": "General channel for all queries"
+        }
+    }
+]

@@ -66,5 +66,5 @@ class ARSConfig(AppConfig):
         # connect signals
         from . import signals
         logger.debug('### %s ready...' % (self.name))
-        post_migrate.connect(setup_schema, sender=self)
+        #post_migrate.connect(setup_schema, sender=self)
         signal.signal(signal.SIGINT, my_signal_handler)
