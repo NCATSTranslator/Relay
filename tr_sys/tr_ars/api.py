@@ -1,10 +1,9 @@
-from django.http import HttpResponse, Http404, JsonResponse
+from django.http import HttpResponse, Http404
 from django.urls import reverse
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
 from django.shortcuts import get_object_or_404, render
-from django.core import serializers as oldserializers
-from rest_framework import serializers
+from django.core import serializers
 from django.utils import timezone
 from .models import Agent, Message, Channel, Actor
 import json, sys, logging, traceback, html
@@ -61,52 +60,25 @@ def submit(req):
         logger.debug("Unexpected error: %s" % sys.exc_info())
         return HttpResponse('Content is not JSON', status=400)
 
-#fields = ['name', 'code', 'status', 'actor', 'timestamp', 'data', 'url', 'ref'] #model, pk
-class MessageSerializer(serializers.ModelSerializer):
-    data = serializers.SerializerMethodField('dataAsJSON')
-    status = serializers.SerializerMethodField('statusString')
-    model = serializers.SerializerMethodField('getModel')
-    pk = serializers.SerializerMethodField('getPK')
-
-    class Meta:
-        model = Message
-        fields = ['model', 'pk', 'name', 'code', 'status', 'actor', 'timestamp', 'data', 'url', 'ref']
-
-    def dataAsJSON(self, obj):
-        try:
-            return json.loads(obj.data)
-        except:
-            return obj.data
-
-    def statusString(self, obj):
-        for entry in Message.STATUS:
-            if entry[0] == obj.status:
-                return entry[1]
-        return obj.status
-
-    def getModel(self, obj):
-        return "tr_ars.message"
-
-    def getPK(self, obj):
-        return obj.pk
-
 @csrf_exempt
 def messages(req):
     if req.method == 'GET':
         messages = Message.objects.order_by('-timestamp')[:10]
-        #return HttpResponse(oldserializers.serialize('json', messages),
-        #                    content_type='application/json', status=200)
-        serializer = MessageSerializer(messages, many=True)
-        response = JsonResponse(serializer.data, safe=False)
+        response = HttpResponse(serializers.serialize('json', messages),
+                            content_type='application/json', status=200)
         jsonR = json.loads(response.content)
         for item in jsonR:
-            entry = dict()
-            for key in item.keys():
-                if key != "pk" and key != "model":
-                    entry[key] = item[key]
-            for key in entry:
-                del item[key]
-            item['fields'] = entry
+            if 'fields' in item:
+                if 'status' in item['fields']:
+                    for entry in Message.STATUS:
+                        if entry[0] == item['fields']['status']:
+                            item['fields']['status'] = entry[1]
+                if 'data' in item['fields']:
+                    try:
+                        jsonD = json.loads(item['fields']['data'])
+                        item['fields']['data'] = jsonD
+                    except:
+                        donothing = 1
         response.content = json.dumps(jsonR)
         return response
     elif req.method == 'POST':
