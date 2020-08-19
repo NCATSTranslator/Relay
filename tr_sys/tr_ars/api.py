@@ -1,17 +1,25 @@
 from django.http import HttpResponse, Http404
+from django.urls import reverse
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
 from django.shortcuts import get_object_or_404, render
 from django.core import serializers
 from django.utils import timezone
 from .models import Agent, Message, Channel, Actor
-import json, sys, logging, traceback
+import json, sys, logging, traceback, html
 from inspect import currentframe, getframeinfo
+from . import urls
 
 logger = logging.getLogger(__name__)
 
 def index(req):
-    return HttpResponse("Translator ARS API.")
+    page = "Translator ARS API.<br>\n"
+    for item in urls.apipatterns:
+        try:
+            page = page + "<a href='" + req.build_absolute_uri(reverse(item.name)) + "'>" + html.escape(req.build_absolute_uri(reverse(item.name))) + "</a><br>\n"
+        except:
+            page = page + "<a href='" + str(item.pattern) + "'>" + html.escape(req.build_absolute_uri()+str(item.pattern)) + "</a><br>\n"
+    return HttpResponse(page)
 
 DEFAULT_ACTOR = {
     'channel': 'general',
@@ -51,13 +59,28 @@ def submit(req):
     except:
         logger.debug("Unexpected error: %s" % sys.exc_info())
         return HttpResponse('Content is not JSON', status=400)
-    
+
 @csrf_exempt
 def messages(req):
     if req.method == 'GET':
         messages = Message.objects.order_by('-timestamp')[:10]
-        return HttpResponse(serializers.serialize('json', messages),
+        response = HttpResponse(serializers.serialize('json', messages),
                             content_type='application/json', status=200)
+        jsonR = json.loads(response.content)
+        for item in jsonR:
+            if 'fields' in item:
+                if 'status' in item['fields']:
+                    for entry in Message.STATUS:
+                        if entry[0] == item['fields']['status']:
+                            item['fields']['status'] = entry[1]
+                if 'data' in item['fields']:
+                    try:
+                        jsonD = json.loads(item['fields']['data'])
+                        item['fields']['data'] = jsonD
+                    except:
+                        donothing = 1
+        response.content = json.dumps(jsonR)
+        return response
     elif req.method == 'POST':
         try:
             data = json.loads(req.body)
