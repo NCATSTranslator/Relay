@@ -1,17 +1,26 @@
-from django.http import HttpResponse, Http404
+from django.http import HttpResponse, Http404, JsonResponse
+from django.urls import reverse
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
 from django.shortcuts import get_object_or_404, render
-from django.core import serializers
+from django.core import serializers as oldserializers
+from rest_framework import serializers
 from django.utils import timezone
 from .models import Agent, Message, Channel, Actor
-import json, sys, logging, traceback
+import json, sys, logging, traceback, html
 from inspect import currentframe, getframeinfo
+from . import urls
 
 logger = logging.getLogger(__name__)
 
 def index(req):
-    return HttpResponse("Translator ARS API.")
+    page = "Translator ARS API.<br>\n"
+    for item in urls.apipatterns:
+        try:
+            page = page + "<a href='" + req.build_absolute_uri(reverse(item.name)) + "'>" + html.escape(req.build_absolute_uri(reverse(item.name))) + "</a><br>\n"
+        except:
+            page = page + "<a href='" + str(item.pattern) + "'>" + html.escape(req.build_absolute_uri()+str(item.pattern)) + "</a><br>\n"
+    return HttpResponse(page)
 
 DEFAULT_ACTOR = {
     'channel': 'general',
@@ -51,13 +60,55 @@ def submit(req):
     except:
         logger.debug("Unexpected error: %s" % sys.exc_info())
         return HttpResponse('Content is not JSON', status=400)
-    
+
+#fields = ['name', 'code', 'status', 'actor', 'timestamp', 'data', 'url', 'ref'] #model, pk
+class MessageSerializer(serializers.ModelSerializer):
+    data = serializers.SerializerMethodField('dataAsJSON')
+    status = serializers.SerializerMethodField('statusString')
+    model = serializers.SerializerMethodField('getModel')
+    pk = serializers.SerializerMethodField('getPK')
+
+    class Meta:
+        model = Message
+        fields = ['model', 'pk', 'name', 'code', 'status', 'actor', 'timestamp', 'data', 'url', 'ref']
+
+    def dataAsJSON(self, obj):
+        try:
+            return json.loads(obj.data)
+        except:
+            return obj.data
+
+    def statusString(self, obj):
+        for entry in Message.STATUS:
+            if entry[0] == obj.status:
+                return entry[1]
+        return obj.status
+
+    def getModel(self, obj):
+        return "tr_ars.message"
+
+    def getPK(self, obj):
+        return obj.pk
+
 @csrf_exempt
 def messages(req):
     if req.method == 'GET':
         messages = Message.objects.order_by('-timestamp')[:10]
-        return HttpResponse(serializers.serialize('json', messages),
-                            content_type='application/json', status=200)
+        #return HttpResponse(oldserializers.serialize('json', messages),
+        #                    content_type='application/json', status=200)
+        serializer = MessageSerializer(messages, many=True)
+        response = JsonResponse(serializer.data, safe=False)
+        jsonR = json.loads(response.content)
+        for item in jsonR:
+            entry = dict()
+            for key in item.keys():
+                if key != "pk" and key != "model":
+                    entry[key] = item[key]
+            for key in entry:
+                del item[key]
+            item['fields'] = entry
+        response.content = json.dumps(jsonR)
+        return response
     elif req.method == 'POST':
         try:
             data = json.loads(req.body)
