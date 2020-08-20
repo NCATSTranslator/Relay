@@ -1,0 +1,110 @@
+[
+    {
+        "model": "tr_ars.agent",
+        "pk": 10,
+        "fields": {
+            "name": "ara-arax-agent",
+            "description": null,
+            "uri": "http://localhost:8000/arax/api",
+            "contact": null,
+            "registered": "2020-08-04T18:56:34.339Z",
+            "updated": "2020-08-04T18:56:34.340Z"
+        }
+    },
+    {
+        "model": "tr_ars.agent",
+        "pk": 20,
+        "fields": {
+            "name": "ara-bte-agent",
+            "description": null,
+            "uri": "http://localhost:8000/bte/api",
+            "contact": null,
+            "registered": "2020-08-03T19:12:14.721Z",
+            "updated": "2020-08-03T19:12:14.722Z"
+        }
+    },
+    {
+        "model": "tr_ars.agent",
+        "pk": 30,
+        "fields": {
+            "name": "ara-robokop-agent",
+            "description": "simple wrapper around robokop agent",
+            "uri": "http://localhost:8000/robokop/api",
+            "contact": "hello@ncats.io",
+            "registered": "2020-05-13T13:07:47Z",
+            "updated": "2020-07-09T16:35:53.049Z"
+        }
+    },
+    {
+        "model": "tr_ars.agent",
+        "pk": 40,
+        "fields": {
+            "name": "ara-rtx-agent",
+            "description": null,
+            "uri": "http://localhost:5000",
+            "contact": null,
+            "registered": "2020-05-13T12:35:13.946Z",
+            "updated": "2020-05-13T12:35:13.946Z"
+        }
+    },
+    {
+        "model": "tr_ars.agent",
+        "pk": 50,
+        "fields": {
+            "name": "ara-unsecret-agent",
+            "description": null,
+            "uri": "http://localhost:8000/unsecret/api",
+            "contact": null,
+            "registered": "2020-07-21T13:20:56.693Z",
+            "updated": "2020-07-21T13:20:56.693Z"
+        }
+    },
+    {
+        "model": "tr_ars.agent",
+        "pk": 60,
+        "fields": {
+            "name": "aragorn",
+            "description": "Ranking Agent ARA",
+            "uri": "http://robokop.renci.org:5781",
+            "contact": "patrick@covar.com",
+            "registered": "2020-07-09T16:35:53Z",
+            "updated": "2020-07-09T16:36:42.339Z"
+        }
+    },
+    {
+        "model": "tr_ars.agent",
+        "pk": 70,
+        "fields": {
+            "name": "ars-default-agent",
+            "description": "Built-in ARS default agent",
+            "uri": "",
+            "contact": "ncatstranslator@nih.gov",
+            "registered": "2020-05-13T12:32:17.853Z",
+            "updated": "2020-05-13T12:32:17.854Z"
+        }
+    },
+    {
+        "model": "tr_ars.agent",
+        "pk": 80,
+        "fields": {
+            "name": "kp-genetics-agent",
+            "description": null,
+            "uri": "http://localhost:8000/genetics/api",
+            "contact": null,
+            "registered": "2020-06-26T20:00:51.941Z",
+            "updated": "2020-07-21T13:22:16.183Z"
+        }
+    },
+    {
+        "model": "tr_ars.agent",
+        "pk": 90,
+        "fields": {
+            "name": "kp-molecular-agent",
+            "description": null,
+            "uri": "http://localhost:8000/molecular/api",
+            "contact": null,
+            "registered": "2020-07-21T13:24:00.648Z",
+            "updated": "2020-07-21T13:24:00.648Z"
+        }
+    }
+]
