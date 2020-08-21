@@ -78,6 +78,14 @@ class Message(ARSModel):
     def __str__(self):
         return "message[%s]{name:%s, status:%s}" % (self.id,
                                                     self.name, self.status)
+    @classmethod
+    def create(self, *args, **kwargs):
+        if 'status' in kwargs:
+            for elem in Message.STATUS:
+                if elem[1] == kwargs['status']:
+                    kwargs['status'] = elem[0]
+        return Message(*args, **kwargs)
+
     def to_dict(self):
         jsonobj = ARSModel.to_dict(self)
         if 'fields' in jsonobj:

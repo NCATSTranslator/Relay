@@ -51,7 +51,7 @@ def submit(req):
         if 'message' not in data:
             return HttpResponse('Not a valid Translator query json', status=400)
         # create a head message
-        message = Message(code=200, status='D', data=data,
+        message = Message.create(code=200, status='Done', data=data,
                           actor=get_default_actor())
         if 'name' in data:
             message.name = data['name']
@@ -81,7 +81,7 @@ def messages(req):
             actor = Agent.objects.get(pk=data['actor'])
             # logger.debug('*** actor: %s' % actor)
 
-            mesg = Message(name=data['name'], status=data['status'],
+            mesg = Message.create(name=data['name'], status=data['status'],
                            actor=actor)
             if 'data' in data and data['data'] != None:
                 mesg.data = data['data']
