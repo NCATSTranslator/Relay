@@ -51,15 +51,15 @@ def submit(req):
         if 'message' not in data:
             return HttpResponse('Not a valid Translator query json', status=400)
         # create a head message
-        message = Message(code=200, status='D', data=json.dumps(data),
+        message = Message(code=200, status='D', data=data,
                           actor=get_default_actor())
         if 'name' in data:
             message.name = data['name']
         # save and broadcast
         message.save()
-        payload = data
+        #payload = data
         data = message.to_dict()
-        data['fields']['data'] = payload
+        #data['fields']['data'] = payload
         return HttpResponse(json.dumps(data, indent=2),
                             content_type='application/json', status=201)
     except:
@@ -114,7 +114,7 @@ def trace_message_deepfirst(node):
     for child in children:
         n = {
             'message': str(child.id),
-            'status': child.status,
+            'status': dict(Message.STATUS)[child.status],
             'actor': {
                 'channel': child.actor.channel.name,
                 'agent': child.actor.agent.name,
@@ -131,7 +131,7 @@ def trace_message(req, key):
         mesg = Message.objects.get(pk=key)
         tree = {
             'message': str(mesg.id),
-            'status': mesg.status,
+            'status': dict(Message.STATUS)[mesg.status],
             'actor': {
                 'channel': mesg.actor.channel.name,
                 'agent': mesg.actor.agent.name,

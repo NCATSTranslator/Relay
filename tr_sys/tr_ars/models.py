@@ -70,7 +70,7 @@ class Message(ARSModel):
     status = models.CharField(max_length=2, choices=STATUS)
     actor = models.ForeignKey(Actor, null=False, on_delete=models.CASCADE)
     timestamp = models.DateTimeField(null=False, default=timezone.now)
-    data = models.TextField('data payload', null=True)
+    data = models.JSONField('data payload', null=True)
     url = models.URLField('location of data', max_length=256, null=True)
     ref = models.ForeignKey('self', null=True, blank=True,
                             on_delete=models.CASCADE)
@@ -85,12 +85,6 @@ class Message(ARSModel):
                 for elem in Message.STATUS:
                     if elem[0] == jsonobj['fields']['status']:
                         jsonobj['fields']['status'] = elem[1]
-            if 'data' in jsonobj['fields']:
-                try:
-                    jsonD = json.loads(jsonobj['fields']['data'])
-                    jsonobj['fields']['data'] = jsonD
-                except JSONDecodeError:
-                    pass
         return jsonobj
 
 
