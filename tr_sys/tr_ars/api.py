@@ -57,9 +57,7 @@ def submit(req):
             message.name = data['name']
         # save and broadcast
         message.save()
-        #payload = data
         data = message.to_dict()
-        #data['fields']['data'] = payload
         return HttpResponse(json.dumps(data, indent=2),
                             content_type='application/json', status=201)
     except:
