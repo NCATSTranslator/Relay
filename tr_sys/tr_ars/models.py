@@ -80,6 +80,7 @@ class Message(ARSModel):
                                                     self.name, self.status)
     @classmethod
     def create(self, *args, **kwargs):
+        # convert status long name to code for saving
         if 'status' in kwargs:
             for elem in Message.STATUS:
                 if elem[1] == kwargs['status']:
@@ -88,6 +89,7 @@ class Message(ARSModel):
 
     def to_dict(self):
         jsonobj = ARSModel.to_dict(self)
+        # convert status code to long name for display
         if 'fields' in jsonobj:
             if 'status' in jsonobj['fields']:
                 for elem in Message.STATUS:
