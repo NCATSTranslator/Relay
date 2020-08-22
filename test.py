@@ -2,6 +2,9 @@ from contextlib import closing
 import requests
 import json
 import os
+import time
+
+time.sleep(20) # wait for server to come up
 
 syscall = "curl -d @tr_sys/tr_ara_unsecret/unsecretAgent.json http://localhost:8000/ars/api/agents"
 fp = os.popen(syscall)
