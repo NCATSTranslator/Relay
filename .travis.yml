@@ -1,4 +1,9 @@
 language: python
-script: python test.py
+script: python server.py debug
 install:
   - pip install -r requirements.txt
+before_script:
+  - python tr_sys/manage.py makemigrations tr_ars
+  - python tr_sys/manage.py migrate
+  - python tr_sys/manage.py runserver --noreload &
+  - sleep 10 # give some time for server to come up

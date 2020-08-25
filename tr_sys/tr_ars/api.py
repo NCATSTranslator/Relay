@@ -114,6 +114,7 @@ def trace_message_deepfirst(node):
             'message': str(child.id),
             'status': dict(Message.STATUS)[child.status],
             'actor': {
+                'pk': child.actor.pk,
                 'channel': child.actor.channel.name,
                 'agent': child.actor.agent.name,
                 'path': child.actor.path
@@ -131,6 +132,7 @@ def trace_message(req, key):
             'message': str(mesg.id),
             'status': dict(Message.STATUS)[mesg.status],
             'actor': {
+                'pk': mesg.actor.pk,
                 'channel': mesg.actor.channel.name,
                 'agent': mesg.actor.agent.name,
                 'path': mesg.actor.path
@@ -319,6 +321,8 @@ def actors(req):
                 data = data['fields']
             actor, status = get_or_create_actor(data)
             data = actor.to_dict()
+            data['fields']['channel'] = actor.channel.name
+            data['fields']['agent'] = actor.agent.name
             return HttpResponse(json.dumps(data, indent=2),
                                 content_type='application/json', status=status)
         except Channel.DoesNotExist:
