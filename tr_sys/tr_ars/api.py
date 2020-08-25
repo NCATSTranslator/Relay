@@ -8,7 +8,7 @@ from django.utils import timezone
 from .models import Agent, Message, Channel, Actor
 import json, sys, logging, traceback, html
 from inspect import currentframe, getframeinfo
-from . import urls
+from . import urls, status_report
 
 logger = logging.getLogger(__name__)
 
@@ -335,3 +335,9 @@ def actors(req):
             logger.debug("Unexpected error: %s" % sys.exc_info())
             return HttpResponse('Not a valid json format', status=400)
     return HttpResponse('Unsupported method %s' % req.method, status=400)
+
+@csrf_exempt
+def status(req):
+    if req.method == 'GET':
+        return HttpResponse(json.dumps(status_report.status(req), indent=2),
+                            content_type='application/json', status=200)

@@ -11,6 +11,7 @@ apipatterns = [
     re_path(r'^channels/?$', api.channels, name='ars-channels'),
     path('agents/<name>', api.get_agent, name='ars-agent'),
     path('messages/<uuid:key>', api.message, name='ars-message'),
+    re_path(r'^status/?$', api.status, name='ars-status'),
 ]
 
 urlpatterns = [
