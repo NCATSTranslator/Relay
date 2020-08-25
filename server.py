@@ -4,6 +4,7 @@ import json
 import sys
 import os
 import subprocess
+from subprocess import PIPE
 import time
 
 dbfile = "tr_sys/db.sqlite3"
@@ -12,18 +13,18 @@ server = "http://localhost:8000/ars"
 
 def addUnsecret():
     syscall = ["curl", "-d", "@tr_sys/tr_ara_unsecret/unsecretAgent.json", server+"/api/agents"]
-    fp = subprocess.run(syscall, capture_output=True)
+    fp = subprocess.run(syscall, stdout=PIPE)
     agent = json.loads(fp.stdout)
     assert agent["model"] == "tr_ars.agent"
     syscall = ["curl", "-d", "@tr_sys/tr_ara_unsecret/unsecretActor.json", server+"/api/actors"]
-    fp = subprocess.run(syscall, capture_output=True)
+    fp = subprocess.run(syscall, stdout=PIPE)
     actor = json.loads(fp.stdout)
     assert actor["model"] == "tr_ars.actor"
     return actor["pk"]
 
 def execUnsecret(unsecret):
     syscall = ["curl", "-d", "@tr_sys/tr_ara_unsecret/unsecretStatusQuery.json", server+"/api/submit"]
-    fp = subprocess.run(syscall, capture_output=True)
+    fp = subprocess.run(syscall, stdout=PIPE)
     message = json.loads(fp.stdout)
     assert message["model"] == "tr_ars.message"
     time.sleep(5)
