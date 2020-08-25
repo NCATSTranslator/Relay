@@ -1,4 +1,4 @@
-from django.http import HttpResponse, Http404
+from django.http import HttpResponse, Http404, JsonResponse
 from django.urls import reverse
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
@@ -12,14 +12,18 @@ from . import urls
 
 logger = logging.getLogger(__name__)
 
+
 def index(req):
     page = "Translator ARS API.<br>\n"
     for item in urls.apipatterns:
         try:
-            page = page + "<a href='" + req.build_absolute_uri(reverse(item.name)) + "'>" + html.escape(req.build_absolute_uri(reverse(item.name))) + "</a><br>\n"
+            page = page + "<a href='" + req.build_absolute_uri(reverse(item.name)) + "'>" + html.escape(
+                req.build_absolute_uri(reverse(item.name))) + "</a><br>\n"
         except:
-            page = page + "<a href='" + str(item.pattern) + "'>" + html.escape(req.build_absolute_uri()+str(item.pattern)) + "</a><br>\n"
+            page = page + "<a href='" + str(item.pattern) + "'>" + html.escape(
+                req.build_absolute_uri() + str(item.pattern)) + "</a><br>\n"
     return HttpResponse(page)
+
 
 DEFAULT_ACTOR = {
     'channel': 'general',
@@ -30,10 +34,12 @@ DEFAULT_ACTOR = {
     'path': ''
 }
 
+
 def get_default_actor():
     # default actor is the first actor initialized in the database per
     # apps.setup_schema()
     return get_or_create_actor(DEFAULT_ACTOR)[0]
+
 
 @csrf_exempt
 def submit(req):
@@ -45,15 +51,13 @@ def submit(req):
         if 'message' not in data:
             return HttpResponse('Not a valid Translator query json', status=400)
         # create a head message
-        message = Message (code=200, status='D', data=json.dumps(data),
-                           actor=get_default_actor())
+        message = Message.create(code=200, status='Done', data=data,
+                          actor=get_default_actor())
         if 'name' in data:
             message.name = data['name']
         # save and broadcast
         message.save()
-        payload = data
         data = message.to_dict()
-        data['fields']['data'] = payload
         return HttpResponse(json.dumps(data, indent=2),
                             content_type='application/json', status=201)
     except:
@@ -63,24 +67,11 @@ def submit(req):
 @csrf_exempt
 def messages(req):
     if req.method == 'GET':
-        messages = Message.objects.order_by('-timestamp')[:10]
-        response = HttpResponse(serializers.serialize('json', messages),
+        response = []
+        for mesg in  Message.objects.order_by('-timestamp')[:10]:
+            response.append(Message.objects.get(pk=mesg.pk).to_dict())
+        return HttpResponse(json.dumps(response),
                             content_type='application/json', status=200)
-        jsonR = json.loads(response.content)
-        for item in jsonR:
-            if 'fields' in item:
-                if 'status' in item['fields']:
-                    for entry in Message.STATUS:
-                        if entry[0] == item['fields']['status']:
-                            item['fields']['status'] = entry[1]
-                if 'data' in item['fields']:
-                    try:
-                        jsonD = json.loads(item['fields']['data'])
-                        item['fields']['data'] = jsonD
-                    except:
-                        donothing = 1
-        response.content = json.dumps(jsonR)
-        return response
     elif req.method == 'POST':
         try:
             data = json.loads(req.body)
@@ -88,9 +79,9 @@ def messages(req):
                 return HttpResponse('Not a valid ARS json', status=400)
 
             actor = Agent.objects.get(pk=data['actor'])
-            #logger.debug('*** actor: %s' % actor)
-            
-            mesg = Message(name=data['name'], status=data['status'],
+            # logger.debug('*** actor: %s' % actor)
+
+            mesg = Message.create(name=data['name'], status=data['status'],
                            actor=actor)
             if 'data' in data and data['data'] != None:
                 mesg.data = data['data']
@@ -105,14 +96,15 @@ def messages(req):
 
         except Message.DoesNotExist:
             return HttpResponse('Unknown state reference %d' % rid, status=404)
-        
+
         except Actor.DoesNotExist:
             return HttpResponse('Unknown actor: %s!' % data['actor'],
                                 status=404)
         except:
             logger.debug("Unexpected error: %s" % sys.exc_info())
-            
+
         return HttpResponse('Internal server error', status=500)
+
 
 def trace_message_deepfirst(node):
     children = Message.objects.filter(ref__pk=node['message'])
@@ -120,7 +112,7 @@ def trace_message_deepfirst(node):
     for child in children:
         n = {
             'message': str(child.id),
-            'status': child.status,
+            'status': dict(Message.STATUS)[child.status],
             'actor': {
                 'channel': child.actor.channel.name,
                 'agent': child.actor.agent.name,
@@ -130,13 +122,14 @@ def trace_message_deepfirst(node):
         }
         trace_message_deepfirst(n)
         node['children'].append(n)
-        
+
+
 def trace_message(req, key):
     try:
         mesg = Message.objects.get(pk=key)
         tree = {
             'message': str(mesg.id),
-            'status': mesg.status,
+            'status': dict(Message.STATUS)[mesg.status],
             'actor': {
                 'channel': mesg.actor.channel.name,
                 'agent': mesg.actor.agent.name,
@@ -145,13 +138,14 @@ def trace_message(req, key):
             'children': []
         }
         trace_message_deepfirst(tree)
-        return HttpResponse(json.dumps(tree,indent=2),
+        return HttpResponse(json.dumps(tree, indent=2),
                             content_type='application/json',
                             status=200)
     except Message.DoesNotExit:
         logger.debug('Unknown message: %s' % key)
         return HttpResponse('Unknown message: %s' % key, status=404)
     return HttpResponse('Internal server error', status=500)
+
 
 def message(req, key):
     if req.method != 'GET':
@@ -162,9 +156,11 @@ def message(req, key):
         mesg = Message.objects.get(pk=key)
         return HttpResponse(json.dumps(mesg.to_dict(), indent=2),
                             status=200)
+
     except Message.DoesNotExit:
         return HttpResponse('Unknown message: %s' % key, status=404)
-    
+
+
 @csrf_exempt
 def channels(req):
     if req.method == 'GET':
@@ -177,7 +173,7 @@ def channels(req):
             data = json.loads(req.body)
             if 'model' in data and 'tr_ars.channel' == data['model']:
                 data = data['fields']
-                
+
             if 'name' not in data:
                 return HttpResponse('JSON does not contain "name" field',
                                     status=400)
@@ -197,6 +193,7 @@ def channels(req):
             return HttpResponse('Internal server error', status=500)
     return HttpResponse('Unsupported method %s' % req.method, status=400)
 
+
 @csrf_exempt
 def agents(req):
     if req.method == 'GET':
@@ -210,7 +207,7 @@ def agents(req):
             if 'model' in data and 'tr_ars.agent' == data['model']:
                 # this in the serialized model of agent
                 data = data['fields']
-                
+
             if 'name' not in data or 'uri' not in data:
                 return HttpResponse(
                     'JSON does not contain "name" and "uri" fields',
@@ -240,6 +237,7 @@ def agents(req):
             return HttpResponse('Not a valid json format', status=400)
     return HttpResponse('Unsupported method %s' % req.method, status=400)
 
+
 def get_agent(req, name):
     try:
         agent = Agent.objects.get(name=name)
@@ -249,12 +247,13 @@ def get_agent(req, name):
     except Agent.DoesNotExist:
         return HttpResponse('Unknown agent: %s' % name, status=400)
 
+
 def get_or_create_actor(data):
     if ('channel' not in data or 'agent' not in data or 'path' not in data):
         return HttpResponse(
             'JSON does not contain "channel", "agent", and "path" fields',
             status=400)
-            
+
     channel = data['channel']
     if isinstance(channel, int):
         channel = Channel.objects.get(pk=channel)
@@ -287,18 +286,19 @@ def get_or_create_actor(data):
                                 data['agent']))
         else:
             return HttpResponse('Invalid agent object: %s' % data['agent'])
-                    
+
     actor, created = Actor.objects.get_or_create(
         channel=channel, agent=agent, path=data['path'])
-            
+
     status = 201
     if not created:
         if actor.path != data['path']:
             actor.path = data['path']
-            actor.save() # update
+            actor.save()  # update
         status = 302
     return (actor, status)
-    
+
+
 @csrf_exempt
 def actors(req):
     if req.method == 'GET':

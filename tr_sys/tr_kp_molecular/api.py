@@ -35,7 +35,7 @@ def runkp(req):
                 data = None # only work on query message
                 mesg = 'Not head message'
             elif 'data' in data and data['data'] != None:
-                data = json.loads(data['data'])
+                data = data['data']
             elif 'url' in data and data['url'] != None:
                 data = requests.get(data['url'], timeout=60).json()
             else:

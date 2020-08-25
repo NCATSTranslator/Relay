@@ -23,8 +23,8 @@ def send_message(actor, mesg, timeout=60):
             status = 'U'
             if 'tr_ars.message.status' in r.headers:
                 status = r.headers['tr_ars.message.status']
-            mesg = Message(code=r.status_code, status=status,
-                           data=r.text, actor=actor,
+            mesg = Message.create(code=r.status_code, status=status,
+                           data=json.loads(r.text), actor=actor,
                            name=mesg.name, ref=mesg)
             mesg.save()
     except:
