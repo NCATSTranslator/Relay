@@ -27,8 +27,11 @@ def status_ars(req, smartapi):
     for a in Actor.objects.exclude(path__exact=''):
         actor = json.loads(serializers.serialize('json', [a]))[0]
         del actor['fields']
-        #actor['fields']['channel'] = a.channel.name
-        #actor['fields']['agent'] = a.agent.name
+        #actor['name'] = a.agent.name + '-' + a.path
+        actor['channel'] = a.channel.name
+        actor['agent'] = a.agent.name
+        actor['remote'] = a.remote
+        actor['path'] = req.build_absolute_uri(a.url())
         actor['messages'] = Message.objects.filter(actor=a.pk).count()
         for mesg in Message.objects.filter(actor=a.pk).order_by('-timestamp')[:1]:
             actor['latest'] = req.build_absolute_uri("/ars/api/messages/"+str(mesg.pk))
@@ -40,7 +43,7 @@ def status_ars(req, smartapi):
                         actor['status'] = elem[1]
         if 'status' not in actor:
             actor['status'] = Message.STATUS[-1][1]
-        response["actors"][a.agent.name] = actor
+        response['actors'][a.agent.name + '-' + a.path] = actor
 
     if 'latest' in response['messages']:
         response['messages']['latest'] = str(latest.timestamp)

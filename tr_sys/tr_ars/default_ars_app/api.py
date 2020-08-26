@@ -9,7 +9,7 @@ from django.views.decorators.csrf import csrf_exempt
 
 logger = logging.getLogger(__name__)
 
-REASONER_URL = 'https://translator.broadinstitute.org/genetics_data_provider/query'
+QUERY_URL = 'https://translator.broadinstitute.org/genetics_data_provider/query'
 
 def index(req):
     return HttpResponse('Example Data Provider wrapper API available via POST at %s\n'
@@ -21,7 +21,7 @@ def query(url, data, timeout=600):
     logger.debug('%d: %s\n%s' % (r.status_code, r.headers, r.text))
     return r
 
-def callreasoner(url, req):
+def callquery(url, req):
     if req.method != 'POST':
         return HttpResponse('Method %s not supported!' % req.method, status=400)
 
@@ -59,5 +59,5 @@ def callreasoner(url, req):
 
 @csrf_exempt
 def runapp(req):
-    return callreasoner(REASONER_URL, req)
+    return callquery(QUERY_URL, req)
 
