@@ -1,5 +1,6 @@
 from django.urls import path, include
 
+from . import views
 from . import api
 
 apipatterns = [
@@ -13,6 +14,9 @@ apipatterns = [
     path(r'messages/<uuid:key>', api.message, name='ars-message'),
 ]
 
+
+
 urlpatterns = [
     path(r'api/', include(apipatterns)),
+    path(r'answer/<uuid:key>', views.answer, name='ars-answer'),
 ]

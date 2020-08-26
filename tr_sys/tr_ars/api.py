@@ -331,3 +331,26 @@ def actors(req):
             logger.debug("Unexpected error: %s" % sys.exc_info())
             return HttpResponse('Not a valid json format', status=400)
     return HttpResponse('Unsupported method %s' % req.method, status=400)
+@csrf_exempt
+def answers(req, key):
+    if req.method != 'GET':
+        return HttpResponse('Method %s not supported!' % req.method, status=400)
+    try:
+        baseMessage = json.loads(message(req,key).content)
+        queryGraph = baseMessage['fields']['data']
+        response = trace_message(req,key)
+        jsonRes = response.content
+        jsonRes.update({"query_graph":queryGraph})
+        # html = '<html><body>Answers for the query graph:<br>'
+        # html+="<pre>"+json.dumps(queryGraph,indent=2)+"</pre><br>"
+        # for child in jsonRes['children']:
+        #     childId = str(child['message'])
+        #     childStatus = str(child['status'])
+        #     html += "<a href="+str(req.META['HTTP_HOST'])+"/ars/api/messages/"+childId+" target=\"_blank\">"+str(child['actor']['agent'])+"</a>"
+        #     html += "<br>"
+        # html+="</body></html>"mesg
+        pass
+        print()
+        return HttpResponse(json.loads(jsonRes),status=200)
+    except Message.DoesNotExit:
+        return HttpResponse('Unknown message: %s' % key, status=404)
