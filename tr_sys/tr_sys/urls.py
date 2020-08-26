@@ -17,16 +17,18 @@ from django.conf.urls import url
 from django.contrib import admin
 from django.urls import include, path
 from tr_ara_unsecret.unsecret_app import AppConfig as UnsecretApp
+from tr_ara_arax.arax_app import AppConfig as ARAXApp
+from tr_ara_bte.bte_app import AppConfig as BTEApp
 
 urlpatterns = [
     url(r'^admin/', admin.site.urls),
     url(r'^ars/', include('tr_ars.urls')),
     #url(r'^example/', include('tr_ars.default_ars_app.urls')),
     url(r'^robokop/', include('tr_ara_robokop.urls')),
-    url(r'^bte/', include('tr_ara_bte.urls')),
+    url(BTEApp.regex_path, include(BTEApp.name)),
     url(r'^ncats/',include('tr_ara_ncats.urls')),
     url(UnsecretApp.regex_path, include(UnsecretApp.name)),
-    url(r'^arax/',include('tr_ara_arax.urls')),
+    url(ARAXApp.regex_path,include(ARAXApp.name)),
     url(r'^molecular/',include('tr_kp_molecular.urls')),
     url(r'^genetics/',include('tr_kp_genetics.urls'))
 ]

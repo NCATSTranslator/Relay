@@ -11,16 +11,24 @@ dbfile = "tr_sys/db.sqlite3"
 python = sys.executable #python or python3
 server = "http://localhost:8000/ars"
 
-def addUnsecret():
-    syscall = ["curl", "-d", "@tr_sys/tr_ara_unsecret/unsecretAgent.json", server+"/api/agents"]
-    fp = subprocess.run(syscall, stdout=PIPE)
-    agent = json.loads(fp.stdout)
-    assert agent["model"] == "tr_ars.agent"
-    syscall = ["curl", "-d", "@tr_sys/tr_ara_unsecret/unsecretActor.json", server+"/api/actors"]
-    fp = subprocess.run(syscall, stdout=PIPE)
-    actor = json.loads(fp.stdout)
-    assert actor["model"] == "tr_ars.actor"
-    return actor["pk"]
+def getUnsecret():
+    # syscall = ["curl", "-d", "@tr_sys/tr_ara_unsecret/unsecretAgent.json", server+"/api/agents"]
+    # fp = subprocess.run(syscall, stdout=PIPE)
+    # agent = json.loads(fp.stdout)
+    # assert agent["model"] == "tr_ars.agent"
+    # syscall = ["curl", "-d", "@tr_sys/tr_ara_unsecret/unsecretActor.json", server+"/api/actors"]
+    # fp = subprocess.run(syscall, stdout=PIPE)
+    # actor = json.loads(fp.stdout)
+    # assert actor["model"] == "tr_ars.actor"
+    response = requests.get(server+"/api/actors")
+    actors = response.json()
+    actorpk = 0
+    for actor in actors:
+        if 'fields' in actor:
+            if actor['fields']['name'] == "ara-unsecret-runquery":
+                actorpk = actor['pk']
+    assert actorpk > 0
+    return actorpk
 
 def execUnsecret(unsecret):
     syscall = ["curl", "-d", "@tr_sys/tr_ara_unsecret/unsecretStatusQuery.json", server+"/api/submit"]
@@ -49,7 +57,7 @@ def validateQuery():
         assert status_code == 200
 
 def runTests():
-    unsecret = addUnsecret()
+    unsecret = getUnsecret()
     execUnsecret(unsecret)
 
 if __name__ == "__main__":

@@ -3,9 +3,9 @@ from django.urls import path, include
 from tr_ars.default_ars_app.api import *
 
 class AppConfig(SuperAppConfig):
-    name = 'tr_ara_unsecret.unsecret_app' # must be dot path for module
-    actors = [('https://unsecret.ncats.io/query', 'runquery', 'general')] # tuple of remote, name, channel
-    app_path = 'ara-unsecret'
+    name = 'tr_ara_bte.bte_app' # must be dot path for module
+    actors = [('https://api.bte.ncats.io/query', 'runquery', 'general')] # tuple of remote, name, channel
+    app_path = 'ara-bte'
 
 ### code below this line is required, but doesn't require updating in most cases
 

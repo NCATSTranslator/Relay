@@ -9,6 +9,8 @@ from django.views.decorators.csrf import csrf_exempt
 
 logger = logging.getLogger(__name__)
 
+SERVER = "http://localhost:8000" # TODO get base URL properly from server on startup
+
 QUERY_URL = 'https://translator.broadinstitute.org/genetics_data_provider/query'
 
 def index(req):
