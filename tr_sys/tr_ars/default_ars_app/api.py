@@ -1,26 +1,27 @@
+import json
+import logging
+import requests
+import sys
+
+from django.http import HttpResponse
 from django.urls import reverse
-from django.http import HttpResponse, Http404
 from django.views.decorators.csrf import csrf_exempt
-from django.core import serializers
-import json, sys, logging, requests
 
 logger = logging.getLogger(__name__)
 
-
-QUERY_URL = 'https://unsecret.ncats.io/query'
+REASONER_URL = 'https://translator.broadinstitute.org/genetics_data_provider/query'
 
 def index(req):
-    return HttpResponse('Unsecret Agent wrapper API available via POST at %s\n' 
+    return HttpResponse('Example Data Provider wrapper API available via POST at %s\n'
                         % req.build_absolute_uri(
-                            reverse('ara-unsecret-rununsecretquery')))  
+                            reverse('run-app-query')))
 
-def query(data, timeout=600):
-    r = requests.post(QUERY_URL, json=data, timeout=timeout)
+def query(url, data, timeout=600):
+    r = requests.post(url, json=data, timeout=timeout)
     logger.debug('%d: %s\n%s' % (r.status_code, r.headers, r.text))
     return r
 
-@csrf_exempt
-def runara(req):
+def callreasoner(url, req):
     if req.method != 'POST':
         return HttpResponse('Method %s not supported!' % req.method, status=400)
 
@@ -42,7 +43,7 @@ def runara(req):
                 mesg = 'Not a valid tr_ars.message'
 
             if data != None:
-                r = query(data)
+                r = query(url, data)
                 resp =  HttpResponse(r.text,
                                      content_type='application/json',
                                      status=r.status_code)
@@ -51,9 +52,12 @@ def runara(req):
     except:
         mesg = 'Unexpected error: %s' % sys.exc_info()
         logger.debug(mesg)
-        
+
     # notify the ARS that we have nothing to contribute
     resp = HttpResponse(mesg, status=400)
     return resp
 
-        
+@csrf_exempt
+def runapp(req):
+    return callreasoner(REASONER_URL, req)
+

@@ -33,11 +33,12 @@ ALLOWED_HOSTS = ['ars.transltr.io','localhost']
 INSTALLED_APPS = [
     'channels',
     'tr_ars.apps.ARSConfig',
+    #'tr_ars.default_ars_app.apps.ARSAppConfig',
     'tr_ara_robokop.apps.RobokopConfig',
     'tr_ara_bte.apps.BTEConfig',
     'tr_ara_arax.apps.ARAXConfig',
     'tr_ara_ncats.apps.NCATSConfig',
-    'tr_ara_unsecret.apps.UnsecretConfig',
+    'tr_ara_unsecret.unsecret_app.UnsecretConfig',
     'tr_kp_molecular.apps.MolecularConfig',
     'tr_kp_genetics.apps.GeneticsConfig',
     'django.contrib.admin',

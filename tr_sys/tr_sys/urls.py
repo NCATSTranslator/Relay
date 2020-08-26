@@ -20,10 +20,11 @@ from django.urls import include, path
 urlpatterns = [
     url(r'^admin/', admin.site.urls),
     url(r'^ars/', include('tr_ars.urls')),
+    #url(r'^example/', include('tr_ars.default_ars_app.urls')),
     url(r'^robokop/', include('tr_ara_robokop.urls')),
     url(r'^bte/', include('tr_ara_bte.urls')),
     url(r'^ncats/',include('tr_ara_ncats.urls')),
-    url(r'^unsecret/',include('tr_ara_unsecret.urls')),
+    url(r'^unsecret/',include('tr_ara_unsecret.unsecret_app')),
     url(r'^arax/',include('tr_ara_arax.urls')),
     url(r'^molecular/',include('tr_kp_molecular.urls')),
     url(r'^genetics/',include('tr_kp_genetics.urls'))

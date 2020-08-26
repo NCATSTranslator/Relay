@@ -1,9 +1,10 @@
 from django.urls import path, include
+
 from . import api
 
 apipatterns = [
-    path(r'', api.index, name='ara-unsecret-api'),
-    path(r'rununsecretquery', api.runara, name='ara-unsecret-runquery')
+    path(r'', api.index, name='app-name-api'),
+    path(r'runappquery', api.runapp, name='run-app-query')
 ]
 
 urlpatterns = [
