@@ -63,3 +63,30 @@ def callquery(url, req):
 def runapp(req):
     return callquery(QUERY_URL, req)
 
+def init_api_fn(actor):
+    @csrf_exempt
+    def fn(req):
+        return callquery(actor[0], req)
+    fn.__name__ = actor[1]
+    fn.__doc__ = "Forward api request at %s to %s" % (actor[1], actor[0])
+    return fn
+
+def init_api_index(actors, app_path):
+    def fn(req):
+        data = dict()
+        data['agent'] = app_path
+        data['actors'] = []
+        for actor in actors:
+            query_name = app_path + '-' + actor[1]
+            actorObj = dict()
+            actorObj['name'] = query_name
+            actorObj['channel'] = actor[2]
+            actorObj['remote'] = actor[0]
+            actorObj['path'] = req.build_absolute_uri(reverse(query_name))
+            data['actors'].append(actorObj)
+        return HttpResponse(json.dumps(data, indent=2),
+                            content_type='application/json', status=200)
+    fn.__name__ = "index"
+    fn.__doc__ = "index api response describing agent"
+    return fn
+

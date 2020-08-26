@@ -33,7 +33,7 @@ ALLOWED_HOSTS = ['ars.transltr.io','localhost']
 INSTALLED_APPS = [
     'channels',
     'tr_ars.apps.ARSConfig',
-    #'tr_ars.default_ars_app.apps.ARSAppConfig',
+    #'tr_ars.default_ars_app.ars_app.AppConfig',
     'tr_ara_robokop.apps.RobokopConfig',
     'tr_ara_bte.bte_app.AppConfig',
     'tr_ara_arax.arax_app.AppConfig',

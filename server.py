@@ -35,18 +35,20 @@ def execUnsecret(unsecret):
     fp = subprocess.run(syscall, stdout=PIPE)
     message = json.loads(fp.stdout)
     assert message["model"] == "tr_ars.message"
-    time.sleep(5)
-    response = requests.get(server+"/api/messages/"+message["pk"]+"?trace=y")
-    chain = response.json()
-    print(chain)
-    for child in chain["children"]:
-        if child["actor"]["pk"] == unsecret:
-            response = requests.get(server+"/api/messages/"+child["message"])
-            print(response.json())
-            answer = response.json()
-            assert len(answer["fields"]["data"]["results"]) > 1
-            return
-    raise
+    for i in range(5):
+        time.sleep(i*i*5)
+        response = requests.get(server+"/api/messages/"+message["pk"]+"?trace=y")
+        chain = response.json()
+        print(chain)
+        for child in chain["children"]:
+            if child["actor"]["pk"] == unsecret:
+                response = requests.get(server+"/api/messages/"+child["message"])
+                print(response.json())
+                answer = response.json()
+                assert len(answer["fields"]["data"]["results"]) > 1
+                return
+    assert unsecret < 0
+    return message
 
 def validateQuery():
     url ='http://transltr.io:7071/validate_querygraph'
