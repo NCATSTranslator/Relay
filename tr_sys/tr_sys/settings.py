@@ -38,7 +38,7 @@ INSTALLED_APPS = [
     'tr_ara_bte.apps.BTEConfig',
     'tr_ara_arax.apps.ARAXConfig',
     'tr_ara_ncats.apps.NCATSConfig',
-    'tr_ara_unsecret.unsecret_app.UnsecretConfig',
+    'tr_ara_unsecret.unsecret_app.AppConfig',
     'tr_kp_molecular.apps.MolecularConfig',
     'tr_kp_genetics.apps.GeneticsConfig',
     'django.contrib.admin',
