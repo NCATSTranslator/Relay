@@ -27,7 +27,9 @@ def getUnsecret():
         if 'fields' in actor:
             if actor['fields']['name'] == "ara-unsecret-runquery":
                 actorpk = actor['pk']
-    assert actorpk > 0
+    if actorpk == 0:
+        sys.stderr.write("Unsecret actor not found!\n")
+        assert actorpk > 0
     return actorpk
 
 def execUnsecret(unsecret):
@@ -47,6 +49,7 @@ def execUnsecret(unsecret):
                 answer = response.json()
                 assert len(answer["fields"]["data"]["results"]) > 1
                 return
+    sys.stderr.write("Could not find Unsecret message response!\n")
     assert unsecret < 0
     return message
 
