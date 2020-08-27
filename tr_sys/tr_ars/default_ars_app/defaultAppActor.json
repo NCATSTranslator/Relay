@@ -2,8 +2,8 @@
     "channel": "general",
     "agent": {
         "name": "agent-name",
-        "uri": "http://localhost:8000/example/api"
+        "uri": "http://localhost:8000/example/api/"
     },
-    "path":"/runappquery"
-    
+    "path":"runquery",
+    "remote": "https://www.google.com/query"
 }
