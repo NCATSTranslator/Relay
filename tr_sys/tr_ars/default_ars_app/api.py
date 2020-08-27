@@ -20,7 +20,7 @@ def index(req):
 
 def query(url, data, timeout=600):
     r = requests.post(url, json=data, timeout=timeout)
-    logger.debug('%d: %s\n%s' % (r.status_code, r.headers, r.text))
+    logger.debug('%d: %s\n%s' % (r.status_code, r.headers, r.text[:500]))
     return r
 
 def callquery(url, req):
@@ -46,7 +46,7 @@ def callquery(url, req):
 
             if data != None:
                 r = query(url, data)
-                resp =  HttpResponse(r.text,
+                resp = HttpResponse(r.text,
                                      content_type='application/json',
                                      status=r.status_code)
                 resp['tr_ars.message.status'] = 'R'

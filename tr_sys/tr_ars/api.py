@@ -235,7 +235,7 @@ def agents(req):
     elif req.method == 'POST':
         try:
             data = json.loads(req.body)
-            logger.debug('%s: payload...\n%s' % (req.path, req.body))
+            logger.debug('%s: payload...\n%s' % (req.path, str(req.body)[:500]))
             if 'model' in data and 'tr_ars.agent' == data['model']:
                 # this in the serialized model of agent
                 data = data['fields']
@@ -336,7 +336,7 @@ def actors(req):
     elif req.method == 'POST':
         try:
             data = json.loads(req.body)
-            logger.debug('%s: payload...\n%s' % (req.path, req.body))
+            logger.debug('%s: payload...\n%s' % (req.path, str(req.body)[:500]))
             if 'model' in data and 'tr_ars.agent' == data['model']:
                 # this in the serialized model of agent
                 data = data['fields']

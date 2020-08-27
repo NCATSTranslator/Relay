@@ -17,7 +17,7 @@ def send_message(actor, mesg, timeout=60):
     try:
         r = requests.post(url, json=data, timeout=timeout)
         logger.debug('%d: receive message from actor %s...\n%s.\n'
-                     % (r.status_code, url, r.text))
+                     % (r.status_code, url, str(r.text)[:500]))
         if r.status_code == 200:
             # now create a new message here
             status = 'U'
