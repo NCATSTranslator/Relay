@@ -30,7 +30,7 @@ def callquery(url, req):
     mesg = ''
     try:
         data = json.loads(req.body)
-        logger.debug('%s: received payload...\n%s' % (req.path, req.body))
+        logger.debug('%s: received payload...\n%s' % (req.path, str(req.body)[:500]))
         if 'model' in data and data['model'] == 'tr_ars.message':
             data = data['fields']
             if 'ref' in data and data['ref'] != None:
