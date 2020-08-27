@@ -45,7 +45,7 @@ def execUnsecret(unsecret):
         for child in chain["children"]:
             if child["actor"]["pk"] == unsecret:
                 response = requests.get(server+"/api/messages/"+child["message"])
-                print(response.json())
+                print(str(response.json())[:500])
                 answer = response.json()
                 assert len(answer["fields"]["data"]["results"]) > 1
                 return
