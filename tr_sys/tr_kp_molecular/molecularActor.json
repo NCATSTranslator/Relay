@@ -1,9 +1,0 @@
-{
-    "channel": "general",
-    "agent": {
-        "name": "kp-molecular-agent",
-        "uri": "http://localhost:8000/molecular/api"
-    },
-    "path":"/runmolecularquery"
-    
-}
