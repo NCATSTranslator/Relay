@@ -1,28 +1,36 @@
 from django.http import HttpResponse, Http404, JsonResponse
-from django.urls import reverse
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
 from django.shortcuts import get_object_or_404, render
 from django.core import serializers
 from django.utils import timezone
+from django.urls import path, re_path, include, reverse
 from .models import Agent, Message, Channel, Actor
 import json, sys, logging, traceback, html
 from inspect import currentframe, getframeinfo
-from . import urls, status_report
+from tr_ars import status_report
 
 logger = logging.getLogger(__name__)
 
 
 def index(req):
-    page = "Translator ARS API.<br>\n"
-    for item in urls.apipatterns:
+    data = dict()
+    data['name'] = "Translator ARS API"
+    data['entries'] = []
+    #page = "Translator ARS API.<br>\n"
+    for item in apipatterns:
         try:
-            page = page + "<a href='" + req.build_absolute_uri(reverse(item.name)) + "'>" + html.escape(
-                req.build_absolute_uri(reverse(item.name))) + "</a><br>\n"
+            #page = page + "<a href='" + req.build_absolute_uri(reverse(item.name)) + "'>" + html.escape(
+            #    req.build_absolute_uri(reverse(item.name))) + "</a><br>\n"
+            data['entries'].append(req.build_absolute_uri(reverse(item.name)))
         except:
-            page = page + "<a href='" + str(item.pattern) + "'>" + html.escape(
-                req.build_absolute_uri() + str(item.pattern)) + "</a><br>\n"
-    return HttpResponse(page)
+            #page = page + "<a href='" + str(item.pattern) + "'>" + html.escape(
+            #    req.build_absolute_uri() + str(item.pattern)) + "</a><br>\n"
+            data['entries'].append(req.build_absolute_uri() + str(item.pattern))
+    #return HttpResponse(page)
+    return HttpResponse(json.dumps(data, indent=2),
+                        content_type='application/json', status=200)
+
 
 
 DEFAULT_ACTOR = {
@@ -31,7 +39,8 @@ DEFAULT_ACTOR = {
         'name': 'ars-default-agent',
         'uri': ''
     },
-    'path': ''
+    'path': '',
+    'remote': ''
 }
 
 
@@ -196,6 +205,27 @@ def channels(req):
     return HttpResponse('Unsupported method %s' % req.method, status=400)
 
 
+def get_or_create_agent(data):
+    defs = {
+        'uri': data['uri']
+    }
+    if 'description' in data:
+        defs['description'] = data['description']
+    if 'contact' in data:
+        defs['contact'] = data['contact']
+    agent, created = Agent.objects.get_or_create(
+        name=data['name'], defaults=defs)
+
+    status = 201
+    if not created:
+        if data['uri'] != agent.uri:
+            # update uri
+            agent.uri = data['uri']
+            agent.save()
+        status = 302
+    data = agent.to_dict()
+    return data, status
+
 @csrf_exempt
 def agents(req):
     if req.method == 'GET':
@@ -214,24 +244,8 @@ def agents(req):
                 return HttpResponse(
                     'JSON does not contain "name" and "uri" fields',
                     status=400)
-            defs = {
-                'uri': data['uri']
-            }
-            if 'description' in data:
-                defs['description'] = data['description']
-            if 'contact' in data:
-                defs['contact'] = data['contact']
-            agent, created = Agent.objects.get_or_create(
-                name=data['name'], defaults=defs)
 
-            status = 201
-            if not created:
-                if data['uri'] != agent.uri:
-                    # update uri
-                    agent.uri = data['uri']
-                    agent.save()
-                status = 302
-            data = agent.to_dict()
+            data, status = get_or_create_agent(data)
             return HttpResponse(json.dumps(data, indent=2),
                                 content_type='application/json', status=status)
         except:
@@ -289,8 +303,11 @@ def get_or_create_actor(data):
         else:
             return HttpResponse('Invalid agent object: %s' % data['agent'])
 
+    if 'remote' not in data:
+        data['remote'] = None
+
     actor, created = Actor.objects.get_or_create(
-        channel=channel, agent=agent, path=data['path'])
+        channel=channel, agent=agent, path=data['path'], remote=data['remote'])
 
     status = 201
     if not created:
@@ -307,8 +324,12 @@ def actors(req):
         actors = []
         for a in Actor.objects.exclude(path__exact=''):
             actor = json.loads(serializers.serialize('json', [a]))[0]
+            actor['fields'] = dict()
+            actor['fields']['name'] = a.agent.name + '-' + a.path
             actor['fields']['channel'] = a.channel.name
             actor['fields']['agent'] = a.agent.name
+            actor['fields']['remote'] = a.remote
+            actor['fields']['path'] = req.build_absolute_uri(a.url())
             actors.append(actor)
         return HttpResponse(json.dumps(actors, indent=2),
                             content_type='application/json', status=200)
@@ -328,7 +349,7 @@ def actors(req):
         except Channel.DoesNotExist:
             logger.debug('Unknown channel: %s' % channel)
             return HttpResponse('Unknown channel: %s' % channel, status=404)
-        except Agent.DoesNotExit:
+        except Agent.DoesNotExist:
             logger.debug('Unknown agent: %s' % agent)
             return HttpResponse('Unknown agent: %s' % agent, status=404)
         except:
@@ -341,3 +362,19 @@ def status(req):
     if req.method == 'GET':
         return HttpResponse(json.dumps(status_report.status(req), indent=2),
                             content_type='application/json', status=200)
+
+apipatterns = [
+    path('', index, name='ars-api'),
+    re_path(r'^submit/?$', submit, name='ars-submit'),
+    re_path(r'^messages/?$', messages, name='ars-messages'),
+    re_path(r'^agents/?$', agents, name='ars-agents'),
+    re_path(r'^actors/?$', actors, name='ars-actors'),
+    re_path(r'^channels/?$', channels, name='ars-channels'),
+    path('agents/<name>', get_agent, name='ars-agent'),
+    path('messages/<uuid:key>', message, name='ars-message'),
+    re_path(r'^status/?$', status, name='ars-status'),
+]
+
+urlpatterns = [
+    path(r'api/', include(apipatterns)),
+]

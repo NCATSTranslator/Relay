@@ -1,9 +1,0 @@
-{
-    "channel": "general",
-    "agent": {
-        "name": "kp-genetics-agent",
-        "uri": "http://localhost:8000/genetics/api"
-    },
-    "path":"/rungeneticsquery"
-    
-}

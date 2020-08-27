@@ -23,14 +23,19 @@ def send_message(actor, mesg, timeout=60):
             status = 'U'
             if 'tr_ars.message.status' in r.headers:
                 status = r.headers['tr_ars.message.status']
+            data = dict()
+            try:
+                data = r.json()
+            except json.decoder.JSONDecodeError:
+                status = 'E'
             mesg = Message.create(code=r.status_code, status=status,
-                           data=json.loads(r.text), actor=actor,
+                           data=data, actor=actor,
                            name=mesg.name, ref=mesg)
             mesg.save()
     except:
-        logger.debug("Can't send message to actor %s\n%s"
+        logger.exception("Can't send message to actor %s\n%s"
                      % (url,sys.exc_info()))
-    
+
 def send_messages(actors, messages):
     for mesg in messages:
         for actor in actors:

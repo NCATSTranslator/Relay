@@ -11,34 +11,47 @@ dbfile = "tr_sys/db.sqlite3"
 python = sys.executable #python or python3
 server = "http://localhost:8000/ars"
 
-def addUnsecret():
-    syscall = ["curl", "-d", "@tr_sys/tr_ara_unsecret/unsecretAgent.json", server+"/api/agents"]
-    fp = subprocess.run(syscall, stdout=PIPE)
-    agent = json.loads(fp.stdout)
-    assert agent["model"] == "tr_ars.agent"
-    syscall = ["curl", "-d", "@tr_sys/tr_ara_unsecret/unsecretActor.json", server+"/api/actors"]
-    fp = subprocess.run(syscall, stdout=PIPE)
-    actor = json.loads(fp.stdout)
-    assert actor["model"] == "tr_ars.actor"
-    return actor["pk"]
+def getUnsecret():
+    # syscall = ["curl", "-d", "@tr_sys/tr_ara_unsecret/unsecretAgent.json", server+"/api/agents"]
+    # fp = subprocess.run(syscall, stdout=PIPE)
+    # agent = json.loads(fp.stdout)
+    # assert agent["model"] == "tr_ars.agent"
+    # syscall = ["curl", "-d", "@tr_sys/tr_ara_unsecret/unsecretActor.json", server+"/api/actors"]
+    # fp = subprocess.run(syscall, stdout=PIPE)
+    # actor = json.loads(fp.stdout)
+    # assert actor["model"] == "tr_ars.actor"
+    response = requests.get(server+"/api/actors")
+    actors = response.json()
+    actorpk = 0
+    for actor in actors:
+        if 'fields' in actor:
+            if actor['fields']['name'] == "ara-unsecret-runquery":
+                actorpk = actor['pk']
+    if actorpk == 0:
+        sys.stderr.write("Unsecret actor not found!\n")
+        assert actorpk > 0
+    return actorpk
 
 def execUnsecret(unsecret):
     syscall = ["curl", "-d", "@tr_sys/tr_ara_unsecret/unsecretStatusQuery.json", server+"/api/submit"]
     fp = subprocess.run(syscall, stdout=PIPE)
     message = json.loads(fp.stdout)
     assert message["model"] == "tr_ars.message"
-    time.sleep(5)
-    response = requests.get(server+"/api/messages/"+message["pk"]+"?trace=y")
-    chain = response.json()
-    print(chain)
-    for child in chain["children"]:
-        if child["actor"]["pk"] == unsecret:
-            response = requests.get(server+"/api/messages/"+child["message"])
-            print(response.json())
-            answer = response.json()
-            assert len(answer["fields"]["data"]["results"]) > 1
-            return
-    raise
+    for i in range(5):
+        time.sleep(i*i*5)
+        response = requests.get(server+"/api/messages/"+message["pk"]+"?trace=y")
+        chain = response.json()
+        print(chain)
+        for child in chain["children"]:
+            if child["actor"]["pk"] == unsecret:
+                response = requests.get(server+"/api/messages/"+child["message"])
+                print(str(response.json())[:500])
+                answer = response.json()
+                assert len(answer["fields"]["data"]["results"]) > 1
+                return
+    sys.stderr.write("Could not find Unsecret message response!\n")
+    assert unsecret < 0
+    return message
 
 def validateQuery():
     url ='http://transltr.io:7071/validate_querygraph'
@@ -49,7 +62,7 @@ def validateQuery():
         assert status_code == 200
 
 def runTests():
-    unsecret = addUnsecret()
+    unsecret = getUnsecret()
     execUnsecret(unsecret)
 
 if __name__ == "__main__":
