@@ -235,7 +235,7 @@ def agents(req):
     elif req.method == 'POST':
         try:
             data = json.loads(req.body)
-            logger.debug('%s: payload...\n%s' % (req.path, req.body))
+            logger.debug('%s: payload...\n%s' % (req.path, str(req.body)[:500]))
             if 'model' in data and 'tr_ars.agent' == data['model']:
                 # this in the serialized model of agent
                 data = data['fields']
@@ -326,17 +326,17 @@ def actors(req):
             actor = json.loads(serializers.serialize('json', [a]))[0]
             actor['fields'] = dict()
             actor['fields']['name'] = a.agent.name + '-' + a.path
-            actor['fields']['channel'] = a.channel.name
-            actor['fields']['agent'] = a.agent.name
+            actor['fields']['channel'] = a.channel.name #a.channel.pk
+            actor['fields']['agent'] = a.agent.name #a.agent.pk
             actor['fields']['remote'] = a.remote
-            actor['fields']['path'] = req.build_absolute_uri(a.url())
+            actor['fields']['path'] = req.build_absolute_uri(a.url()) #a.path
             actors.append(actor)
         return HttpResponse(json.dumps(actors, indent=2),
                             content_type='application/json', status=200)
     elif req.method == 'POST':
         try:
             data = json.loads(req.body)
-            logger.debug('%s: payload...\n%s' % (req.path, req.body))
+            logger.debug('%s: payload...\n%s' % (req.path, str(req.body)[:500]))
             if 'model' in data and 'tr_ars.agent' == data['model']:
                 # this in the serialized model of agent
                 data = data['fields']

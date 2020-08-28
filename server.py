@@ -82,7 +82,7 @@ if __name__ == "__main__":
             sys.exit(1)
 
         # setup db
-        if sys.argv[1] == 'prep' or sys.argv[1] == 'test':
+        if sys.argv[1] == 'prep' or sys.argv[1] == 'debug':
             if os.path.exists(dbfile):
                 os.remove(dbfile)
             subprocess.run([python, "tr_sys/manage.py", "makemigrations", "tr_ars"])
@@ -94,14 +94,14 @@ if __name__ == "__main__":
         # bring up server
         serverfp = None
         serverargs = [python, "tr_sys/manage.py", "runserver", "--noreload"]
-        if sys.argv[1] == 'test':
-            serverfp = subprocess.Popen(serverargs, stdout=sys.stdout, stderr=sys.stderr)
+        if sys.argv[1] == 'debug':
+            serverfp = subprocess.Popen(serverargs, stdout=PIPE, stderr=PIPE)
             time.sleep(5)
         if sys.argv[1] == 'prod':
-            serverfp = subprocess.run(serverargs, stdout=sys.stdout, stderr=sys.stderr)
+            serverfp = subprocess.run(serverargs, stdout=PIPE, stderr=PIPE)
 
         # run tests
-        if sys.argv[1] == 'test' or sys.argv[1] == 'debug':
+        if sys.argv[1] == 'debug' or sys.argv[1] == 'test':
             runTests()
             if serverfp != None:
                 serverfp.terminate()
@@ -111,7 +111,7 @@ if __name__ == "__main__":
     sys.stderr.write('''Usage: python server.py [mode] [opts]
         ... where [mode] is one of:
         prep  --- delete existing db file and prep a new db
-        debug --- for running tests on a running localhost:8000 server with existing db
-        test  --- deletes existing db and starts a new server on localhost:8000 for testing
+        test --- for running tests on a running localhost:8000 server with existing db
+        debug  --- deletes existing db and starts a new server on localhost:8000 for testing
         prod  --- starts a new server only\n''')
     sys.exit(1)

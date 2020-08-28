@@ -1,76 +1,92 @@
 [
     {
         "model": "tr_ars.actor",
-        "pk": 10,
+        "pk": 1,
         "fields": {
             "channel": 1,
-            "agent": 10,
-            "path": "/query"
+            "agent": 1,
+            "remote": "http://robokop.renci.org:5781/query",
+            "path": "runquery"
         }
     },
     {
         "model": "tr_ars.actor",
-        "pk": 20,
+        "pk": 2,
         "fields": {
             "channel": 1,
-            "agent": 20,
-            "path": "/runbtequery"
+            "agent": 2,
+            "remote": "https://arax.rtx.ai/api/rtx/v1/query",
+            "path": "runquery"
         }
     },
     {
         "model": "tr_ars.actor",
-        "pk": 30,
+        "pk": 3,
         "fields": {
             "channel": 1,
-            "agent": 30,
-            "path": "/runquery"
+            "agent": 3,
+            "remote": "https://api.bte.ncats.io/query",
+            "path": "runquery"
         }
     },
     {
         "model": "tr_ars.actor",
-        "pk": 40,
+        "pk": 4,
         "fields": {
             "channel": 1,
-            "agent": 40,
-            "path": "/rtxquery"
+            "agent": 4,
+            "remote": "http://transltr.io:7073/query",
+            "path": "runquery"
         }
     },
     {
         "model": "tr_ars.actor",
-        "pk": 50,
+        "pk": 5,
         "fields": {
             "channel": 1,
-            "agent": 50,
-            "path": "/rununsecretquery"
+            "agent": 5,
+            "remote": "https://robokop.renci.org/ranker/api/query/?max_results=-1&output_format=STD&max_connectivity=-1&use_novelty=false",
+            "path": "runquery"
         }
     },
     {
         "model": "tr_ars.actor",
-        "pk": 60,
+        "pk": 6,
         "fields": {
             "channel": 1,
-            "agent": 60,
-            "path": "/ars"
-        }
-    },
-
-
-    {
-        "model": "tr_ars.actor",
-        "pk": 80,
-        "fields": {
-            "channel": 1,
-            "agent": 80,
-            "path": "/rungeneticsquery"
+            "agent": 6,
+            "remote": "https://arax.rtx.ai/api/rtx/v1/query",
+            "path": "runquery"
         }
     },
     {
         "model": "tr_ars.actor",
-        "pk": 90,
+        "pk": 7,
         "fields": {
             "channel": 1,
-            "agent": 90,
-            "path": "/runmolecularquery"
+            "agent": 7,
+            "remote": "https://unsecret.ncats.io/query",
+            "path": "runquery"
+        }
+    },
+    {
+        "model": "tr_ars.actor",
+        "pk": 8,
+        "fields": {
+            "channel": 1,
+            "agent": 8,
+            "remote": "https://translator.broadinstitute.org/genetics_data_provider/query",
+            "path": "runquery"
+        }
+    },
+    {
+        "model": "tr_ars.actor",
+        "pk": 9,
+        "fields": {
+            "channel": 1,
+            "agent": 9,
+            "remote": "https://translator.broadinstitute.org/molepro_reasoner/query",
+            "path": "runquery"
         }
     }
 ]

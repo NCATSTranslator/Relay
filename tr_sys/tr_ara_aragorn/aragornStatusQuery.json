@@ -1,0 +1,25 @@
+{
+  "message": {
+    "query_graph": {
+      "edges": [
+        {
+          "id": "e00",
+          "source_id": "n00",
+          "target_id": "n01",
+          "type": "association"
+        }
+      ],
+      "nodes": [
+        {
+          "curie": "MESH:D000420",
+          "id": "n00",
+          "type": "drug"
+        },
+        {
+          "id": "n01",
+          "type": "chemical_substance"
+        }
+      ]
+    }
+  }
+}
