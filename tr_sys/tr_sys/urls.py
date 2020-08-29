@@ -21,7 +21,6 @@ from tr_ara_arax.arax_app import AppConfig as ARAXApp
 from tr_ara_bte.bte_app import AppConfig as BTEApp
 from tr_ara_ncats.ncats_app import AppConfig as NCATSApp
 from tr_ara_robokop.robokop_app import AppConfig as RobokopApp
-from tr_ara_rtx.rtx_app import AppConfig as RTXApp
 from tr_ara_unsecret.unsecret_app import AppConfig as UnsecretApp
 from tr_kp_genetics.genetics_app import AppConfig as GeneticsApp
 from tr_kp_molecular.molecular_app import AppConfig as MolecularApp
@@ -36,7 +35,6 @@ urlpatterns = [
     url(BTEApp.regex_path, include(BTEApp.name)),
     url(NCATSApp.regex_path,include(NCATSApp.name)),
     url(RobokopApp.regex_path, include(RobokopApp.name)),
-    url(RTXApp.regex_path, include(RTXApp.name)),
     url(UnsecretApp.regex_path, include(UnsecretApp.name)),
     url(GeneticsApp.regex_path,include(GeneticsApp.name)),
     url(MolecularApp.regex_path,include(MolecularApp.name)),

@@ -62,18 +62,6 @@
     },
     {
         "model": "tr_ars.agent",
-        "pk": 6,
-        "fields": {
-            "name": "ara-rtx",
-            "description": null,
-            "uri": "http://localhost:8000/ara-rtx/api/",
-            "contact": null,
-            "registered": "2020-08-28T15:23:59.497Z",
-            "updated": "2020-08-28T15:23:59.497Z"
-        }
-    },
-    {
-        "model": "tr_ars.agent",
         "pk": 7,
         "fields": {
             "name": "ara-unsecret",
