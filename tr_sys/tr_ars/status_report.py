@@ -1,17 +1,8 @@
-from django.http import HttpResponse, Http404, JsonResponse
-from django.urls import reverse
-from django.views import View
-from django.views.decorators.csrf import csrf_exempt
-from django.shortcuts import get_object_or_404, render
 from django.core import serializers
-from django.utils import timezone
 from .models import Agent, Message, Channel, Actor
-import json, sys, logging, traceback, html
-from inspect import currentframe, getframeinfo
+import json, logging
 import requests
 import Levenshtein
-import urllib.parse
-import re
 
 logger = logging.getLogger(__name__)
 
@@ -97,6 +88,19 @@ def status_ars(req, smartresponse, smartapis):
                         actor['status'] = elem[1]
         if 'status' not in actor:
             actor['status'] = Message.STATUS[-1][1]
+        actor_results = []
+        actor_times = []
+        for mesg in Message.objects.filter(actor=a.pk).order_by('-timestamp')[:10]:
+            message = Message.objects.get(pk=mesg.pk)
+            data = message.data
+            if 'results' in data:
+                actor_results.append(len(data['results']))
+            else:
+                actor_results.append(0)
+            parent = Message.objects.get(pk=message.ref.pk)
+            actor_times.append(str(message.timestamp - parent.timestamp))
+        actor['results'] = actor_results
+        actor['timings'] = actor_times
         response['actors'][a.agent.name + '-' + a.path] = actor
 
     if 'latest' in response['messages']:
