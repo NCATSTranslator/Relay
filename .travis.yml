@@ -7,7 +7,9 @@ install:
 before_script:
   - python tr_sys/manage.py makemigrations tr_ars
   - python tr_sys/manage.py migrate
-  - python tr_sys/manage.py runserver --noreload &
   - docker run -d -p 5672:5672 rabbitmq
+  - sleep 10 # give some time for server to come up
   - cd tr_sys; celery -A tr_sys worker -l info &
+  - sleep 10 # give some time for server to come up
+  - python tr_sys/manage.py runserver --noreload &
   - sleep 10 # give some time for server to come up
