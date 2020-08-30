@@ -27,6 +27,18 @@ python tr_sys/manage.py migrate
 python tr_sys/manage.py createsuperuser
 ```
 
+Start RabbitMQ
+
+```bash
+docker run -d -p 5672:5672 rabbitmq
+```
+
+Start Celery task queuing
+
+```bash
+cd tr_sys; celery -A tr_sys worker -l info
+```
+
 Bring up the server
 
 ```bash

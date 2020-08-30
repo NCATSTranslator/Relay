@@ -2,3 +2,5 @@ requests
 django>=3.1
 channels
 python-Levenshtein-wheels
+celery>=4.4.7
+django-celery-results
