@@ -1,4 +1,6 @@
 language: python
+services:
+  - docker
 script: python server.py test
 install:
   - pip install -r requirements.txt
@@ -6,4 +8,6 @@ before_script:
   - python tr_sys/manage.py makemigrations tr_ars
   - python tr_sys/manage.py migrate
   - python tr_sys/manage.py runserver --noreload &
+  - docker run -d -p 5672:5672 rabbitmq
+  - cd tr_sys; celery -A tr_sys worker -l info &
   - sleep 10 # give some time for server to come up
