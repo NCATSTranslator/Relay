@@ -11,5 +11,5 @@ before_script:
   - sleep 10 # give some time for server to come up
   - cd tr_sys; celery -A tr_sys worker -l info &
   - sleep 10 # give some time for server to come up
-  - python tr_sys/manage.py runserver --noreload &
+  - cd ..; python tr_sys/manage.py runserver --noreload &
   - sleep 10 # give some time for server to come up
