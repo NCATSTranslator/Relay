@@ -133,6 +133,26 @@ def status_ars(req, smartresponse, smartapis):
         else:
             response['actors'][actor]['smart-api'] = "Unknown"
 
+    for key in response['actors'].keys():
+        actor = response['actors'][key]
+        if actor['status'] == 'Running':
+            if 'smart-api-reasoner-compliant' in actor:
+                if actor['smart-api-reasoner-compliant'] == True:
+                    actor['statusicon'] = 'status2'
+                    actor['statusiconcomment'] = 'up'
+                else:
+                    actor['statusicon'] = 'status1'
+                    actor['statusiconcomment'] = 'SmartAPI incomplete'
+            else:
+                actor['statusicon'] = 'status8'
+                actor['statusiconcomment'] = 'SmartAPI missing'
+        elif 'smart-api-reasoner-compliant' in actor:
+            actor['statusicon'] = 'status0'
+            actor['statusiconcomment'] = 'Service outage'
+        else:
+            actor['statusicon'] = 'status9'
+            actor['statusiconcomment'] = 'Offline; SmartAPI missing'
+
     page = dict()
     page['ARS'] = response
 

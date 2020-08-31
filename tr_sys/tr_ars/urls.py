@@ -1,6 +1,7 @@
 from django.urls import path, re_path, include
 
 from . import api
+from . import views
 
 apipatterns = [
     path('', api.index, name='ars-api'),
@@ -16,5 +17,7 @@ apipatterns = [
 
 urlpatterns = [
     path(r'', api.api_redirect, name='ars-base'),
+    path(r'app/', views.app_home, name='ars-app-home'),
+    path(r'app/status', views.status, name='ars-app-status'),
     path(r'api/', include(apipatterns)),
 ]
