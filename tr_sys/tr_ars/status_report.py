@@ -155,6 +155,8 @@ def status_ars(req, smartresponse, smartapis):
 def status_smartapi():
     response = dict()
     smartapis = requests.get("https://smart-api.info/api/query/?q=translator&size=200").json()
+    #https://smart-api.info/api/query/?q=translator&fields=tags.name%2Cservers%2Cinfo.description%2Cinfo.title&size=200
+    #https://smart-api.info/api/metadata/a85f096bd4120ba065b2f25ffb68dcb0
     #smartapis = json.load(open("tr_sys/tr_ars/SmartAPI-Translator.json"))
     for entry in smartapis["hits"]:
         api = dict()
@@ -192,3 +194,6 @@ def status(req):
     response = status_ars(req, smartresponse, smartapis)
 
     return response
+
+    #TODO https://smart-api.info/api/metakg
+    #https://api.bte.ncats.io/metakg?provided_by=drugbank
