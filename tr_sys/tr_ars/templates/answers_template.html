@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+</head>
+<body>
+{% for ans in  answer_list %}
+    {{ ans.child.actor.agent }}
+    <br>
+    <pre>{{ ans.qg }}</pre>
+    <button onclick="showHide({{ ans.child.actor.agent }})">{{ ans.child.actor.agent }}</button>
+    <div id={{ ans.child.actor.agent }} style="display :block;">
+        {{ ans.results }}
+    </div>
+
+{#    <pre>{{ ans.kg }}</pre>#}
+    <br>
+
+{% endfor %}
+</body>
+</html>
+<script>
+    function showHide(id) {
+        var x = document.getElementById(id);
+        if (x.style.display === "none") {
+            x.style.display = "block";
+        } else {
+            x.style.display = "none";
+        }
+    }
+</script>
