@@ -9,20 +9,21 @@
     {{ ans.child.actor.agent }}
     <br>
     <pre>{{ ans.qg }}</pre>
-    <button onclick="showHide({{ ans.child.actor.agent }})">{{ ans.child.actor.agent }}</button>
-    <div id={{ ans.child.actor.agent }} style="display :block;">
-        {{ ans.results }}
+    <button onclick="showHide(window['{{ ans.child.actor.agent }}'])">{{ ans.child.actor.agent }} results</button>
+    <div id={{ ans.child.actor.agent }} style="display :none;">
+        <pre>{{ ans.results }}</pre>
+        <br><br>
+        Knowledge Graph:
+        <pre>{{ ans.kg }}</pre>
     </div>
-
-{#    <pre>{{ ans.kg }}</pre>#}
-    <br>
+    <br><br><br>
 
 {% endfor %}
 </body>
 </html>
 <script>
     function showHide(id) {
-        var x = document.getElementById(id);
+        var x = id;
         if (x.style.display === "none") {
             x.style.display = "block";
         } else {
