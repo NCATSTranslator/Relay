@@ -48,11 +48,8 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-<<<<<<< HEAD
     'django_celery_results',
-=======
     'markdownify',
->>>>>>> dev
 ]
 
 MIDDLEWARE = [
