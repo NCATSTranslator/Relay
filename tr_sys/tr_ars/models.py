@@ -1,3 +1,4 @@
+from json import JSONDecodeError
 from django.db import models
 from django.utils import timezone
 from django.core import serializers
@@ -37,7 +38,8 @@ class Channel(ARSModel):
 class Actor(ARSModel):
     channel = models.ForeignKey(Channel, on_delete=models.CASCADE)
     agent = models.ForeignKey(Agent, on_delete=models.CASCADE)
-    path = models.CharField('relative path of agent', max_length=64)
+    path = models.CharField('relative path of actor', max_length=64)
+    remote = models.CharField('remote reasoner resource', blank=True, max_length=500) #TODO enforce this to be non-null
 
     class Meta:
         constraints = [
@@ -69,7 +71,7 @@ class Message(ARSModel):
     status = models.CharField(max_length=2, choices=STATUS)
     actor = models.ForeignKey(Actor, null=False, on_delete=models.CASCADE)
     timestamp = models.DateTimeField(null=False, default=timezone.now)
-    data = models.TextField('data payload', null=True)
+    data = models.JSONField('data payload', null=True)
     url = models.URLField('location of data', max_length=256, null=True)
     ref = models.ForeignKey('self', null=True, blank=True,
                             on_delete=models.CASCADE)
@@ -77,3 +79,23 @@ class Message(ARSModel):
     def __str__(self):
         return "message[%s]{name:%s, status:%s}" % (self.id,
                                                     self.name, self.status)
+    @classmethod
+    def create(self, *args, **kwargs):
+        # convert status long name to code for saving
+        if 'status' in kwargs:
+            for elem in Message.STATUS:
+                if elem[1] == kwargs['status']:
+                    kwargs['status'] = elem[0]
+        return Message(*args, **kwargs)
+
+    def to_dict(self):
+        jsonobj = ARSModel.to_dict(self)
+        # convert status code to long name for display
+        if 'fields' in jsonobj:
+            if 'status' in jsonobj['fields']:
+                for elem in Message.STATUS:
+                    if elem[0] == jsonobj['fields']['status']:
+                        jsonobj['fields']['status'] = elem[1]
+        return jsonobj
+
+

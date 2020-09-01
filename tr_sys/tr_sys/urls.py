@@ -13,18 +13,47 @@ Including another URLconf
     1. Import the include() function: from django.conf.urls import url, include
     2. Add a URL to urlpatterns:  url(r'^blog/', include('blog.urls'))
 """
+import json
 from django.conf.urls import url
 from django.contrib import admin
-from django.urls import include, path
+from django.http import HttpResponse
+from django.urls import include, path, reverse
+from tr_ara_aragorn.aragorn_app import AppConfig as AragornApp
+from tr_ara_arax.arax_app import AppConfig as ARAXApp
+from tr_ara_bte.bte_app import AppConfig as BTEApp
+from tr_ara_ncats.ncats_app import AppConfig as NCATSApp
+from tr_ara_robokop.robokop_app import AppConfig as RobokopApp
+from tr_ara_unsecret.unsecret_app import AppConfig as UnsecretApp
+from tr_kp_genetics.genetics_app import AppConfig as GeneticsApp
+from tr_kp_molecular.molecular_app import AppConfig as MolecularApp
+from tr_ars.default_ars_app.ars_app import AppConfig as ARSApp
 
-urlpatterns = [
+patterns = [
     url(r'^admin/', admin.site.urls),
     url(r'^ars/', include('tr_ars.urls')),
-    url(r'^robokop/', include('tr_ara_robokop.urls')),
-    url(r'^bte/', include('tr_ara_bte.urls')),
-    url(r'^ncats/',include('tr_ara_ncats.urls')),
-    url(r'^unsecret/',include('tr_ara_unsecret.urls')),
-    url(r'^arax/',include('tr_ara_arax.urls')),
-    url(r'^molecular/',include('tr_kp_molecular.urls')),
-    url(r'^genetics/',include('tr_kp_genetics.urls'))
+    #url(r'^example/', include(ARSApp.name)),
+    url(AragornApp.regex_path,include(AragornApp.name)),
+    url(ARAXApp.regex_path,include(ARAXApp.name)),
+    url(BTEApp.regex_path, include(BTEApp.name)),
+    url(NCATSApp.regex_path,include(NCATSApp.name)),
+    url(RobokopApp.regex_path, include(RobokopApp.name)),
+    url(UnsecretApp.regex_path, include(UnsecretApp.name)),
+    url(GeneticsApp.regex_path,include(GeneticsApp.name)),
+    url(MolecularApp.regex_path,include(MolecularApp.name)),
 ]
+
+def base_index(req):
+    data = dict()
+    data['name'] = 'NCATS Biomedical Data Translator Relay Server'
+    data['entries'] = []
+    for item in patterns[1:]:
+        try:
+            data['entries'].append(req.build_absolute_uri(reverse(item.name)))
+        except:
+            data['entries'].append(req.build_absolute_uri() + str(item.pattern).replace('^', ''))
+    return HttpResponse(json.dumps(data, indent=2),
+                        content_type='application/json', status=200)
+
+urlpatterns = [url('^$', base_index, name='server-top')]
+for pattern in patterns:
+    urlpatterns.append(pattern)

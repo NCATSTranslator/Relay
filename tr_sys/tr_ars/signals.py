@@ -11,6 +11,7 @@ def actor_post_save(sender, instance, **kwargs):
     actor = instance
     logger.debug('+++ new actor created: %s...%s' % (actor, actor.id))
     # now iterate through each message and pass it to the new actor
+    # TODO add flag to turn on/off this behavior
     send_messages([actor], Message.objects.filter(code=200)
                   .order_by('timestamp'))
             
