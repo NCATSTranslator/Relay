@@ -16,7 +16,7 @@ class AppConfig(SuperAppConfig):
             from tr_ars.api import get_or_create_agent, get_or_create_actor
             agent = dict()
             agent['name'] = self.app_path
-            agent['uri'] = SERVER + reverse(self.app_path + '-api')
+            agent['uri'] = reverse(self.app_path + '-api')
             get_or_create_agent(agent)
             for actor in self.actors:
                 actorObj = dict()
@@ -37,6 +37,7 @@ for actor in AppConfig.actors:
     apipatterns.append(path(query_path, init_api_fn(actor), name=query_name))
 
 urlpatterns = [
+    path(r'', init_redirect(AppConfig.app_path), name=AppConfig.app_path + '-base'),
     path(r'api/', include(apipatterns)),
 ]
 

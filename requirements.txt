@@ -4,3 +4,4 @@ channels
 python-Levenshtein-wheels
 celery>=4.4.7
 django-celery-results
+django-markdownify >= 0.8.0

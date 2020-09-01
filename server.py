@@ -9,7 +9,7 @@ import time
 
 dbfile = "tr_sys/db.sqlite3"
 python = sys.executable #python or python3
-server = "http://localhost:8000/ars"
+server = "http://localhost:8000"
 
 def getUnsecret():
     # syscall = ["curl", "-d", "@tr_sys/tr_ara_unsecret/unsecretAgent.json", server+"/api/agents"]
@@ -20,7 +20,7 @@ def getUnsecret():
     # fp = subprocess.run(syscall, stdout=PIPE)
     # actor = json.loads(fp.stdout)
     # assert actor["model"] == "tr_ars.actor"
-    response = requests.get(server+"/api/actors")
+    response = requests.get(server+"/ars/api/actors")
     actors = response.json()
     actorpk = 0
     for actor in actors:
@@ -33,18 +33,18 @@ def getUnsecret():
     return actorpk
 
 def execUnsecret(unsecret):
-    syscall = ["curl", "-d", "@tr_sys/tr_ara_unsecret/unsecretStatusQuery.json", server+"/api/submit"]
+    syscall = ["curl", "-d", "@tr_sys/tr_ara_unsecret/unsecretStatusQuery.json", server+"/ars/api/submit"]
     fp = subprocess.run(syscall, stdout=PIPE)
     message = json.loads(fp.stdout)
     assert message["model"] == "tr_ars.message"
     for i in range(5):
         time.sleep(i*i*5)
-        response = requests.get(server+"/api/messages/"+message["pk"]+"?trace=y")
+        response = requests.get(server+"/ars/api/messages/"+message["pk"]+"?trace=y")
         chain = response.json()
         print(chain)
         for child in chain["children"]:
             if child["actor"]["pk"] == unsecret:
-                response = requests.get(server+"/api/messages/"+child["message"])
+                response = requests.get(server+"/ars/api/messages/"+child["message"])
                 print(str(response.json())[:500])
                 answer = response.json()
                 assert len(answer["fields"]["data"]["results"]) > 1

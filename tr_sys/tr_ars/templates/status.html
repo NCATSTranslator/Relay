@@ -1,0 +1,288 @@
+{% extends 'ncatspage.html' %}
+{% block content %}
+
+    <site-table _ngcontent-c0="" _nghost-c4="">
+        <mat-table _ngcontent-c4="" class="mat-table" matsort="" role="grid" ng-reflect-data-source="[object Object]">
+            <!---->
+            <mat-header-row _ngcontent-c4="" class="mat-header-row" role="row"><!---->
+                <mat-header-cell _ngcontent-c4=""
+                                 class="mat-header-cell ng-tns-c6-0 cdk-column-status mat-column-status"
+                                 mat-sort-header="" role="columnheader" ng-reflect-id="">
+                    <div class="mat-sort-header-container">
+                        <button class="mat-sort-header-button" type="button" aria-label="Change sorting for status">
+                            Status
+                        </button><!--bindings={
+  "ng-reflect-ng-if": "false"
+}--></div><!--bindings={
+  "ng-reflect-ng-if": "false"
+}--></mat-header-cell>
+                <mat-header-cell _ngcontent-c4=""
+                                 class="mat-header-cell ng-tns-c6-1 cdk-column-friendly_name mat-column-friendly_name"
+                                 mat-sort-header="" role="columnheader" ng-reflect-id="">
+                    <div class="mat-sort-header-container">
+                        <button class="mat-sort-header-button" type="button"
+                                aria-label="Change sorting for friendly_name">
+                            Name
+                        </button><!--bindings={
+  "ng-reflect-ng-if": "false"
+}--></div><!--bindings={
+  "ng-reflect-ng-if": "false"
+}--></mat-header-cell>
+                <mat-header-cell _ngcontent-c4=""
+                                 class="mat-header-cell ng-tns-c6-2 cdk-column-average_response_time mat-column-average_response_time"
+                                 mat-sort-header="" role="columnheader" ng-reflect-id="">
+                    <div class="mat-sort-header-container">
+                        <button class="mat-sort-header-button" type="button"
+                                aria-label="Change sorting for average_response_time">
+                            Last Reported Status
+                        </button><!--bindings={
+  "ng-reflect-ng-if": "false"
+}--></div><!--bindings={
+  "ng-reflect-ng-if": "false"
+}--></mat-header-cell>
+                <mat-header-cell _ngcontent-c4="" class="mat-header-cell ng-tns-c6-3 cdk-column-hour mat-column-hour"
+                                 mat-sort-header="" role="columnheader" ng-reflect-id="">
+                    <div class="mat-sort-header-container">
+                        <button class="mat-sort-header-button" type="button" aria-label="Change sorting for hour">
+                            Average Response Time (s)
+                        </button><!--bindings={
+  "ng-reflect-ng-if": "false"
+}--></div><!--bindings={
+  "ng-reflect-ng-if": "false"
+}--></mat-header-cell>
+                <mat-header-cell _ngcontent-c4="" class="mat-header-cell ng-tns-c6-4 cdk-column-day mat-column-day"
+                                 mat-sort-header="" role="columnheader" ng-reflect-id="">
+                    <div class="mat-sort-header-container">
+                        <button class="mat-sort-header-button" type="button" aria-label="Change sorting for day">
+                            Smart API registration
+                        </button><!--bindings={
+  "ng-reflect-ng-if": "false"
+}--></div><!--bindings={
+  "ng-reflect-ng-if": "false"
+}--></mat-header-cell>
+                <mat-header-cell _ngcontent-c4="" class="mat-header-cell ng-tns-c6-4 cdk-column-day mat-column-day"
+                                 mat-sort-header="" role="columnheader" ng-reflect-id="">
+                    <div class="mat-sort-header-container">
+                        <button class="mat-sort-header-button" type="button" aria-label="Change sorting for day">
+                            Last message
+                        </button><!--bindings={
+  "ng-reflect-ng-if": "false"
+}--></div><!--bindings={
+  "ng-reflect-ng-if": "false"
+}--></mat-header-cell>
+            </mat-header-row><!---->
+
+            {% for key, actor in actors.items %}
+
+            <mat-row _ngcontent-c4="" class="mat-row" role="row"><!---->
+                <mat-cell _ngcontent-c4="" class="mat-cell cdk-column-status mat-column-status" fxlayoutalign="center"
+                          role="gridcell">
+                    <img _ngcontent-c4="" class="icon {{ actor.statusicon }}"> {{ actor.statusiconcomment }}
+                </mat-cell>
+                <mat-cell _ngcontent-c4="" class="mat-cell cdk-column-friendly_name mat-column-friendly_name"
+                          role="gridcell"><a _ngcontent-c4="" href="{{ actor.path|slice:":-8" }}">
+                    {{ actor.agent }} / {{ actor.channel }}
+                </a></mat-cell>
+                <mat-cell _ngcontent-c4=""
+                          class="mat-cell cdk-column-average_response_time mat-column-average_response_time"
+                          role="gridcell">
+                    {{ actor.status }}
+                </mat-cell>
+                <mat-cell _ngcontent-c4="" class="mat-cell cdk-column-hour mat-column-hour" role="gridcell">
+                    {{ actor.timings }}
+                </mat-cell>
+                <mat-cell _ngcontent-c4="" class="mat-cell cdk-column-day mat-column-day" role="gridcell">
+                    {% if actor.smartapi != 'Unknown' %}<a href="{{ actor.smartapi }}">{{ actor.smartapi|slice:"36:45" }} ...</a>
+                        {% elif actor.smartapiguess %}Is it this <a href="{{ actor.smartapiguess }}">one</a>?
+                        {% else %}{{ actor.smartapi }}
+                    {% endif %}
+                </mat-cell>
+                <mat-cell _ngcontent-c4="" class="mat-cell cdk-column-day mat-column-day" role="gridcell">
+                    {% if actor.results != 'No message' %}<a href="{{ actor.latest }}">{{ actor.results }} results</a>
+                        {% else %}{{ 'No message' }}
+                    {% endif %}
+                </mat-cell>
+            </mat-row>
+
+            {% endfor %}
+
+        </mat-table>
+    </site-table>
+
+    {% if reasoners.items|length > 0 %}
+
+    <app-ncats-header _ngcontent-c0="" _nghost-c1="">
+        <mat-toolbar _ngcontent-c1="" class="mat-toolbar mat-primary mat-toolbar-multiple-rows">
+            <mat-toolbar-row _ngcontent-c1="" class="mat-toolbar-row" fxlayout="row" id="ncats-logo"
+                             style="flex-direction: row; box-sizing: border-box; display: flex;">
+                <div></div>
+                <div><span style="color: #632f6b;" class="mat-card-title subsection">&nbsp;Reasoners not registered with ARS</span></div>
+            </mat-toolbar-row>
+        </mat-toolbar>
+    </app-ncats-header>
+
+    <site-table _ngcontent-c0="" _nghost-c4="">
+        <mat-table _ngcontent-c4="" class="mat-table" matsort="" role="grid" ng-reflect-data-source="[object Object]">
+            <!---->
+            <mat-header-row _ngcontent-c4="" class="mat-header-row" role="row"><!---->
+                <mat-header-cell _ngcontent-c4=""
+                                 class="mat-header-cell ng-tns-c6-0 cdk-column-status mat-column-status"
+                                 mat-sort-header="" role="columnheader" ng-reflect-id="">
+                    <div class="mat-sort-header-container">
+                        <button class="mat-sort-header-button" type="button" aria-label="Change sorting for status">
+                            Title
+                        </button><!--bindings={
+  "ng-reflect-ng-if": "false"
+}--></div><!--bindings={
+  "ng-reflect-ng-if": "false"
+}--></mat-header-cell>
+                <mat-header-cell _ngcontent-c4=""
+                                 class="mat-header-cell ng-tns-c6-1 cdk-column-friendly_name mat-column-friendly_name"
+                                 mat-sort-header="" role="columnheader" ng-reflect-id="">
+                    <div class="mat-sort-header-container">
+                        <button class="mat-sort-header-button" type="button"
+                                aria-label="Change sorting for friendly_name">
+                            Server
+                        </button><!--bindings={
+  "ng-reflect-ng-if": "false"
+}--></div><!--bindings={
+  "ng-reflect-ng-if": "false"
+}--></mat-header-cell>
+                <mat-header-cell _ngcontent-c4=""
+                                 class="mat-header-cell ng-tns-c6-2 cdk-column-average_response_time mat-column-average_response_time"
+                                 mat-sort-header="" role="columnheader" ng-reflect-id="">
+                    <div class="mat-sort-header-container">
+                        <button class="mat-sort-header-button" type="button"
+                                aria-label="Change sorting for average_response_time">
+                            Contact
+                        </button><!--bindings={
+  "ng-reflect-ng-if": "false"
+}--></div><!--bindings={
+  "ng-reflect-ng-if": "false"
+}--></mat-header-cell>
+                <mat-header-cell _ngcontent-c4="" class="mat-header-cell ng-tns-c6-3 cdk-column-hour mat-column-hour"
+                                 mat-sort-header="" role="columnheader" ng-reflect-id="">
+                    <div class="mat-sort-header-container">
+                        <button class="mat-sort-header-button" type="button" aria-label="Change sorting for hour">
+                            Timestamp
+                        </button><!--bindings={
+  "ng-reflect-ng-if": "false"
+}--></div><!--bindings={
+  "ng-reflect-ng-if": "false"
+}--></mat-header-cell>
+            </mat-header-row><!---->
+
+            {% for key, source in reasoners.items %}
+
+                <mat-row _ngcontent-c4="" class="mat-row" role="row"><!---->
+                    <mat-cell _ngcontent-c4="" class="mat-cell cdk-column-status mat-column-status" fxlayoutalign="center"
+                              role="gridcell">
+                        <a href="{{ source.id }}">{{ source.title }}</a>
+                    </mat-cell>
+                    <mat-cell _ngcontent-c4="" class="mat-cell cdk-column-friendly_name mat-column-friendly_name"
+                              role="gridcell"><a _ngcontent-c4="" href="{{ source.servers|first }}">{{ source.servers|first }}</a>
+                    </mat-cell>
+                    <mat-cell _ngcontent-c4=""
+                              class="mat-cell cdk-column-average_response_time mat-column-average_response_time"
+                              role="gridcell">
+                        {{ source.contact.name }} {{ source.contact.email }}
+                    </mat-cell>
+                    <mat-cell _ngcontent-c4="" class="mat-cell cdk-column-hour mat-column-hour" role="gridcell">
+                        {{ source.timestamp }}
+                    </mat-cell>
+                </mat-row>
+
+            {% endfor %}
+
+        </mat-table>
+    </site-table>
+
+    {% endif %}
+
+    <app-ncats-header _ngcontent-c0="" _nghost-c1="">
+        <mat-toolbar _ngcontent-c1="" class="mat-toolbar mat-primary mat-toolbar-multiple-rows">
+            <mat-toolbar-row _ngcontent-c1="" class="mat-toolbar-row" fxlayout="row" id="ncats-logo"
+                             style="flex-direction: row; box-sizing: border-box; display: flex;">
+                <div></div>
+                <div><span style="color: #632f6b;" class="mat-card-title subsection">&nbsp;Other SmartAPI Knowledge Sources</span></div>
+            </mat-toolbar-row>
+        </mat-toolbar>
+    </app-ncats-header>
+
+    <site-table _ngcontent-c0="" _nghost-c4="">
+        <mat-table _ngcontent-c4="" class="mat-table" matsort="" role="grid" ng-reflect-data-source="[object Object]">
+            <!---->
+            <mat-header-row _ngcontent-c4="" class="mat-header-row" role="row"><!---->
+                <mat-header-cell _ngcontent-c4=""
+                                 class="mat-header-cell ng-tns-c6-0 cdk-column-status mat-column-status"
+                                 mat-sort-header="" role="columnheader" ng-reflect-id="">
+                    <div class="mat-sort-header-container">
+                        <button class="mat-sort-header-button" type="button" aria-label="Change sorting for status">
+                            Title
+                        </button><!--bindings={
+  "ng-reflect-ng-if": "false"
+}--></div><!--bindings={
+  "ng-reflect-ng-if": "false"
+}--></mat-header-cell>
+                <mat-header-cell _ngcontent-c4=""
+                                 class="mat-header-cell ng-tns-c6-1 cdk-column-friendly_name mat-column-friendly_name"
+                                 mat-sort-header="" role="columnheader" ng-reflect-id="">
+                    <div class="mat-sort-header-container">
+                        <button class="mat-sort-header-button" type="button"
+                                aria-label="Change sorting for friendly_name">
+                            Server
+                        </button><!--bindings={
+  "ng-reflect-ng-if": "false"
+}--></div><!--bindings={
+  "ng-reflect-ng-if": "false"
+}--></mat-header-cell>
+                <mat-header-cell _ngcontent-c4=""
+                                 class="mat-header-cell ng-tns-c6-2 cdk-column-average_response_time mat-column-average_response_time"
+                                 mat-sort-header="" role="columnheader" ng-reflect-id="">
+                    <div class="mat-sort-header-container">
+                        <button class="mat-sort-header-button" type="button"
+                                aria-label="Change sorting for average_response_time">
+                            Contact
+                        </button><!--bindings={
+  "ng-reflect-ng-if": "false"
+}--></div><!--bindings={
+  "ng-reflect-ng-if": "false"
+}--></mat-header-cell>
+                <mat-header-cell _ngcontent-c4="" class="mat-header-cell ng-tns-c6-3 cdk-column-hour mat-column-hour"
+                                 mat-sort-header="" role="columnheader" ng-reflect-id="">
+                    <div class="mat-sort-header-container">
+                        <button class="mat-sort-header-button" type="button" aria-label="Change sorting for hour">
+                            Timestamp
+                        </button><!--bindings={
+  "ng-reflect-ng-if": "false"
+}--></div><!--bindings={
+  "ng-reflect-ng-if": "false"
+}--></mat-header-cell>
+            </mat-header-row><!---->
+
+            {% for key, source in sources.items %}
+
+                <mat-row _ngcontent-c4="" class="mat-row" role="row"><!---->
+                    <mat-cell _ngcontent-c4="" class="mat-cell cdk-column-status mat-column-status" fxlayoutalign="center"
+                              role="gridcell">
+                        <a href="{{ source.id }}">{{ source.title }}</a>
+                    </mat-cell>
+                    <mat-cell _ngcontent-c4="" class="mat-cell cdk-column-friendly_name mat-column-friendly_name"
+                              role="gridcell"><a _ngcontent-c4="" href="{{ source.servers.0 }}">{{ source.servers.0 }}</a>
+                    </mat-cell>
+                    <mat-cell _ngcontent-c4=""
+                              class="mat-cell cdk-column-average_response_time mat-column-average_response_time"
+                              role="gridcell">
+                        {{ source.contact.name }} {{ source.contact.email }}
+                    </mat-cell>
+                    <mat-cell _ngcontent-c4="" class="mat-cell cdk-column-hour mat-column-hour" role="gridcell">
+                        {{ source.timestamp }}
+                    </mat-cell>
+                </mat-row>
+
+            {% endfor %}
+
+        </mat-table>
+    </site-table>
+
+{% endblock content %}

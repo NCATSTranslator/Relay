@@ -48,7 +48,11 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+<<<<<<< HEAD
     'django_celery_results',
+=======
+    'markdownify',
+>>>>>>> dev
 ]
 
 MIDDLEWARE = [
@@ -66,7 +70,7 @@ ROOT_URLCONF = 'tr_sys.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [os.path.join(BASE_DIR, 'tr_ars','templates')],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -148,14 +152,26 @@ USE_L10N = True
 
 USE_TZ = True
 
+# markdowninfy
+
+MARKDOWNIFY_STRIP = False
+MARKDOWNIFY_WHITELIST_TAGS = {
+    'a', 'p',
+    'h1', 'h2', 'h3','h4', 'h5', 'h6', 'h7',
+    'ul', 'li', 'span',
+}
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/1.11/howto/static-files/
 
 STATIC_URL = '/static/'
+STATICFILES_DIRS = (
+    os.path.join(BASE_DIR, "static"),
+)
 
 # Celery settings
 
 CELERY_RESULT_BACKEND = 'django-db'
 CELERY_CACHE_BACKEND = 'django-cache'
 CELERY_BROKER_URL = 'amqp://localhost'
+

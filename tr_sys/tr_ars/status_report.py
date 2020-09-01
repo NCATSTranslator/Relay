@@ -1,17 +1,8 @@
-from django.http import HttpResponse, Http404, JsonResponse
-from django.urls import reverse
-from django.views import View
-from django.views.decorators.csrf import csrf_exempt
-from django.shortcuts import get_object_or_404, render
 from django.core import serializers
-from django.utils import timezone
 from .models import Agent, Message, Channel, Actor
-import json, sys, logging, traceback, html
-from inspect import currentframe, getframeinfo
+import json, logging, statistics
 import requests
 import Levenshtein
-import urllib.parse
-import re
 
 logger = logging.getLogger(__name__)
 
@@ -87,6 +78,7 @@ def status_ars(req, smartresponse, smartapis):
         actor['remote'] = a.remote
         actor['path'] = req.build_absolute_uri(a.url())
         actor['messages'] = Message.objects.filter(actor=a.pk).count()
+        actor_results = 'No message'
         for mesg in Message.objects.filter(actor=a.pk).order_by('-timestamp')[:1]:
             actor['latest'] = req.build_absolute_uri("/ars/api/messages/"+str(mesg.pk))
             message = Message.objects.get(pk=mesg.pk)
@@ -95,8 +87,22 @@ def status_ars(req, smartresponse, smartapis):
                 for elem in Message.STATUS:
                     if elem[0] == actor['status']:
                         actor['status'] = elem[1]
+            data = message.data
+            if 'results' in data:
+                actor_results = len(data['results'])
+            else:
+                actor_results = 0
         if 'status' not in actor:
             actor['status'] = Message.STATUS[-1][1]
+        actor_times = []
+        for mesg in Message.objects.filter(actor=a.pk).order_by('-timestamp')[:10]:
+            message = Message.objects.get(pk=mesg.pk)
+            parent = Message.objects.get(pk=message.ref.pk)
+            actor_times.append((message.timestamp - parent.timestamp).total_seconds())
+        actor['results'] = actor_results
+        actor['timings'] = 'Unknown'
+        if len(actor_times)>0:
+            actor['timings'] = statistics.mean(actor_times)
         response['actors'][a.agent.name + '-' + a.path] = actor
 
     if 'latest' in response['messages']:
@@ -117,17 +123,37 @@ def status_ars(req, smartresponse, smartapis):
                     bestmatchscore = match
         if bestmatchscore == 0 or (bestmatch not in matched and bestmatchscore < 50):
             if bestmatchscore == 0:
-                response['actors'][actor]['smart-api'] = "https://smart-api.info/api/metadata/" + bestmatch
+                response['actors'][actor]['smartapi'] = "https://smart-api.info/api/metadata/" + bestmatch
                 for api in smartapis:
                     if api['_id'] == bestmatch:
-                        response['actors'][actor]['smart-api-reasoner-compliant'] = reasoner_compliant(api)
+                        response['actors'][actor]['smartapireasonercompliant'] = reasoner_compliant(api)
             else:
-                response['actors'][actor]['smart-api'] = "Unknown"
-                response['actors'][actor]['smart-api-guess'] = "https://smart-api.info/api/metadata/" + bestmatch
-                response['actors'][actor]['smart-api-server'] = bestmatchserver
+                response['actors'][actor]['smartapi'] = "Unknown"
+                response['actors'][actor]['smartapiguess'] = "https://smart-api.info/api/metadata/" + bestmatch
+                response['actors'][actor]['smartapiserver'] = bestmatchserver
             matched.append(bestmatch)
         else:
-            response['actors'][actor]['smart-api'] = "Unknown"
+            response['actors'][actor]['smartapi'] = "Unknown"
+
+    for key in response['actors'].keys():
+        actor = response['actors'][key]
+        if actor['status'] in ['Running', 'Done']:
+            if 'smartapireasonercompliant' in actor:
+                if actor['smartapireasonercompliant'] == True:
+                    actor['statusicon'] = 'status2'
+                    actor['statusiconcomment'] = 'up'
+                else:
+                    actor['statusicon'] = 'status1'
+                    actor['statusiconcomment'] = 'SmartAPI incomplete'
+            else:
+                actor['statusicon'] = 'status8'
+                actor['statusiconcomment'] = 'SmartAPI missing'
+        elif 'smartapireasonercompliant' in actor:
+            actor['statusicon'] = 'status0'
+            actor['statusiconcomment'] = 'Service outage'
+        else:
+            actor['statusicon'] = 'status9'
+            actor['statusiconcomment'] = 'Offline; SmartAPI missing'
 
     page = dict()
     page['ARS'] = response
@@ -138,7 +164,7 @@ def status_ars(req, smartresponse, smartapis):
     for key in smartresponse.keys():
         if key in matched:
             arsreasonsers[key] = smartresponse[key]
-        elif smartresponse[key]['smart-api-reasoner-compliant'] == True:
+        elif smartresponse[key]['smartapireasonercompliant'] == True:
             reasoners[key] = smartresponse[key]
         else:
             others[key] = smartresponse[key]
@@ -149,9 +175,12 @@ def status_ars(req, smartresponse, smartapis):
     return page
 
 def status_smartapi():
+    #https://smart-api.info/api/query/?q=translator&fields=tags.name%2Cservers%2Cinfo.description%2Cinfo.title&size=200
+    #https://smart-api.info/api/metadata/a85f096bd4120ba065b2f25ffb68dcb0
+
     response = dict()
-    smartapis = requests.get("https://smart-api.info/api/query/?q=translator&size=200").json()
-    #smartapis = json.load(open("tr_sys/tr_ars/SmartAPI-Translator.json"))
+    #smartapis = requests.get("https://smart-api.info/api/query/?q=translator&size=200").json()
+    smartapis = json.load(open("tr_sys/tr_ars/SmartAPI-Translator.json"))
     for entry in smartapis["hits"]:
         api = dict()
         api['id'] = "https://smart-api.info/api/metadata/" + entry['_id']
@@ -168,7 +197,7 @@ def status_smartapi():
         for item in entry['servers']:
             servers.append(item['url'])
         api['servers'] = servers
-        api['smart-api-reasoner-compliant'] = reasoner_compliant(entry)
+        api['smartapireasonercompliant'] = reasoner_compliant(entry)
         api['entities'] = []
 
         if 'tags' in entry:
@@ -188,3 +217,6 @@ def status(req):
     response = status_ars(req, smartresponse, smartapis)
 
     return response
+
+    #TODO https://smart-api.info/api/metakg
+    #https://api.bte.ncats.io/metakg?provided_by=drugbank

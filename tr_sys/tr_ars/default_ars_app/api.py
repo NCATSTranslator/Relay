@@ -9,8 +9,6 @@ from django.views.decorators.csrf import csrf_exempt
 
 logger = logging.getLogger(__name__)
 
-SERVER = "http://localhost:8000" # TODO get base URL properly from server on startup
-
 QUERY_URL = 'https://translator.broadinstitute.org/genetics_data_provider/query'
 
 def index(req):
@@ -90,3 +88,13 @@ def init_api_index(actors, app_path):
     fn.__doc__ = "index api response describing agent"
     return fn
 
+from django.shortcuts import redirect
+
+def init_redirect(app_path):
+    def fn(req):
+        response = redirect(reverse(app_path + '-api'))
+        return response
+
+    fn.__name__ = "redirect_index"
+    fn.__doc__ = "redirect to index api response describing agent"
+    return fn
