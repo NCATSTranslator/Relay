@@ -19,6 +19,8 @@ def status(req):
     context = {
         'Title': 'Translator ARS Status',
         'Short_title': 'ARS Status',
-        'actors': status['ARS']['actors']
+        'actors': status['ARS']['actors'],
+        'reasoners': status['SmartAPI']['Other-Reasoners'],
+        'sources': status['SmartAPI']['Other-Translator-SmartAPIs']
     }
     return HttpResponse(template.render(context, req))
