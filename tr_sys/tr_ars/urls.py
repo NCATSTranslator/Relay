@@ -15,5 +15,6 @@ apipatterns = [
 ]
 
 urlpatterns = [
+    path(r'', api.api_redirect, name='ars-base'),
     path(r'api/', include(apipatterns)),
 ]

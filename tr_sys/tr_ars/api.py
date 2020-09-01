@@ -1,12 +1,10 @@
-from django.http import HttpResponse, Http404, JsonResponse
-from django.views import View
+from django.http import HttpResponse
 from django.views.decorators.csrf import csrf_exempt
-from django.shortcuts import get_object_or_404, render
 from django.core import serializers
-from django.utils import timezone
+from django.shortcuts import redirect
 from django.urls import path, re_path, include, reverse
 from .models import Agent, Message, Channel, Actor
-import json, sys, logging, traceback, html
+import json, sys, logging
 from inspect import currentframe, getframeinfo
 from tr_ars import status_report
 
@@ -15,22 +13,19 @@ logger = logging.getLogger(__name__)
 
 def index(req):
     data = dict()
-    data['name'] = "Translator ARS API"
+    data['name'] = "Translator Autonomous Relay System (ARS) API"
     data['entries'] = []
-    #page = "Translator ARS API.<br>\n"
     for item in apipatterns:
         try:
-            #page = page + "<a href='" + req.build_absolute_uri(reverse(item.name)) + "'>" + html.escape(
-            #    req.build_absolute_uri(reverse(item.name))) + "</a><br>\n"
             data['entries'].append(req.build_absolute_uri(reverse(item.name)))
         except:
-            #page = page + "<a href='" + str(item.pattern) + "'>" + html.escape(
-            #    req.build_absolute_uri() + str(item.pattern)) + "</a><br>\n"
             data['entries'].append(req.build_absolute_uri() + str(item.pattern))
-    #return HttpResponse(page)
     return HttpResponse(json.dumps(data, indent=2),
                         content_type='application/json', status=200)
 
+def api_redirect(req):
+    response = redirect(reverse('ars-api'))
+    return response
 
 
 DEFAULT_ACTOR = {

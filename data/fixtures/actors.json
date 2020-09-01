@@ -51,16 +51,6 @@
     },
     {
         "model": "tr_ars.actor",
-        "pk": 6,
-        "fields": {
-            "channel": 1,
-            "agent": 6,
-            "remote": "https://arax.rtx.ai/api/rtx/v1/query",
-            "path": "runquery"
-        }
-    },
-    {
-        "model": "tr_ars.actor",
         "pk": 7,
         "fields": {
             "channel": 1,

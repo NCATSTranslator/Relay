@@ -39,7 +39,6 @@ INSTALLED_APPS = [
     'tr_ara_bte.bte_app.AppConfig',
     'tr_ara_ncats.ncats_app.AppConfig',
     'tr_ara_robokop.robokop_app.AppConfig',
-    'tr_ara_rtx.rtx_app.AppConfig',
     'tr_ara_unsecret.unsecret_app.AppConfig',
     'tr_kp_genetics.genetics_app.AppConfig',
     'tr_kp_molecular.molecular_app.AppConfig',

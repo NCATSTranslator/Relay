@@ -17,6 +17,7 @@ for actor in AppConfig.actors:
     apipatterns.append(path(query_path, init_api_fn(actor), name=query_name))
 
 urlpatterns = [
+    path(r'', init_redirect(AppConfig.app_path), name=AppConfig.app_path + '-base'),
     path(r'api/', include(apipatterns)),
 ]
 
