@@ -3,6 +3,7 @@ from .models import Agent, Message, Channel, Actor
 import json, logging, statistics
 import requests
 import Levenshtein
+from django.conf import settings
 
 logger = logging.getLogger(__name__)
 
@@ -177,10 +178,10 @@ def status_ars(req, smartresponse, smartapis):
 def status_smartapi():
     #https://smart-api.info/api/query/?q=translator&fields=tags.name%2Cservers%2Cinfo.description%2Cinfo.title&size=200
     #https://smart-api.info/api/metadata/a85f096bd4120ba065b2f25ffb68dcb0
-
+    base_dir = settings.BASE_DIR
     response = dict()
     #smartapis = requests.get("https://smart-api.info/api/query/?q=translator&size=200").json()
-    smartapis = json.load(open("tr_sys/tr_ars/SmartAPI-Translator.json"))
+    smartapis = json.load(open(base_dir+"/tr_ars/SmartAPI-Translator.json"))
     for entry in smartapis["hits"]:
         api = dict()
         api['id'] = "https://smart-api.info/api/metadata/" + entry['_id']
