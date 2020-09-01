@@ -1,5 +1,6 @@
 from django.urls import path, re_path, include
 
+from . import views
 from . import api
 
 apipatterns = [
@@ -14,7 +15,10 @@ apipatterns = [
     re_path(r'^status/?$', api.status, name='ars-status'),
 ]
 
+
+
 urlpatterns = [
     path(r'', api.api_redirect, name='ars-base'),
     path(r'api/', include(apipatterns)),
+    path(r'answer/<uuid:key>', views.answer, name='ars-answer'),
 ]
