@@ -48,6 +48,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'markdownify',
 ]
 
 MIDDLEWARE = [
@@ -147,8 +148,19 @@ USE_L10N = True
 
 USE_TZ = True
 
+# markdowninfy
+
+MARKDOWNIFY_STRIP = False
+MARKDOWNIFY_WHITELIST_TAGS = {
+    'a', 'p',
+    'h1', 'h2', 'h3','h4', 'h5', 'h6', 'h7',
+    'ul', 'li', 'span',
+}
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/1.11/howto/static-files/
 
 STATIC_URL = '/static/'
+STATICFILES_DIRS = (
+    os.path.join(BASE_DIR, "static"),
+)

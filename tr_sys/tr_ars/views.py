@@ -1,15 +1,37 @@
+from django.core.exceptions import ObjectDoesNotExist
+from django.http import HttpResponse
 from django.shortcuts import render
+from django.template import loader
 from django.urls import path, include
 
-from django.http import HttpResponse
 from . import api
+from . import status_report
 from .models import Message
-from django.core.exceptions import ObjectDoesNotExist
-
 
 import json, sys, logging, traceback, html
 
 # Create your views here.
+def app_home(req):
+    about = '\n'.join(open('README.md').readlines())
+    template = loader.get_template('ncatspage.html')
+    context = {
+        'Title': 'Translator ARS',
+        'bodytext': about
+    }
+    return HttpResponse(template.render(context, req))
+
+def status(req):
+    status = status_report.status(req)
+    template = loader.get_template('status.html')
+    context = {
+        'Title': 'Translator ARS Status',
+        'Short_title': 'ARS Status',
+        'actors': status['ARS']['actors'],
+        'reasoners': status['SmartAPI']['Other-Reasoners'],
+        'sources': status['SmartAPI']['Other-Translator-SmartAPIs']
+    }
+    return HttpResponse(template.render(context, req))
+
 def answer(req,key):
     pass
     if req.method != 'GET':
@@ -63,3 +85,4 @@ def answer(req,key):
         return render(req, 'answers_template.html', context=context)
     except Message.DoesNotExist:
         return HttpResponse('Unknown message: %s' % key, status=404)
+
