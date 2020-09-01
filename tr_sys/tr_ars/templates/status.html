@@ -21,7 +21,8 @@
                                  mat-sort-header="" role="columnheader" ng-reflect-id="">
                     <div class="mat-sort-header-container">
                         <button class="mat-sort-header-button" type="button"
-                                aria-label="Change sorting for friendly_name"> Name
+                                aria-label="Change sorting for friendly_name">
+                            Name
                         </button><!--bindings={
   "ng-reflect-ng-if": "false"
 }--></div><!--bindings={
@@ -32,7 +33,8 @@
                                  mat-sort-header="" role="columnheader" ng-reflect-id="">
                     <div class="mat-sort-header-container">
                         <button class="mat-sort-header-button" type="button"
-                                aria-label="Change sorting for average_response_time"> Average Response Time (ms)
+                                aria-label="Change sorting for average_response_time">
+                            Last Reported Status
                         </button><!--bindings={
   "ng-reflect-ng-if": "false"
 }--></div><!--bindings={
@@ -42,7 +44,7 @@
                                  mat-sort-header="" role="columnheader" ng-reflect-id="">
                     <div class="mat-sort-header-container">
                         <button class="mat-sort-header-button" type="button" aria-label="Change sorting for hour">
-                            Average Response Time (ms)<br _ngcontent-c4=""> (Last Hour)
+                            Average Response Time (s)
                         </button><!--bindings={
   "ng-reflect-ng-if": "false"
 }--></div><!--bindings={
@@ -52,7 +54,17 @@
                                  mat-sort-header="" role="columnheader" ng-reflect-id="">
                     <div class="mat-sort-header-container">
                         <button class="mat-sort-header-button" type="button" aria-label="Change sorting for day">
-                            Average Response Time (ms)<br _ngcontent-c4=""> (Last Day)
+                            Smart API registration
+                        </button><!--bindings={
+  "ng-reflect-ng-if": "false"
+}--></div><!--bindings={
+  "ng-reflect-ng-if": "false"
+}--></mat-header-cell>
+                <mat-header-cell _ngcontent-c4="" class="mat-header-cell ng-tns-c6-4 cdk-column-day mat-column-day"
+                                 mat-sort-header="" role="columnheader" ng-reflect-id="">
+                    <div class="mat-sort-header-container">
+                        <button class="mat-sort-header-button" type="button" aria-label="Change sorting for day">
+                            Last message
                         </button><!--bindings={
   "ng-reflect-ng-if": "false"
 }--></div><!--bindings={
@@ -64,7 +76,8 @@
 
             <mat-row _ngcontent-c4="" class="mat-row" role="row"><!---->
                 <mat-cell _ngcontent-c4="" class="mat-cell cdk-column-status mat-column-status" fxlayoutalign="center"
-                          role="gridcell"><img _ngcontent-c4="" class="icon {{ actor.statusicon }}"> {{ actor.statusiconcomment }}
+                          role="gridcell">
+                    <img _ngcontent-c4="" class="icon {{ actor.statusicon }}"> {{ actor.statusiconcomment }}
                 </mat-cell>
                 <mat-cell _ngcontent-c4="" class="mat-cell cdk-column-friendly_name mat-column-friendly_name"
                           role="gridcell"><a _ngcontent-c4="" href="https://curedev-api.ncats.io/v1/reports">
@@ -75,9 +88,19 @@
                           role="gridcell">
                     {{ actor.status }}
                 </mat-cell>
-                <mat-cell _ngcontent-c4="" class="mat-cell cdk-column-hour mat-column-hour" role="gridcell"> 2,366.333
+                <mat-cell _ngcontent-c4="" class="mat-cell cdk-column-hour mat-column-hour" role="gridcell">
+                    {{ actor.timings }}
                 </mat-cell>
-                <mat-cell _ngcontent-c4="" class="mat-cell cdk-column-day mat-column-day" role="gridcell"> 2,374.410
+                <mat-cell _ngcontent-c4="" class="mat-cell cdk-column-day mat-column-day" role="gridcell">
+                    {% if actor.smartapi != 'Unknown' %}<a href="{{ actor.smartapi }}">{{ actor.smartapi|slice:"36:45" }} ...</a>
+                        {% elif actor.smartapiguess %}Is it this <a href="{{ actor.smartapiguess }}">one</a>?
+                        {% else %}{{ actor.smartapi }}
+                    {% endif %}
+                </mat-cell>
+                <mat-cell _ngcontent-c4="" class="mat-cell cdk-column-day mat-column-day" role="gridcell">
+                    {% if actor.results != 'No message' %}<a href="{{ actor.latest }}">{{ actor.results }} results</a>
+                        {% else %}{{ 'No message' }}
+                    {% endif %}
                 </mat-cell>
             </mat-row>
 

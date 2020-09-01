@@ -1,6 +1,6 @@
 from django.core import serializers
 from .models import Agent, Message, Channel, Actor
-import json, logging
+import json, logging, statistics
 import requests
 import Levenshtein
 
@@ -78,6 +78,7 @@ def status_ars(req, smartresponse, smartapis):
         actor['remote'] = a.remote
         actor['path'] = req.build_absolute_uri(a.url())
         actor['messages'] = Message.objects.filter(actor=a.pk).count()
+        actor_results = 'No message'
         for mesg in Message.objects.filter(actor=a.pk).order_by('-timestamp')[:1]:
             actor['latest'] = req.build_absolute_uri("/ars/api/messages/"+str(mesg.pk))
             message = Message.objects.get(pk=mesg.pk)
@@ -86,21 +87,22 @@ def status_ars(req, smartresponse, smartapis):
                 for elem in Message.STATUS:
                     if elem[0] == actor['status']:
                         actor['status'] = elem[1]
+            data = message.data
+            if 'results' in data:
+                actor_results = len(data['results'])
+            else:
+                actor_results = 0
         if 'status' not in actor:
             actor['status'] = Message.STATUS[-1][1]
-        actor_results = []
         actor_times = []
         for mesg in Message.objects.filter(actor=a.pk).order_by('-timestamp')[:10]:
             message = Message.objects.get(pk=mesg.pk)
-            data = message.data
-            if 'results' in data:
-                actor_results.append(len(data['results']))
-            else:
-                actor_results.append(0)
             parent = Message.objects.get(pk=message.ref.pk)
-            actor_times.append(str(message.timestamp - parent.timestamp))
+            actor_times.append((message.timestamp - parent.timestamp).total_seconds())
         actor['results'] = actor_results
-        actor['timings'] = actor_times
+        actor['timings'] = 'Unknown'
+        if len(actor_times)>0:
+            actor['timings'] = statistics.mean(actor_times)
         response['actors'][a.agent.name + '-' + a.path] = actor
 
     if 'latest' in response['messages']:
@@ -121,23 +123,23 @@ def status_ars(req, smartresponse, smartapis):
                     bestmatchscore = match
         if bestmatchscore == 0 or (bestmatch not in matched and bestmatchscore < 50):
             if bestmatchscore == 0:
-                response['actors'][actor]['smart-api'] = "https://smart-api.info/api/metadata/" + bestmatch
+                response['actors'][actor]['smartapi'] = "https://smart-api.info/api/metadata/" + bestmatch
                 for api in smartapis:
                     if api['_id'] == bestmatch:
-                        response['actors'][actor]['smart-api-reasoner-compliant'] = reasoner_compliant(api)
+                        response['actors'][actor]['smartapireasonercompliant'] = reasoner_compliant(api)
             else:
-                response['actors'][actor]['smart-api'] = "Unknown"
-                response['actors'][actor]['smart-api-guess'] = "https://smart-api.info/api/metadata/" + bestmatch
-                response['actors'][actor]['smart-api-server'] = bestmatchserver
+                response['actors'][actor]['smartapi'] = "Unknown"
+                response['actors'][actor]['smartapiguess'] = "https://smart-api.info/api/metadata/" + bestmatch
+                response['actors'][actor]['smartapiserver'] = bestmatchserver
             matched.append(bestmatch)
         else:
-            response['actors'][actor]['smart-api'] = "Unknown"
+            response['actors'][actor]['smartapi'] = "Unknown"
 
     for key in response['actors'].keys():
         actor = response['actors'][key]
-        if actor['status'] == 'Running':
-            if 'smart-api-reasoner-compliant' in actor:
-                if actor['smart-api-reasoner-compliant'] == True:
+        if actor['status'] in ['Running', 'Done']:
+            if 'smartapireasonercompliant' in actor:
+                if actor['smartapireasonercompliant'] == True:
                     actor['statusicon'] = 'status2'
                     actor['statusiconcomment'] = 'up'
                 else:
@@ -146,7 +148,7 @@ def status_ars(req, smartresponse, smartapis):
             else:
                 actor['statusicon'] = 'status8'
                 actor['statusiconcomment'] = 'SmartAPI missing'
-        elif 'smart-api-reasoner-compliant' in actor:
+        elif 'smartapireasonercompliant' in actor:
             actor['statusicon'] = 'status0'
             actor['statusiconcomment'] = 'Service outage'
         else:
@@ -162,7 +164,7 @@ def status_ars(req, smartresponse, smartapis):
     for key in smartresponse.keys():
         if key in matched:
             arsreasonsers[key] = smartresponse[key]
-        elif smartresponse[key]['smart-api-reasoner-compliant'] == True:
+        elif smartresponse[key]['smartapireasonercompliant'] == True:
             reasoners[key] = smartresponse[key]
         else:
             others[key] = smartresponse[key]
@@ -173,11 +175,12 @@ def status_ars(req, smartresponse, smartapis):
     return page
 
 def status_smartapi():
-    response = dict()
-    smartapis = requests.get("https://smart-api.info/api/query/?q=translator&size=200").json()
     #https://smart-api.info/api/query/?q=translator&fields=tags.name%2Cservers%2Cinfo.description%2Cinfo.title&size=200
     #https://smart-api.info/api/metadata/a85f096bd4120ba065b2f25ffb68dcb0
-    #smartapis = json.load(open("tr_sys/tr_ars/SmartAPI-Translator.json"))
+
+    response = dict()
+    #smartapis = requests.get("https://smart-api.info/api/query/?q=translator&size=200").json()
+    smartapis = json.load(open("tr_sys/tr_ars/SmartAPI-Translator.json"))
     for entry in smartapis["hits"]:
         api = dict()
         api['id'] = "https://smart-api.info/api/metadata/" + entry['_id']
@@ -194,7 +197,7 @@ def status_smartapi():
         for item in entry['servers']:
             servers.append(item['url'])
         api['servers'] = servers
-        api['smart-api-reasoner-compliant'] = reasoner_compliant(entry)
+        api['smartapireasonercompliant'] = reasoner_compliant(entry)
         api['entities'] = []
 
         if 'tags' in entry:

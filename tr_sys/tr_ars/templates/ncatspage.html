@@ -4,7 +4,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Title</title>
+    <title>{% if Short_title %}{{ Short_title }}{% else %}{{ Title }}{% endif %}</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link rel="icon" type="image/x-icon" href="https://status.ncats.io/favicon.ico">
     <!---link href="./NCATSdash_files/icon" rel="stylesheet"--->
@@ -118,93 +118,17 @@
                 <div _ngcontent-c1=""><img _ngcontent-c1="" alt="NCATS" class=" ncats-logo"
                                            src="{% static "ncats.svg" %}"></div>
                 <div _ngcontent-c1=""><a _ngcontent-c1="" routerlink="/" href="{{ request.scheme }}://{{ request.get_host }}/ars/app/"><span
-                        _ngcontent-c1="" class="logo-header subsection">&nbsp;Translator ARS Status</span></a></div>
+                        _ngcontent-c1="" class="logo-header subsection">&nbsp;{{ Title }}</span></a></div>
             </mat-toolbar-row>
         </mat-toolbar>
     </app-ncats-header>
 
+    {% load markdownify %}
     {% block content %}
 
-    <site-table _ngcontent-c0="" _nghost-c4="">
-        <mat-table _ngcontent-c4="" class="mat-table" matsort="" role="grid" ng-reflect-data-source="[object Object]">
-            <!---->
-            <mat-header-row _ngcontent-c4="" class="mat-header-row" role="row"><!---->
-                <mat-header-cell _ngcontent-c4=""
-                                 class="mat-header-cell ng-tns-c6-0 cdk-column-status mat-column-status"
-                                 mat-sort-header="" role="columnheader" ng-reflect-id="">
-                    <div class="mat-sort-header-container">
-                        <button class="mat-sort-header-button" type="button" aria-label="Change sorting for status">
-                            Status
-                        </button><!--bindings={
-  "ng-reflect-ng-if": "false"
-}--></div><!--bindings={
-  "ng-reflect-ng-if": "false"
-}--></mat-header-cell>
-                <mat-header-cell _ngcontent-c4=""
-                                 class="mat-header-cell ng-tns-c6-1 cdk-column-friendly_name mat-column-friendly_name"
-                                 mat-sort-header="" role="columnheader" ng-reflect-id="">
-                    <div class="mat-sort-header-container">
-                        <button class="mat-sort-header-button" type="button"
-                                aria-label="Change sorting for friendly_name"> Name
-                        </button><!--bindings={
-  "ng-reflect-ng-if": "false"
-}--></div><!--bindings={
-  "ng-reflect-ng-if": "false"
-}--></mat-header-cell>
-                <mat-header-cell _ngcontent-c4=""
-                                 class="mat-header-cell ng-tns-c6-2 cdk-column-average_response_time mat-column-average_response_time"
-                                 mat-sort-header="" role="columnheader" ng-reflect-id="">
-                    <div class="mat-sort-header-container">
-                        <button class="mat-sort-header-button" type="button"
-                                aria-label="Change sorting for average_response_time"> Average Response Time (ms)
-                        </button><!--bindings={
-  "ng-reflect-ng-if": "false"
-}--></div><!--bindings={
-  "ng-reflect-ng-if": "false"
-}--></mat-header-cell>
-                <mat-header-cell _ngcontent-c4="" class="mat-header-cell ng-tns-c6-3 cdk-column-hour mat-column-hour"
-                                 mat-sort-header="" role="columnheader" ng-reflect-id="">
-                    <div class="mat-sort-header-container">
-                        <button class="mat-sort-header-button" type="button" aria-label="Change sorting for hour">
-                            Average Response Time (ms)<br _ngcontent-c4=""> (Last Hour)
-                        </button><!--bindings={
-  "ng-reflect-ng-if": "false"
-}--></div><!--bindings={
-  "ng-reflect-ng-if": "false"
-}--></mat-header-cell>
-                <mat-header-cell _ngcontent-c4="" class="mat-header-cell ng-tns-c6-4 cdk-column-day mat-column-day"
-                                 mat-sort-header="" role="columnheader" ng-reflect-id="">
-                    <div class="mat-sort-header-container">
-                        <button class="mat-sort-header-button" type="button" aria-label="Change sorting for day">
-                            Average Response Time (ms)<br _ngcontent-c4=""> (Last Day)
-                        </button><!--bindings={
-  "ng-reflect-ng-if": "false"
-}--></div><!--bindings={
-  "ng-reflect-ng-if": "false"
-}--></mat-header-cell>
-            </mat-header-row><!---->
-
-
-            <mat-row _ngcontent-c4="" class="mat-row" role="row"><!---->
-                <mat-cell _ngcontent-c4="" class="mat-cell cdk-column-status mat-column-status" fxlayoutalign="center"
-                          role="gridcell"><img _ngcontent-c4="" class="icon status2"> up
-                </mat-cell>
-                <mat-cell _ngcontent-c4="" class="mat-cell cdk-column-friendly_name mat-column-friendly_name"
-                          role="gridcell"><a _ngcontent-c4="" href="https://curedev-api.ncats.io/v1/reports">Cure dev
-                    api</a></mat-cell>
-                <mat-cell _ngcontent-c4=""
-                          class="mat-cell cdk-column-average_response_time mat-column-average_response_time"
-                          role="gridcell"> 2,373.333
-                </mat-cell>
-                <mat-cell _ngcontent-c4="" class="mat-cell cdk-column-hour mat-column-hour" role="gridcell"> 2,366.333
-                </mat-cell>
-                <mat-cell _ngcontent-c4="" class="mat-cell cdk-column-day mat-column-day" role="gridcell"> 2,374.410
-                </mat-cell>
-            </mat-row>
-
-
-        </mat-table>
-    </site-table>
+        <div>
+            {{ bodytext | markdownify }}
+        </div>
 
     {% endblock content %}
 

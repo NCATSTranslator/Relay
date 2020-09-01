@@ -5,14 +5,20 @@ from . import status_report
 
 # Create your views here.
 def app_home(req):
+    about = '\n'.join(open('README.md').readlines())
     template = loader.get_template('ncatspage.html')
-    context = { }
+    context = {
+        'Title': 'Translator ARS',
+        'bodytext': about
+    }
     return HttpResponse(template.render(context, req))
 
 def status(req):
     status = status_report.status(req)
     template = loader.get_template('status.html')
     context = {
+        'Title': 'Translator ARS Status',
+        'Short_title': 'ARS Status',
         'actors': status['ARS']['actors']
     }
     return HttpResponse(template.render(context, req))
