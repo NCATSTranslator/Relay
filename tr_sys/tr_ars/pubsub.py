@@ -2,11 +2,12 @@ from django.core import serializers
 import sys, logging, json, threading, queue, requests
 from .models import Message
 from tr_ars.tasks import send_message as celery_send_message
+from tr_ars.tasks import host_name
 
 logger = logging.getLogger(__name__)
 
 def send_message(actor, mesg, timeout=60):
-    url = 'http://localhost:8000'+actor.url() # TODO get url base at server startup; no request to use build_absolute_uri()
+    url = host_name + actor.url() # TODO get url base at server startup; no request to use build_absolute_uri()
     logger.debug('sending message %s to %s...' % (mesg.id, url))
     data = mesg.to_dict()
     data['fields']['actor'] = {

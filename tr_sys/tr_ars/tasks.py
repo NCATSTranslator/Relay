@@ -7,11 +7,13 @@ from celery.utils.log import get_task_logger
 
 logger = get_task_logger(__name__)
 
+host_name = 'http://localhost:8000' # TODO get url base at server startup; no request to use build_absolute_uri()
+
 @shared_task
 def send_message(actor_dict, mesg_dict, timeout=60):
     #logger.error(actor_dict)
     logger.info(mesg_dict)
-    url = actor_dict['fields']['url']
+    url = host_name + actor_dict['fields']['url']
     logger.debug('sending message %s to %s...' % (mesg_dict['pk'], url))
     data = mesg_dict
     data['fields']['actor'] = {
