@@ -174,5 +174,5 @@ CELERY_BROKER_URL = 'amqp://localhost'
 
 # Other important shared settings
 
-USE_CELERY = False
+USE_CELERY = True
 DEFAULT_HOST = 'http://localhost:8000'
