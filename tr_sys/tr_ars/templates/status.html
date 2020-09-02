@@ -170,6 +170,16 @@
 }--></div><!--bindings={
   "ng-reflect-ng-if": "false"
 }--></mat-header-cell>
+                <mat-header-cell _ngcontent-c4="" class="mat-header-cell ng-tns-c6-3 cdk-column-hour mat-column-hour"
+                                 mat-sort-header="" role="columnheader" ng-reflect-id="">
+                    <div class="mat-sort-header-container">
+                        <button class="mat-sort-header-button" type="button" aria-label="Change sorting for hour">
+                            Knowledge Sources
+                        </button><!--bindings={
+  "ng-reflect-ng-if": "false"
+}--></div><!--bindings={
+  "ng-reflect-ng-if": "false"
+}--></mat-header-cell>
             </mat-header-row><!---->
 
             {% for key, source in reasoners.items %}
@@ -190,6 +200,9 @@
                     <mat-cell _ngcontent-c4="" class="mat-cell cdk-column-hour mat-column-hour" role="gridcell">
                         {{ source.timestamp }}
                     </mat-cell>
+                    <mat-cell _ngcontent-c4="" class="mat-cell cdk-column-hour mat-column-hour" role="gridcell">
+                        {{ source.sources }}
+                    </mat-cell>
                 </mat-row>
 
             {% endfor %}
@@ -204,7 +217,7 @@
             <mat-toolbar-row _ngcontent-c1="" class="mat-toolbar-row" fxlayout="row" id="ncats-logo"
                              style="flex-direction: row; box-sizing: border-box; display: flex;">
                 <div></div>
-                <div><span style="color: #632f6b;" class="mat-card-title subsection">&nbsp;Other SmartAPI Knowledge Sources</span></div>
+                <div><span style="color: #632f6b;" class="mat-card-title subsection">&nbsp;Other SmartAPI Translator Sources</span></div>
             </mat-toolbar-row>
         </mat-toolbar>
     </app-ncats-header>
@@ -258,6 +271,16 @@
 }--></div><!--bindings={
   "ng-reflect-ng-if": "false"
 }--></mat-header-cell>
+                <mat-header-cell _ngcontent-c4="" class="mat-header-cell ng-tns-c6-3 cdk-column-hour mat-column-hour"
+                                 mat-sort-header="" role="columnheader" ng-reflect-id="">
+                    <div class="mat-sort-header-container">
+                        <button class="mat-sort-header-button" type="button" aria-label="Change sorting for hour">
+                            Knowledge Sources
+                        </button><!--bindings={
+  "ng-reflect-ng-if": "false"
+}--></div><!--bindings={
+  "ng-reflect-ng-if": "false"
+}--></mat-header-cell>
             </mat-header-row><!---->
 
             {% for key, source in sources.items %}
@@ -277,6 +300,9 @@
                     </mat-cell>
                     <mat-cell _ngcontent-c4="" class="mat-cell cdk-column-hour mat-column-hour" role="gridcell">
                         {{ source.timestamp }}
+                    </mat-cell>
+                    <mat-cell _ngcontent-c4="" class="mat-cell cdk-column-hour mat-column-hour" role="gridcell">
+                        {{ source.sources }}
                     </mat-cell>
                 </mat-row>
 
