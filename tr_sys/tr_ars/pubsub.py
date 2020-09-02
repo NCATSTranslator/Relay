@@ -1,11 +1,13 @@
 from django.core import serializers
 import sys, logging, json, threading, queue, requests
 from .models import Message
+from tr_ars.tasks import send_message as celery_send_message
+from django.conf import settings
 
 logger = logging.getLogger(__name__)
 
 def send_message(actor, mesg, timeout=60):
-    url = 'http://localhost:8000'+actor.url() # TODO get url base at server startup; no request to use build_absolute_uri()
+    url = settings.DEFAULT_HOST + actor.url() # TODO get url base at server startup; no request to use build_absolute_uri()
     logger.debug('sending message %s to %s...' % (mesg.id, url))
     data = mesg.to_dict()
     data['fields']['actor'] = {
@@ -45,9 +47,6 @@ def send_messages(actors, messages):
             else:
                 queue.put((actor, mesg))
 
-
-# TODO: unable to use celery.. need to figure out why there are issues with
-# de/serialization of models
 class BackgroundWorker(threading.Thread):
     def __init__(self, **kwargs):
         super(BackgroundWorker, self).__init__(**kwargs)
@@ -58,7 +57,10 @@ class BackgroundWorker(threading.Thread):
             actor, mesg = queue.get()
             if actor is None:
                 break
-            send_message(actor, mesg)
+            if settings.USE_CELERY:
+                celery_send_message.delay(actor.to_dict(), mesg.to_dict())
+            else:
+                send_message(actor, mesg)
             queue.task_done()
         logger.debug('%s: BackgroundWorker stopped!' % __name__)
 

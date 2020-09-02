@@ -1,0 +1,184 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>{% if Short_title %}{{ Short_title }}{% else %}{{ Title }}{% endif %}</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="icon" type="image/x-icon" href="https://status.ncats.io/favicon.ico">
+    <!---link href="./NCATSdash_files/icon" rel="stylesheet"--->
+    <link rel="stylesheet" href="{% static "default.css" %}">
+    <style>#ncats-banner[_ngcontent-c1] {
+        height: 30px;
+        color: #fff;
+        cursor: pointer;
+        font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+        font-size: 14px
+    }
+
+    a[_ngcontent-c1] {
+        font-size: 14px;
+        color: #fff;
+        text-decoration: none
+    }
+
+    a[_ngcontent-c1]:hover {
+        text-decoration: underline
+    }
+
+    #ncats-banner[_ngcontent-c1] img[_ngcontent-c1] {
+        height: 26px;
+        padding: 10px
+    }
+
+    #ncats-logo[_ngcontent-c1] {
+        min-height: 8vh;
+        background-color: #fff;
+        width: 100%
+    }
+
+    #ncats-logo[_ngcontent-c1] img[_ngcontent-c1] {
+        height: 45px;
+        padding: 10px
+    }
+
+    .logo-header[_ngcontent-c1] {
+        font-size: 55px
+    }
+
+    span.logo-header[_ngcontent-c1] {
+        color: #ababab
+    }
+
+    span.logo-header.subsection[_ngcontent-c1] {
+        color: #642f6c
+    }
+
+    span.logo-header.subsection.mobile-logo-header[_ngcontent-c1] {
+        font-size: 2rem
+    }
+    a[_ngcontent-c4] {
+        color: #337ab7;
+        text-decoration: none
+    }
+
+    a[_ngcontent-c4]:focus, a[_ngcontent-c4]:hover {
+        color: #23527c;
+        text-decoration: underline
+    }
+
+    ul#footer-links[_ngcontent-c4] {
+        padding: 1% 0 0;
+        margin: 0 auto;
+        display: table
+    }
+
+    #footer-links[_ngcontent-c4] > li[_ngcontent-c4] {
+        display: inline;
+        list-style-type: none;
+        font-weight: 700
+    }
+
+    #footer-links[_ngcontent-c4] > li[_ngcontent-c4]:after {
+        content: "|";
+        padding-left: 10px;
+        padding-right: 10px;
+        color: #c1c1c1
+    }
+
+    footer[_ngcontent-c4] {
+        flex-shrink: 0;
+        margin-top: auto
+    }</style>
+</head>
+<body class="mat-app-background" data-hasqtip="0" data-gr-c-s-loaded="true">
+<app-root _nghost-c0="" ng-version="5.0.0">
+    <app-ncats-header _ngcontent-c0="" _nghost-c1="">
+        <mat-toolbar _ngcontent-c1="" class="mat-toolbar mat-primary mat-toolbar-multiple-rows">
+            <mat-toolbar-row _ngcontent-c1="" class="mat-toolbar-row" fxlayout="row" fxlayout.xs="column"
+                             id="ncats-banner" style="flex-direction: row; box-sizing: border-box; display: flex;"><img
+                    _ngcontent-c1="" alt="HHS Logo" src="{% static "nihribbon-hhs.svg" %}"><a _ngcontent-c1=""
+                                                                                                     href="http://www.hhs.gov/"
+                                                                                                     target="_blank"
+                                                                                                     title="Go to the hhs.gov">U.S.
+                Department of Health &amp; Human Services</a><img _ngcontent-c1="" alt="Divider Arrow"
+                                                                  src="{% static "nihribbon-divider.svg" %}"><img
+                    _ngcontent-c1="" alt="NIH logo" src="{% static "nih-ribbon.svg" %}"><a _ngcontent-c1=""
+                                                                                                  href="http://www.nih.gov/"
+                                                                                                  target="_blank"
+                                                                                                  title="National Institutes of Health | Homepage">National
+                Institutes of Health</a><img _ngcontent-c1="" alt="Divider Arrow"
+                                             src="{% static "nihribbon-divider.svg" %}"><img _ngcontent-c1=""
+                                                                                                    alt="NCATS"
+                                                                                                    src="{% static "nih-ribbon.svg" %}"><a
+                    _ngcontent-c1="" href="http://www.ncats.nih.gov/" target="new">NCATS</a></mat-toolbar-row>
+            <mat-toolbar-row _ngcontent-c1="" class="mat-toolbar-row" fxlayout="row" id="ncats-logo"
+                             style="flex-direction: row; box-sizing: border-box; display: flex;">
+                <div _ngcontent-c1=""><img _ngcontent-c1="" alt="NCATS" class=" ncats-logo"
+                                           src="{% static "ncats.svg" %}"></div>
+                <div _ngcontent-c1=""><a _ngcontent-c1="" routerlink="/" href="{{ request.scheme }}://{{ request.get_host }}/ars/app/"><span
+                        _ngcontent-c1="" class="logo-header subsection">&nbsp;{{ Title }}</span></a></div>
+            </mat-toolbar-row>
+        </mat-toolbar>
+    </app-ncats-header>
+
+    {% load markdownify %}
+    {% block content %}
+
+        <div>
+            {{ bodytext | markdownify }}
+        </div>
+
+    {% endblock content %}
+
+    <app-ncats-footer _ngcontent-c0="" class="footer" _nghost-c4="">
+        <mat-divider _ngcontent-c4="" class="mat-divider mat-divider-horizontal" role="separator"
+                     aria-orientation="horizontal"></mat-divider>
+        <div _ngcontent-c4="" class="footer" fxlayout="row" fxlayout.xs="column" fxlayoutalign="center center"
+             style="flex-direction: row; box-sizing: border-box; display: flex; place-content: center; align-items: center;">
+            <ul _ngcontent-c4="" id="footer-links">
+                <li _ngcontent-c4=""><a _ngcontent-c4="" href="http://qhts.nih.gov/">NCATS Home</a></li>
+                <li _ngcontent-c4=""><a _ngcontent-c4="" href="http://ncats.nih.gov/sitemap" target="_blank">Site
+                    Map</a></li>
+                <li _ngcontent-c4=""><a _ngcontent-c4="" href="http://ncats.nih.gov/privacy" target="_blank">Privacy
+                    Notice</a></li>
+                <li _ngcontent-c4=""><a _ngcontent-c4="" href="http://ncats.nih.gov/comments" target="_blank">Comment
+                    Policy</a></li>
+                <li _ngcontent-c4=""><a _ngcontent-c4="" href="http://ncats.nih.gov/disclaimer" target="_blank">Disclaimer</a>
+                </li>
+                <li _ngcontent-c4=""><a _ngcontent-c4="" href="http://ncats.nih.gov/accessibility" target="_blank">Accessibility</a>
+                </li>
+                <li _ngcontent-c4=""><a _ngcontent-c4="" href="http://ncats.nih.gov/plugins" target="_blank">Viewers
+                    &amp; Players</a></li>
+                <li _ngcontent-c4=""><a _ngcontent-c4="" href="http://ncats.nih.gov/foia" target="_blank">FOIA</a></li>
+                <li _ngcontent-c4=""><a _ngcontent-c4="" href="http://oig.hhs.gov/" target="_blank">OIG</a></li>
+            </ul>
+        </div>
+        <div _ngcontent-c4="" class="region region-footer" fxlayout="row" fxlayout.xs="column"
+             fxlayoutalign="center center"
+             style="flex-direction: row; box-sizing: border-box; display: flex; place-content: center; align-items: center;">
+            <div _ngcontent-c4="" class="content" fxflex="100"
+                 style="flex: 1 1 100%; box-sizing: border-box; max-width: 100%;"><br _ngcontent-c4="">
+                <p _ngcontent-c4="" style="text-align: center;">If you have problems viewing PDF files, download the
+                    latest version of <a _ngcontent-c4="" href="http://get.adobe.com/reader/"
+                                         title="Visit to download Adobe Reader">Adobe Reader</a></p>
+                <p _ngcontent-c4="" style="text-align: center;">For <a _ngcontent-c4=""
+                                                                       href="http://edi.nih.gov/consulting/language-access-program/about"
+                                                                       target="_blank" title="Read  the plan">language
+                    access</a> assistance, contact the <a _ngcontent-c4="" href="mailto:info@ncats.nih.gov"
+                                                          title="Email Public Information Officer">NCATS Public
+                    Information Officer</a></p>
+                <p _ngcontent-c4="" style="text-align: center;"><span _ngcontent-c4="" style="font-size: small;">National Center for Advancing Translational Sciences (NCATS), 6701 Democracy Boulevard, Bethesda MD 20892-4874 • 301-594-8966</span>
+                </p></div>
+        </div>
+    </app-ncats-footer>
+</app-root>
+
+<div id="cdk-describedby-message-container" aria-hidden="true" style="display: none;">
+    <div id="cdk-describedby-message-0">public NCATS tool</div>
+</div>
+
+</body>
+</html>
+

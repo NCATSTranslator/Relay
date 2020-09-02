@@ -27,6 +27,20 @@ python tr_sys/manage.py migrate
 python tr_sys/manage.py createsuperuser
 ```
 
+Start RabbitMQ
+
+```bash
+docker run -d -p 5672:5672 rabbitmq
+```
+
+Start Celery task queuing
+
+ensure that `USE_CELERY=True` in tr_sys/settings.py
+
+```bash
+cd tr_sys; celery -A tr_sys worker -l info
+```
+
 Bring up the server
 
 ```bash
@@ -36,7 +50,7 @@ python tr_sys/manage.py loaddata ../data/fixtures/actors.json
 python tr_sys/manage.py runserver --noreload
 ```
 
-_OR_ add individual agents and their actors to the running ARS server
+[If desired] add individual agents and their actors to the running ARS server
 
 ```bash
 curl -d @tr_sys/tr_ars/agent_bte.json http://localhost:8000/ars/api/agents > response1.htm
@@ -52,4 +66,10 @@ Now post a new message to the queue
 ```bash
 curl -d @tr_ars/ars_query.json http://localhost:8000/ars/api/submit
 curl -d @tr_sys/tr_ara_unsecret/unsecretStatusQuery.json http://localhost:8000/ars/api/submit
+```
+
+Run tests after new code development (also see .travis.yml)
+
+```bash
+python server.py test
 ```

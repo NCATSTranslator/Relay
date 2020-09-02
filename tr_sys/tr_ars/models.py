@@ -53,7 +53,12 @@ class Actor(ARSModel):
 
     def url(self):
         return self.agent.uri+self.path
-    
+
+    def to_dict(self):
+        jsonobj = ARSModel.to_dict(self)
+        jsonobj['fields']['url'] = self.url()
+        return jsonobj
+
 class Message(ARSModel):
     STATUS = (
         ('D', 'Done'),
