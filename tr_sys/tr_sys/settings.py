@@ -172,3 +172,7 @@ CELERY_RESULT_BACKEND = 'django-db'
 CELERY_CACHE_BACKEND = 'django-cache'
 CELERY_BROKER_URL = 'amqp://localhost'
 
+# Other important shared settings
+
+USE_CELERY = False
+DEFAULT_HOST = 'http://localhost:8000'

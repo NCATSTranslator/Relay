@@ -2,12 +2,12 @@ from django.core import serializers
 import sys, logging, json, threading, queue, requests
 from .models import Message
 from tr_ars.tasks import send_message as celery_send_message
-from tr_ars.tasks import host_name
+from django.conf import settings
 
 logger = logging.getLogger(__name__)
 
 def send_message(actor, mesg, timeout=60):
-    url = host_name + actor.url() # TODO get url base at server startup; no request to use build_absolute_uri()
+    url = settings.DEFAULT_HOST + actor.url() # TODO get url base at server startup; no request to use build_absolute_uri()
     logger.debug('sending message %s to %s...' % (mesg.id, url))
     data = mesg.to_dict()
     data['fields']['actor'] = {
@@ -57,7 +57,10 @@ class BackgroundWorker(threading.Thread):
             actor, mesg = queue.get()
             if actor is None:
                 break
-            celery_send_message.delay(actor.to_dict(), mesg.to_dict())
+            if settings.USE_CELERY:
+                celery_send_message.delay(actor.to_dict(), mesg.to_dict())
+            else:
+                send_message(actor, mesg)
             queue.task_done()
         logger.debug('%s: BackgroundWorker stopped!' % __name__)
 

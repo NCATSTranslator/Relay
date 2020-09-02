@@ -114,6 +114,7 @@ def status_ars(req, smartresponse, smartapis):
         bestmatch = None
         bestmatchserver = None
         bestmatchscore = 100
+        bestmatchsources = ''
         for api in smartapis:
             for server in api['servers']:
                 match = url_score(server['url'], response['actors'][actor]['remote'])
@@ -121,9 +122,14 @@ def status_ars(req, smartresponse, smartapis):
                     bestmatch = api['_id']
                     bestmatchserver = server['url']
                     bestmatchscore = match
+                    if bestmatch in smartresponse:
+                        bestmatchsources = smartresponse[bestmatch]['sources']
+                    else:
+                        bestmatchsources = 'error'
         if bestmatchscore == 0 or (bestmatch not in matched and bestmatchscore < 50):
             if bestmatchscore == 0:
                 response['actors'][actor]['smartapi'] = "https://smart-api.info/api/metadata/" + bestmatch
+                response['actors'][actor]['sources'] = bestmatchsources
                 for api in smartapis:
                     if api['_id'] == bestmatch:
                         response['actors'][actor]['smartapireasonercompliant'] = reasoner_compliant(api)
@@ -143,16 +149,16 @@ def status_ars(req, smartresponse, smartapis):
                     actor['statusicon'] = 'status2'
                     actor['statusiconcomment'] = 'up'
                 else:
-                    actor['statusicon'] = 'status1'
+                    actor['statusicon'] = 'status8'
                     actor['statusiconcomment'] = 'SmartAPI incomplete'
             else:
-                actor['statusicon'] = 'status8'
+                actor['statusicon'] = 'status1'
                 actor['statusiconcomment'] = 'SmartAPI missing'
         elif 'smartapireasonercompliant' in actor:
-            actor['statusicon'] = 'status0'
+            actor['statusicon'] = 'status9'
             actor['statusiconcomment'] = 'Service outage'
         else:
-            actor['statusicon'] = 'status9'
+            actor['statusicon'] = 'status0'
             actor['statusiconcomment'] = 'Offline; SmartAPI missing'
 
     page = dict()
@@ -199,6 +205,25 @@ def status_smartapi():
         api['servers'] = servers
         api['smartapireasonercompliant'] = reasoner_compliant(entry)
         api['entities'] = []
+        sources = []
+        if 'components' in entry:
+            if 'x-bte-kgs-operations' in entry['components']:
+                for key, item in entry['components']['x-bte-kgs-operations'].items():
+                    if isinstance(item, list):
+                        for item2 in item:
+                            if 'source' in item2 and item2['source'] not in sources:
+                                sources.append(item2['source'])
+                    else:
+                        if 'source' in item and item['source'] not in sources:
+                            sources.append(item['source'])
+
+            if 'x-bte-response-mapping' in entry['components']:
+                for key, item in entry['components']['x-bte-response-mapping'].items():
+                    if isinstance(item, dict):
+                        for key2 in item.keys():
+                            if '$source' in item[key2] and item[key2]['$source'] not in sources:
+                                sources.append(item[key2]['$source'])
+        api['sources'] = ", ".join(sources)
 
         if 'tags' in entry:
             trans = False
