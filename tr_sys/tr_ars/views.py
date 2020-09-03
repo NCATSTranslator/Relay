@@ -38,7 +38,7 @@ def answer(req,key):
         return HttpResponse('Method %s not supported!' % req.method, status=400)
     try:
         baseMessage = json.loads(api.message(req,key).content)
-        queryGraph = json.loads(baseMessage['fields']['data'])
+        queryGraph = baseMessage['fields']['data']
         response = api.trace_message(req,key)
         jsonRes = json.loads(response.content)
         answer_list=[]
@@ -47,7 +47,7 @@ def answer(req,key):
         for child in jsonRes['children']:
             childId = str(child['message'])
             jsonChild = json.loads(api.message(req,childId).content)
-            jsonChildData = json.loads(jsonChild['fields']['data'])
+            jsonChildData = jsonChild['fields']['data']
             if not (jsonChildData.get('knowledge_graph') is None):
                 kg = json.dumps(jsonChildData['knowledge_graph'],indent=2)
             else:
