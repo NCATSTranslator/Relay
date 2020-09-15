@@ -23,6 +23,7 @@ from django.urls import include, path, reverse
 from tr_ara_aragorn.aragorn_app import AppConfig as AragornApp
 from tr_ara_arax.arax_app import AppConfig as ARAXApp
 from tr_ara_bte.bte_app import AppConfig as BTEApp
+from tr_ara_improving.improving_app import AppConfig as ImprovingApp
 from tr_ara_ncats.ncats_app import AppConfig as NCATSApp
 from tr_ara_robokop.robokop_app import AppConfig as RobokopApp
 from tr_ara_unsecret.unsecret_app import AppConfig as UnsecretApp
@@ -34,14 +35,15 @@ patterns = [
     url(r'^admin/', admin.site.urls),
     url(r'^ars/', include('tr_ars.urls')),
     #url(r'^example/', include(ARSApp.name)),
-    url(AragornApp.regex_path,include(AragornApp.name)),
-    url(ARAXApp.regex_path,include(ARAXApp.name)),
+    url(AragornApp.regex_path, include(AragornApp.name)),
+    url(ARAXApp.regex_path, include(ARAXApp.name)),
     url(BTEApp.regex_path, include(BTEApp.name)),
-    url(NCATSApp.regex_path,include(NCATSApp.name)),
+    url(ImprovingApp.regex_path, include(ImprovingApp.name)),
+    url(NCATSApp.regex_path, include(NCATSApp.name)),
     url(RobokopApp.regex_path, include(RobokopApp.name)),
     url(UnsecretApp.regex_path, include(UnsecretApp.name)),
-    url(GeneticsApp.regex_path,include(GeneticsApp.name)),
-    url(MolecularApp.regex_path,include(MolecularApp.name)),
+    url(GeneticsApp.regex_path, include(GeneticsApp.name)),
+    url(MolecularApp.regex_path, include(MolecularApp.name)),
 ]
 
 def base_index(req):
