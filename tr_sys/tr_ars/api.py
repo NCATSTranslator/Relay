@@ -147,7 +147,7 @@ def trace_message(req, key):
         return HttpResponse(json.dumps(tree, indent=2),
                             content_type='application/json',
                             status=200)
-    except Message.DoesNotExit:
+    except Message.DoesNotExist:
         logger.debug('Unknown message: %s' % key)
         return HttpResponse('Unknown message: %s' % key, status=404)
     return HttpResponse('Internal server error', status=500)

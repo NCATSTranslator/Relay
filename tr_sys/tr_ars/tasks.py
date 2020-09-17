@@ -23,7 +23,7 @@ def send_message(actor_dict, mesg_dict, timeout=60):
         'uri': url
     }
     mesg = Message.create(actor=Actor.objects.get(pk=actor_dict['pk']),
-                          name=mesg_dict['fields']['name'],
+                          name=mesg_dict['fields']['name'], status='U',
                           ref=Message.objects.get(pk=mesg_dict['pk']))
     mesg.save()
     callback = settings.DEFAULT_HOST + reverse('ars-messages') + '/' + str(mesg.pk)
