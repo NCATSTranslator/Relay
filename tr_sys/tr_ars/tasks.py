@@ -5,6 +5,7 @@ from celery import shared_task
 from tr_ars.models import Message, Actor
 from celery.utils.log import get_task_logger
 from django.conf import settings
+from django.urls import reverse
 import html
 
 logger = get_task_logger(__name__)
@@ -21,6 +22,13 @@ def send_message(actor_dict, mesg_dict, timeout=60):
         'agent': actor_dict['fields']['agent'],
         'uri': url
     }
+    mesg = Message.create(actor=Actor.objects.get(pk=actor_dict['pk']),
+                          name=mesg_dict['fields']['name'],
+                          ref=Message.objects.get(pk=mesg_dict['pk']))
+    mesg.save()
+    callback = settings.DEFAULT_HOST + reverse('ars-messages') + '/' + str(mesg.pk)
+    data['fields']['data']['callback'] = callback
+
     try:
         r = requests.post(url, json=data, timeout=timeout)
         logger.debug('%d: receive message from actor %s...\n%s.\n'
@@ -28,6 +36,8 @@ def send_message(actor_dict, mesg_dict, timeout=60):
         url = r.url
         if 'tr_ars.url' in r.headers:
             url = r.headers['tr_ars.url']
+        status = 'U'
+        rdata = data['fields']['data']
         # status defined in https://github.com/NCATSTranslator/ReasonerAPI/blob/master/TranslatorReasonerAPI.yaml
         # paths: /query: post: responses:
         # 200 = OK. There may or may not be results. Note that some of the provided
@@ -55,15 +65,7 @@ def send_message(actor_dict, mesg_dict, timeout=60):
                 rdata = r.json()
             except json.decoder.JSONDecodeError:
                 status = 'E'
-            mesg = Message.create(code=r.status_code, status=status,
-                                  data=rdata, url=url,
-                                  actor=Actor.objects.get(pk=actor_dict['pk']),
-                                  name=mesg_dict['fields']['name'],
-                                  ref=Message.objects.get(pk=mesg_dict['pk']))
-            mesg.save()
         else:
-            status = 'U'
-            rdata = data['fields']['data']['message']
             if r.status_code == 202:
                 status = 'W'
                 url = url[:url.rfind('/')] + '/aresponse/' + r.text
@@ -75,15 +77,12 @@ def send_message(actor_dict, mesg_dict, timeout=60):
                 for key in r.headers:
                     if key.lower().find('tr_ars') > -1:
                         rdata['logs'].append(key+": "+r.headers[key])
-            mesg = Message.create(code=r.status_code, status=status,
-                                  url = url,
-                                  data = rdata,
-                                  actor=Actor.objects.get(pk=actor_dict['pk']),
-                                  name=mesg_dict['fields']['name'],
-                                  ref=Message.objects.get(pk=mesg_dict['pk']))
-            logger.debug('+++ message created: %s' % (mesg.pk))
-            mesg.save()
-            logger.debug('+++ message saved: %s' % (mesg.pk))
+        mesg.code = r.status_code
+        mesg.status = status
+        mesg.data = rdata
+        mesg.url = url
+        mesg.save()
+        logger.debug('+++ message saved: %s' % (mesg.pk))
     except:
         logger.exception("Can't send message to actor %s\n%s"
                          % (url,sys.exc_info()))
