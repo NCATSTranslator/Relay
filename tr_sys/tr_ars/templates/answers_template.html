@@ -5,6 +5,10 @@
     <title>Title</title>
 </head>
 <body>
+<b>Consensus Results</b>
+{% for res in shared_results%}
+    <pre>{{res}}</pre>
+{% endfor %}
 {% for ans in  answer_list %}
     {{ ans.child.actor.agent }}
     <br>
