@@ -113,5 +113,15 @@ if __name__ == "__main__":
         prep  --- delete existing db file and prep a new db
         test --- for running tests on a running localhost:8000 server with existing db
         debug  --- deletes existing db and starts a new server on localhost:8000 for testing
-        prod  --- starts a new server only\n''')
+        prod  --- starts a new server only
+        
+        options:
+        --server [uri]
+            server uri to test, e.g. http://localhost:8000
+        --dbfile [filename]
+            if needed to overwrite backend during testing (debug)
+        --python [path to exec]
+            python3 executable
+
+        \n''')
     sys.exit(1)
