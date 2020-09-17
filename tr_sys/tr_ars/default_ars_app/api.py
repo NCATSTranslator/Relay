@@ -2,7 +2,6 @@ import json
 import logging
 import requests
 import sys
-import traceback
 
 from django.http import HttpResponse
 from django.urls import reverse
