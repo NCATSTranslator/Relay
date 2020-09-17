@@ -258,6 +258,7 @@ def mergeKnowledgeGraphs(kg1, kg2):
 
 def sharedResultsJson(sharedResultsMap):
     results=[]
+    sharedResultsMap={k: v for k, v in sorted(sharedResultsMap.items(), key=lambda item: item[1],reverse=True)}
     for k,v in sharedResultsMap.items():
         tuples=[]
         for tuple in k:
