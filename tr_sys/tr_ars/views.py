@@ -78,23 +78,21 @@ def answer(req,key):
                                 "kg":kg,
                                 "results":results})
 
-        #     html += "<a href="+str(req.META['HTTP_HOST'])+"/ars/api/messages/"+childId+" target=\"_blank\">"+str(child['actor']['agent'])+"</a>"
-        #     try:
-        #         jsonChild = json.loads(api.message(req,childId).content)
-        #         jsonChildData = json.loads(jsonChild['fields']['data'])
-        #         html+="<pre>"+json.dumps(jsonChildData,indent=2)+"</pre><br>"
-        #     except json.decoder.JSONDecodeError:
-        #         html+="Response was not present or not valid"
-        #     html += "<br>"
-        # html+="</body></html>"
+        print()
+        #commonNodes = utils.getCommonNodes(msgs)
+        print()
+        try:
+            merged = utils.mergeMessages(utils.QueryGraph(queryGraph),msgs)
+            sharedResultsMap = merged.getSharedResults()
+            sharedResults = utils.sharedResultsJson(sharedResultsMap)
+        except:
+            print("Unable to merge results for "+str(key))
+            sharedResults=[]
+
         context = {
-            "answer_list":answer_list
+            "answer_list":answer_list,
+            "shared_results":sharedResults
         }
-        #return HttpResponse(html,status=200)
-        print()
-        commonNodes = utils.getCommonNodes(msgs)
-        print()
-        merged = utils.mergeMessages(utils.QueryGraph(queryGraph),msgs)
         print()
         return render(req, 'answers_template.html', context=context)
     except Message.DoesNotExist:

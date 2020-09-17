@@ -1,6 +1,6 @@
 import copy
-
-
+import json
+import sys
 class QueryGraph():
     pass
     def __init__(self,qg):
@@ -193,29 +193,22 @@ def mergeMessagesRecursive(mergedMessage,messageList):
                 sharedResultTuples.add(cts)
         if len(sharedResultTuples)>0:
             if mergedMessage.getSharedResults() is not None:
-                currentShared = mergedMessage.getSharedResults()
-                mergedMessage.setSharedResults(currentShared.union(sharedResultTuples))
+                currentSharedMap = mergedMessage.getSharedResults()
+                intersectingResults = set(currentSharedMap.keys()).intersection(sharedResultTuples)
+                for key in currentSharedMap.keys():
+                    if key in intersectingResults:
+                        currentSharedMap[key]=currentSharedMap[key]+1
+                    else:
+                        currentSharedMap[key]=2
+                mergedMessage.setSharedResults(currentSharedMap)
             else:
-                mergedMessage.setSharedResults(sharedResultTuples)
+                resultMap={k:2 for k in sharedResultTuples}
+                mergedMessage.setSharedResults(resultMap)
         mergedResults=mergeResults(currentMessage.getResults(),mergedMessage.getResults())
         mergedMessage.setResults(mergedResults)
         mergedMessage.setKnowledgeGraph(mergedKnowledgeGraph)
         return mergeMessagesRecursive(mergedMessage,messageList)
 
-
-# def getSharedResults(messageList):
-#     messageListCopy=copy.deepcopy(messageList)
-#     message = messageListCopy.pop()
-#     return getSharedResultsRecursive(message,messageList)
-#
-# def getSharedResultsRecursive(message, messageList):
-#     currentMessage = messageList.pop()
-#     currentResultTuples = message.getResultTuples()
-#     mergedResultTuples = mergedMessage.getResultTuples()
-#     sharedResultTuples=set()
-#     for cts in currentResultTuples:
-#         if cts in mergedResultTuples:
-#             sharedResultTuples.add(cts)
 
 def mergeResults(r1, r2):
     return Results(r1.getRaw()+r2.getRaw())
@@ -263,5 +256,23 @@ def mergeKnowledgeGraphs(kg1, kg2):
     }
     return KnowledgeGraph(mergedKg)
 
+def sharedResultsJson(sharedResultsMap):
+    results=[]
+    for k,v in sharedResultsMap.items():
+        tuples=[]
+        for tuple in k:
+            pass
+            tupleDict = {
+                "source":tuple[0],
+                "relation":tuple[1],
+                "target":tuple[2]
+            }
+            tuples.append(tupleDict)
+        result = {
+            "results":tuples,
+            "count":v
+        }
+        results.append(json.dumps(result,indent=2))
+    return results
 
 
