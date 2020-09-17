@@ -2,6 +2,7 @@ from django.core import serializers
 from .models import Agent, Message, Channel, Actor
 import json, logging, statistics
 import requests
+import datetime
 import Levenshtein
 from django.conf import settings
 
@@ -89,25 +90,22 @@ def status_ars(req, smartresponse, smartapis):
                     if elem[0] == actor['status']:
                         actor['status'] = elem[1]
             data = message.data
-            if 'results' in data:
+            if data is not None and 'results' in data:
                 actor_results = len(data['results'])
             else:
                 actor_results = 0
         if 'status' not in actor:
             actor['status'] = Message.STATUS[-1][1]
         actor_times = []
-        for mesg in Message.objects.filter(actor=a.pk).order_by('-timestamp')[:10]:
+        for mesg in Message.objects.filter(actor=a.pk).order_by('-timestamp')[:3]:
             message = Message.objects.get(pk=mesg.pk)
             parent = Message.objects.get(pk=message.ref.pk)
             actor_times.append((message.timestamp - parent.timestamp).total_seconds())
         actor['results'] = actor_results
         actor['timings'] = 'Unknown'
         if len(actor_times)>0:
-            actor['timings'] = statistics.mean(actor_times)
+            actor['timings'] = str(statistics.mean(actor_times))[:6]
         response['actors'][a.agent.name + '-' + a.path] = actor
-
-    if 'latest' in response['messages']:
-        response['messages']['latest'] = str(latest.timestamp)
 
     # match SmartAPI entries to actors
     matched = []
@@ -142,28 +140,47 @@ def status_ars(req, smartresponse, smartapis):
         else:
             response['actors'][actor]['smartapi'] = "Unknown"
 
+    queue_status = 0 # message queue might be down
+    if 'latest' in response['messages']:
+        tz_info = latest.timestamp.tzinfo
+        diff = datetime.datetime.now(tz_info)-latest.timestamp
+        if diff.total_seconds() < 3:
+            queue_status = 1 # latest is too recent to test whether message queue is down
+        response['messages']['latest'] = str(latest.timestamp)
+
     for key in response['actors'].keys():
         actor = response['actors'][key]
+        #('D', 'Done'),
+        #('S', 'Stopped'),
+        #('R', 'Running'),
+        #('E', 'Error'),
+        #('W', 'Waiting'),
+        #('U', 'Unknown')
+        if actor['status'] not in ['Unknown', 'Error']:
+            queue_status = 2 # message queue is up (as of the last message posted to the queue)
         if actor['status'] in ['Running', 'Done']:
-            if 'smartapireasonercompliant' in actor:
-                if actor['smartapireasonercompliant'] == True:
-                    actor['statusicon'] = 'status2'
-                    actor['statusiconcomment'] = 'up'
-                else:
-                    actor['statusicon'] = 'status8'
-                    actor['statusiconcomment'] = 'SmartAPI incomplete'
-            else:
-                actor['statusicon'] = 'status1'
-                actor['statusiconcomment'] = 'SmartAPI missing'
-        elif 'smartapireasonercompliant' in actor:
+            actor['statusicon'] = 'status2'
+            actor['statusiconcomment'] = 'up'
+        elif actor['status'] in ['Waiting']:
+            actor['statusicon'] = 'status1'
+            actor['statusiconcomment'] = 'Service waiting'
+        elif actor['status'] in ['Error']:
+            actor['statusicon'] = 'status8'
+            actor['statusiconcomment'] = 'Service error'
+        elif actor['status'] in ['Stopped']:
             actor['statusicon'] = 'status9'
-            actor['statusiconcomment'] = 'Service outage'
+            actor['statusiconcomment'] = 'Service stopped'
         else:
             actor['statusicon'] = 'status0'
-            actor['statusiconcomment'] = 'Offline; SmartAPI missing'
+            actor['statusiconcomment'] = 'Service outage'
 
     page = dict()
     page['ARS'] = response
+    page['ARS-Queue-Status'] = queue_status
+    if queue_status == 0:
+        for key in response['actors'].keys():
+            actor = response['actors'][key]
+            actor['statusiconcomment'] = ''
 
     arsreasonsers = dict()
     reasoners = dict()

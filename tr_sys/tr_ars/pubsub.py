@@ -6,8 +6,9 @@ from django.conf import settings
 
 logger = logging.getLogger(__name__)
 
+@DeprecationWarning
 def send_message(actor, mesg, timeout=60):
-    url = settings.DEFAULT_HOST + actor.url() # TODO get url base at server startup; no request to use build_absolute_uri()
+    url = settings.DEFAULT_HOST + actor.url()
     logger.debug('sending message %s to %s...' % (mesg.id, url))
     data = mesg.to_dict()
     data['fields']['actor'] = {
@@ -60,7 +61,7 @@ class BackgroundWorker(threading.Thread):
             if settings.USE_CELERY:
                 celery_send_message.delay(actor.to_dict(), mesg.to_dict())
             else:
-                send_message(actor, mesg)
+                celery_send_message(actor.to_dict(), mesg.to_dict())
             queue.task_done()
         logger.debug('%s: BackgroundWorker stopped!' % __name__)
 

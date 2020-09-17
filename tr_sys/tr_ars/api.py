@@ -55,7 +55,7 @@ def submit(req):
         if 'message' not in data:
             return HttpResponse('Not a valid Translator query json', status=400)
         # create a head message
-        message = Message.create(code=200, status='Done', data=data,
+        message = Message.create(code=200, status='Running', data=data,
                           actor=get_default_actor())
         if 'name' in data:
             message.name = data['name']

@@ -28,7 +28,8 @@ def status(req):
         'Short_title': 'ARS Status',
         'actors': status['ARS']['actors'],
         'reasoners': status['SmartAPI']['Other-Reasoners'],
-        'sources': status['SmartAPI']['Other-Translator-SmartAPIs']
+        'sources': status['SmartAPI']['Other-Translator-SmartAPIs'],
+        'queue': status['ARS-Queue-Status']
     }
     return HttpResponse(template.render(context, req))
 
