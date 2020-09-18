@@ -1,0 +1,25 @@
+{
+    "message": {
+        "query_graph": {
+            "edges": [
+                {
+                    "id": "e00",
+                    "source_id": "n00",
+                    "target_id": "n01",
+                    "type": "associated"
+                }
+            ],
+            "nodes": [
+                {
+                    "curie": "EFO:0005208",
+                    "id": "n00",
+                    "type": "disease"
+                },
+                {
+                    "id": "n01",
+                    "type": "gene"
+                }
+            ]
+        }
+    }
+}
