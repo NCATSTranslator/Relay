@@ -23,11 +23,16 @@ def send_message(actor_dict, mesg_dict, timeout=60):
         'uri': url
     }
     mesg = Message.create(actor=Actor.objects.get(pk=actor_dict['pk']),
-                          name=mesg_dict['fields']['name'], status='U',
+                          name=mesg_dict['fields']['name'], status='R',
                           ref=Message.objects.get(pk=mesg_dict['pk']))
     mesg.save()
-    callback = settings.DEFAULT_HOST + reverse('ars-messages') + '/' + str(mesg.pk)
-    data['fields']['data']['callback'] = callback
+
+    # TODO Add Translator API Version to Actor Model ... here one expects strict 0.92 format
+    if actor_dict['fields']['name'].find('ara-explanatory') == 0:
+        pass
+    else:
+        callback = settings.DEFAULT_HOST + reverse('ars-messages') + '/' + str(mesg.pk)
+        data['fields']['data']['callback'] = callback
 
     try:
         r = requests.post(url, json=data, timeout=timeout)

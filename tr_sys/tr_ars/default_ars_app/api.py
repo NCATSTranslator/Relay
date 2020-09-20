@@ -17,7 +17,8 @@ def index(req):
                             reverse('run-app-query')))
 
 def query(url, data, timeout=600):
-    r = requests.post(url, json=data, timeout=timeout)
+    headers = {'Content-Type': 'application/json'}
+    r = requests.post(url, json=data, headers=headers, timeout=timeout)
     logger.debug('%d: %s\n%s' % (r.status_code, r.headers, r.text[:500]))
     return r
 
