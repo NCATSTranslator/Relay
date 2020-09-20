@@ -28,7 +28,7 @@ def send_message(actor_dict, mesg_dict, timeout=60):
     mesg.save()
 
     # TODO Add Translator API Version to Actor Model ... here one expects strict 0.92 format
-    if actor_dict['fields']['name'].find('ara-explanatory') == 0:
+    if 'url' in actor_dict['fields'] and actor_dict['fields']['url'].find('/ara-explanatory/api/runquery') == 0:
         pass
     else:
         callback = settings.DEFAULT_HOST + reverse('ars-messages') + '/' + str(mesg.pk)
