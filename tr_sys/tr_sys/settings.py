@@ -25,7 +25,7 @@ SECRET_KEY = 'a=()q#x6$s_2tnzgvoudd=5&gbv*57bcr(^%f)&rp-7ydf(9ao'
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['ars.transltr.io','localhost']
+ALLOWED_HOSTS = ['localhost', 'ars.transltr.io', 'ars-dev.transltr.io']
 
 
 # Application definition
