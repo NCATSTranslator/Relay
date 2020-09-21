@@ -47,8 +47,10 @@ def execUnsecret(unsecret):
                 response = requests.get(server+"/ars/api/messages/"+child["message"])
                 print(str(response.json())[:500])
                 answer = response.json()
-                assert len(answer["fields"]["data"]["results"]) > 1
-                return
+                if answer["fields"]["status"] != "Running":
+                    print("retrieved message: "+response.url)
+                    assert len(answer["fields"]["data"]["results"]) > 1
+                    return
     sys.stderr.write("Could not find Unsecret message response!\n")
     assert unsecret < 0
     return message
