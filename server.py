@@ -47,8 +47,10 @@ def execUnsecret(unsecret):
                 response = requests.get(server+"/ars/api/messages/"+child["message"])
                 print(str(response.json())[:500])
                 answer = response.json()
-                assert len(answer["fields"]["data"]["results"]) > 1
-                return
+                if answer["fields"]["status"] != "Running":
+                    print("retrieved message: "+response.url)
+                    assert len(answer["fields"]["data"]["results"]) > 1
+                    return
     sys.stderr.write("Could not find Unsecret message response!\n")
     assert unsecret < 0
     return message
@@ -113,5 +115,15 @@ if __name__ == "__main__":
         prep  --- delete existing db file and prep a new db
         test --- for running tests on a running localhost:8000 server with existing db
         debug  --- deletes existing db and starts a new server on localhost:8000 for testing
-        prod  --- starts a new server only\n''')
+        prod  --- starts a new server only
+        
+        options:
+        --server [uri]
+            server uri to test, e.g. http://localhost:8000
+        --dbfile [filename]
+            if needed to overwrite backend during testing (debug)
+        --python [path to exec]
+            python3 executable
+
+        \n''')
     sys.exit(1)

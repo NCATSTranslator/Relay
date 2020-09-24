@@ -23,6 +23,7 @@ from django.urls import include, path, reverse
 from tr_ara_aragorn.aragorn_app import AppConfig as AragornApp
 from tr_ara_arax.arax_app import AppConfig as ARAXApp
 from tr_ara_bte.bte_app import AppConfig as BTEApp
+from tr_ara_explanatory.explanatory_app import AppConfig as ExplanatoryApp
 from tr_ara_improving.improving_app import AppConfig as ImprovingApp
 from tr_ara_ncats.ncats_app import AppConfig as NCATSApp
 from tr_ara_robokop.robokop_app import AppConfig as RobokopApp
@@ -38,6 +39,7 @@ patterns = [
     url(AragornApp.regex_path, include(AragornApp.name)),
     url(ARAXApp.regex_path, include(ARAXApp.name)),
     url(BTEApp.regex_path, include(BTEApp.name)),
+    url(ExplanatoryApp.regex_path,include(ExplanatoryApp.name)),
     url(ImprovingApp.regex_path, include(ImprovingApp.name)),
     url(NCATSApp.regex_path, include(NCATSApp.name)),
     url(RobokopApp.regex_path, include(RobokopApp.name)),

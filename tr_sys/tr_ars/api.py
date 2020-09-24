@@ -55,7 +55,7 @@ def submit(req):
         if 'message' not in data:
             return HttpResponse('Not a valid Translator query json', status=400)
         # create a head message
-        message = Message.create(code=200, status='Done', data=data,
+        message = Message.create(code=200, status='Running', data=data,
                           actor=get_default_actor())
         if 'name' in data:
             message.name = data['name']
@@ -99,7 +99,7 @@ def messages(req):
                                 status=201)
 
         except Message.DoesNotExist:
-            return HttpResponse('Unknown state reference %d' % rid, status=404)
+            return HttpResponse('Unknown state reference %s' % rid, status=404)
 
         except Actor.DoesNotExist:
             return HttpResponse('Unknown actor: %s!' % data['actor'],
@@ -147,24 +147,59 @@ def trace_message(req, key):
         return HttpResponse(json.dumps(tree, indent=2),
                             content_type='application/json',
                             status=200)
-    except Message.DoesNotExit:
+    except Message.DoesNotExist:
         logger.debug('Unknown message: %s' % key)
         return HttpResponse('Unknown message: %s' % key, status=404)
     return HttpResponse('Internal server error', status=500)
 
-
+@csrf_exempt
 def message(req, key):
-    if req.method != 'GET':
-        return HttpResponse('Method %s not supported!' % req.method, status=400)
-    if req.GET.get('trace', False):
-        return trace_message(req, key)
-    try:
-        mesg = Message.objects.get(pk=key)
-        return HttpResponse(json.dumps(mesg.to_dict(), indent=2),
-                            status=200)
+    if req.method == 'GET':
+        if req.GET.get('trace', False):
+            return trace_message(req, key)
+        try:
+            mesg = Message.objects.get(pk=key)
+            return HttpResponse(json.dumps(mesg.to_dict(), indent=2),
+                                status=200)
 
-    except Message.DoesNotExit:
-        return HttpResponse('Unknown message: %s' % key, status=404)
+        except Message.DoesNotExit:
+            return HttpResponse('Unknown message: %s' % key, status=404)
+
+    elif req.method == 'POST':
+        try:
+            data = json.loads(req.body)
+            if 'query_graph' not in data or 'knowledge_graph' not in data or 'results' not in data:
+                return HttpResponse('Not a valid Translator API json', status=400)
+
+            mesg = Message.objects.get(pk = key)
+            status = 'D'
+            if 'tr_ars.message.status' in req.headers:
+                status = req.headers['tr_ars.message.status']
+
+            # create child message if this one already has results
+            if mesg.data and 'results' in mesg.data and mesg.data['results'] != None and len(mesg.data['results']) > 0:
+                mesg = Message.create(name=mesg.name, status=status,
+                                  actor=mesg.actor, ref=mesg)
+
+            mesg.status = status
+            mesg.data = data
+            mesg.save()
+            return HttpResponse(json.dumps(mesg.to_dict(), indent=2),
+                                status=201)
+
+        except Message.DoesNotExist:
+            return HttpResponse('Unknown state reference %s' % key, status=404)
+
+        except json.decoder.JSONDecodeError:
+            return HttpResponse('Can not decode json:<br>\n%s' % req.body, status=500)
+
+        except:
+            logger.debug("Unexpected error: %s" % sys.exc_info())
+
+        return HttpResponse('Internal server error', status=500)
+
+    else:
+        return HttpResponse('Method %s not supported!' % req.method, status=400)
 
 
 @csrf_exempt

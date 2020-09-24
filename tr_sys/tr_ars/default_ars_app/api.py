@@ -17,7 +17,8 @@ def index(req):
                             reverse('run-app-query')))
 
 def query(url, data, timeout=600):
-    r = requests.post(url, json=data, timeout=timeout)
+    headers = {'Content-Type': 'application/json'}
+    r = requests.post(url, json=data, headers=headers, timeout=timeout)
     logger.debug('%d: %s\n%s' % (r.status_code, r.headers, r.text[:500]))
     return r
 
@@ -43,12 +44,23 @@ def callquery(url, req):
                 mesg = 'Not a valid tr_ars.message'
 
             if data != None:
-                r = query(url, data)
-                resp = HttpResponse(r.text,
-                                     content_type='application/json',
-                                     status=r.status_code)
-                resp['tr_ars.message.status'] = 'R'
-                return resp
+                try:
+                    r = query(url, data)
+                    resp = HttpResponse(r.text,
+                                         content_type='application/json',
+                                         status=r.status_code)
+                    for key in r.headers:
+                        resp['tr_ars.'+key] = r.headers[key]
+                    resp['tr_ars.reason'] = r.reason
+                    resp['tr_ars.url'] = r.url
+                    return resp
+                except:
+                    exc_type, exc_value, exc_traceback = sys.exc_info()
+                    resp = HttpResponse(exc_value,
+                                     status = 503)
+                    resp['tr_ars.url'] = url
+                    return resp
+
     except:
         mesg = 'Unexpected error: %s' % sys.exc_info()
         logger.debug(mesg)

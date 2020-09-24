@@ -1,6 +1,21 @@
 {% extends 'ncatspage.html' %}
 {% block content %}
 
+    {% if queue < 2 %}
+
+        <app-ncats-header _ngcontent-c0="" _nghost-c1="">
+            <mat-toolbar _ngcontent-c1="" class="mat-toolbar mat-primary mat-toolbar-multiple-rows">
+                <mat-toolbar-row _ngcontent-c1="" class="mat-toolbar-row" fxlayout="row" id="ncats-logo"
+                                 style="flex-direction: row; box-sizing: border-box; display: flex;">
+                    <div></div>
+                    <div><span style="color: #632f6b;" class="mat-card-title subsection">&nbsp;***
+                        {% if queue == 1 %} Interim timing, please refresh {% else %} Message queue currently down {% endif %} *** </span></div>
+                </mat-toolbar-row>
+            </mat-toolbar>
+        </app-ncats-header>
+
+    {% endif %}
+
     <site-table _ngcontent-c0="" _nghost-c4="">
         <mat-table _ngcontent-c4="" class="mat-table" matsort="" role="grid" ng-reflect-data-source="[object Object]">
             <!---->
@@ -93,6 +108,7 @@
                 </mat-cell>
                 <mat-cell _ngcontent-c4="" class="mat-cell cdk-column-day mat-column-day" role="gridcell">
                     {% if actor.smartapi != 'Unknown' %}<a href="{{ actor.smartapi }}">{{ actor.smartapi|slice:"36:45" }} ...</a>
+                        {% if actor.smartapireasonercompliant == False %} <br> not Reasoner API compliant {% endif %}
                         {% elif actor.smartapiguess %}Is it this <a href="{{ actor.smartapiguess }}">one</a>?
                         {% else %}{{ actor.smartapi }}
                     {% endif %}

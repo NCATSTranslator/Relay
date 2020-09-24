@@ -44,19 +44,7 @@ cd tr_sys; celery -A tr_sys worker -l info
 Bring up the server
 
 ```bash
-python tr_sys/manage.py loaddata ../data/fixtures/channels.json
-python tr_sys/manage.py loaddata ../data/fixtures/agents.json
-python tr_sys/manage.py loaddata ../data/fixtures/actors.json
 python tr_sys/manage.py runserver --noreload
-```
-
-[If desired] add individual agents and their actors to the running ARS server
-
-```bash
-curl -d @tr_sys/tr_ars/agent_bte.json http://localhost:8000/ars/api/agents > response1.htm
-curl -d @tr_sys/tr_ars/actor_runbte.json http://localhost:8000/ars/api/actors > response2.htm 
-curl -d @tr_sys/tr_ara_unsecret/unsecretAgent.json http://localhost:8000/ars/api/agents > response1.htm
-curl -d @tr_sys/tr_ara_unsecret/unsecretActor.json http://localhost:8000/ars/api/actors > response2.htm 
 ```
 
 Preview the message queue at http://localhost:8000/ars/api/messages
@@ -73,3 +61,16 @@ Run tests after new code development (also see .travis.yml)
 ```bash
 python server.py test
 ```
+
+[If desired] manipulate individual agents and their actors to the running ARS server
+
+```bash
+python tr_sys/manage.py loaddata ../data/fixtures/channels.json
+python tr_sys/manage.py loaddata ../data/fixtures/agents.json
+python tr_sys/manage.py loaddata ../data/fixtures/actors.json
+curl -d @tr_sys/tr_ars/agent_bte.json http://localhost:8000/ars/api/agents > response1.htm
+curl -d @tr_sys/tr_ars/actor_runbte.json http://localhost:8000/ars/api/actors > response2.htm 
+curl -d @tr_sys/tr_ara_unsecret/unsecretAgent.json http://localhost:8000/ars/api/agents > response1.htm
+curl -d @tr_sys/tr_ara_unsecret/unsecretActor.json http://localhost:8000/ars/api/actors > response2.htm 
+```
+
