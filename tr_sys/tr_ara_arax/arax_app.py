@@ -4,7 +4,7 @@ from tr_ars.default_ars_app.api import *
 
 class AppConfig(ARSAppConfig):
     name = 'tr_ara_arax.arax_app' # must be dot path for module
-    actors = [('https://arax.rtx.ai/api/rtx/v1/query', 'runquery', 'general')] # tuple of remote, name, channel
+    actors = [('https://arax.ncats.io/api/rtx/v1/query', 'runquery', 'general')] # tuple of remote, name, channel
     app_path = 'ara-arax'
     regex_path = '^' + app_path + '/'
 
