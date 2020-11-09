@@ -1,7 +1,7 @@
 language: python
 services:
   - docker
-script: python server.py test
+script: python server.py test --server http://localhost:8000
 install:
   - pip install -r requirements.txt
 before_script:
