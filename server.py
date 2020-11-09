@@ -41,11 +41,11 @@ def execUnsecret(unsecret):
         time.sleep(i*i*5)
         response = requests.get(server+"/ars/api/messages/"+message["pk"]+"?trace=y")
         chain = response.json()
-        print(chain)
+        #print(chain)
         for child in chain["children"]:
             if child["actor"]["pk"] == unsecret:
                 response = requests.get(server+"/ars/api/messages/"+child["message"])
-                print(str(response.json())[:500])
+                #print(str(response.json())[:500])
                 answer = response.json()
                 if answer["fields"]["status"] != "Running":
                     print("retrieved message: "+response.url)
