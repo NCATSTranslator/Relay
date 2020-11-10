@@ -37,6 +37,7 @@ def execUnsecret(unsecret):
     fp = subprocess.run(syscall, stdout=PIPE)
     message = json.loads(fp.stdout)
     assert message["model"] == "tr_ars.message"
+    print("found ars message model")
     for i in range(5):
         time.sleep(i*i*5)
         response = requests.get(server+"/ars/api/messages/"+message["pk"]+"?trace=y")
@@ -47,7 +48,7 @@ def execUnsecret(unsecret):
             if child["actor"]["pk"] == unsecret:
                 response = requests.get(server+"/ars/api/messages/"+child["message"])
                 #print(str(response.json())[:500])
-                print("found unsecret")
+                print("found unsecret message")
                 answer = response.json()
                 if answer["fields"]["status"] != "Running":
                     print("retrieved message: "+response.url)
@@ -66,8 +67,11 @@ def validateQuery():
         assert status_code == 200
 
 def runTests():
+    print("entering run tests")
     unsecret = getUnsecret()
+    print("got unsecret "+str(unsecret))
     execUnsecret(unsecret)
+    print("finished execution of unsecret")
     exit(0)
 
 if __name__ == "__main__":
