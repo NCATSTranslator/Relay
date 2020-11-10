@@ -106,6 +106,9 @@ if __name__ == "__main__":
         if sys.argv[1] == 'debug' or sys.argv[1] == 'test':
             serverfp = subprocess.Popen(serverargs, stdout=None, stderr=PIPE)
             time.sleep(5)
+            print("server brought up for debug/testing")
+        else:
+            print("argv[1]="+sys.argv[1])
         if sys.argv[1] == 'prod':
             serverfp = subprocess.run(serverargs, stdout=PIPE, stderr=PIPE)
 
