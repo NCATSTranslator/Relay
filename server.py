@@ -33,9 +33,11 @@ def getUnsecret():
     return actorpk
 
 def execUnsecret(unsecret):
-    syscall = ["curl", "-d", "@tr_sys/tr_ara_unsecret/unsecretStatusQuery.json", server+"/ars/api/submit"]
-    fp = subprocess.run(syscall, stdout=PIPE)
-    message = json.loads(fp.stdout)
+    #syscall = ["curl", "-d", "@tr_sys/tr_ara_unsecret/unsecretStatusQuery.json", server+"/ars/api/submit"]
+    #fp = subprocess.run(syscall, stdout=PIPE)
+    #message = json.loads(fp.stdout)
+    querySubmit=requests.post(server+"/ars/api/submit",data=open('tr_sys/tr_ara_unsecret/unsecretStatusQuery.json', 'rb'))
+    print(querySubmit.text)
     assert message["model"] == "tr_ars.message"
     print("found ars message model")
     for i in range(5):
@@ -45,7 +47,7 @@ def execUnsecret(unsecret):
         chain = response.json()
         #print(chain)
         if 'children' not in chain:
-            print(chain)
+            continue
         for child in chain["children"]:
             print("child in children")
             if child["actor"]["pk"] == unsecret:
