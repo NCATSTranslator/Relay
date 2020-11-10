@@ -103,8 +103,8 @@ if __name__ == "__main__":
         # bring up server
         serverfp = None
         serverargs = [python, "tr_sys/manage.py", "runserver", "--noreload"]
-        if sys.argv[1] == 'debug':
-            serverfp = subprocess.Popen(serverargs, stdout=PIPE, stderr=PIPE)
+        if sys.argv[1] == 'debug' or ys.argv[1] == 'test':
+            serverfp = subprocess.Popen(serverargs, stdout=None, stderr=PIPE)
             time.sleep(5)
         if sys.argv[1] == 'prod':
             serverfp = subprocess.run(serverargs, stdout=PIPE, stderr=PIPE)
