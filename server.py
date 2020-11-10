@@ -6,6 +6,8 @@ import os
 import subprocess
 from subprocess import PIPE
 import time
+from requests.adapters import HTTPAdapter
+from requests.packages.urllib3.util.retry import Retry
 
 dbfile = "tr_sys/db.sqlite3"
 python = sys.executable #python or python3
@@ -33,15 +35,27 @@ def getUnsecret():
     return actorpk
 
 def execUnsecret(unsecret):
-    syscall = ["curl", "-d", "@tr_sys/tr_ara_unsecret/unsecretStatusQuery.json", server+"/ars/api/submit"]
-    fp = subprocess.run(syscall, stdout=PIPE)
-    message = json.loads(fp.stdout)
+    retry_strategy = Retry(
+       total=5,
+       status_forcelist=[429, 500, 502, 503, 504],
+       backoff_factor=2,
+       method_whitelist=["HEAD", "GET", "OPTIONS"]
+       )
+    adapter = HTTPAdapter(max_retries=retry_strategy)
+    http = requests.Session()
+    http.mount("https://", adapter)
+    http.mount("http://", adapter)
+
+    querySubmit=requests.post(server+"/ars/api/submit",data=open('tr_sys/tr_ara_unsecret/unsecretStatusQuery.json', 'rb'),timeout=10)
+    message =querySubmit.json()
     assert message["model"] == "tr_ars.message"
     for i in range(5):
         time.sleep(i*i*5)
-        response = requests.get(server+"/ars/api/messages/"+message["pk"]+"?trace=y")
+        response = http.get(server+"/ars/api/messages/"+message["pk"]+"?trace=y",timeout=5)
         chain = response.json()
-        print(chain)
+        #print(chain)
+        if 'children' not in chain:
+            continue
         for child in chain["children"]:
             if child["actor"]["pk"] == unsecret:
                 response = requests.get(server+"/ars/api/messages/"+child["message"])
