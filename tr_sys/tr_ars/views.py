@@ -54,7 +54,8 @@ def answer(req,key):
             jsonChild = json.loads(api.message(req,childId).content)
             jsonChildData = jsonChild['fields']['data']
 
-
+            if jsonChildData is None:
+                continue
             msg = utils.TranslatorMessage(jsonChildData)
             msgs.append(msg)
 
@@ -83,9 +84,10 @@ def answer(req,key):
         #commonNodes = utils.getCommonNodes(msgs)
         print()
         try:
-            merged = utils.mergeMessages(utils.QueryGraph(queryGraph),msgs)
-            sharedResultsMap = merged.getSharedResults()
-            sharedResults = utils.sharedResultsJson(sharedResultsMap)
+            idMap = utils.getCanonicalIdentifierMap(msgs)
+        #     merged = utils.mergeMessages(utils.QueryGraph(queryGraph),msgs)
+        #     sharedResultsMap = merged.getSharedResults()
+        #     sharedResults = utils.sharedResultsJson(sharedResultsMap)
         except:
             print("Unable to merge results for "+str(key))
             sharedResults=[]

@@ -1,6 +1,9 @@
 import copy
 import json
 import sys
+import urllib
+import requests
+
 class QueryGraph():
     pass
     def __init__(self,qg):
@@ -275,5 +278,33 @@ def sharedResultsJson(sharedResultsMap):
         }
         results.append(json.dumps(result,indent=2))
     return results
+
+def canonizeResults(messages):
+    pass
+
+def getCanonicalIdentifierMap(messages):
+    idmap={}
+    ids=set()
+    for message in messages:
+        kg = message.getKnowledgeGraph()
+        if kg is not None:
+            currentIds = message.getKnowledgeGraph().getAllIds()
+            ids.update(currentIds)
+    url = "https://nodenormalization-sri.renci.org/get_normalized_nodes?"
+    for id in ids:
+        url = url + "curie="+urllib.parse.quote(id)+"&"
+    url = url[:-1]
+    r = requests.get(url)
+    rj = r.json()
+    for entry in rj:
+        print(entry)
+        # results = message.getResults()
+        # for result in results:
+        #     if('node_bindings' in result):
+        #         for node_binding in result['node_bindings']:
+        #             if 'kg_id' in node_binding:
+        #                 kg_id = node_binding['kg_id']
+        #                 set.add(kg_id)
+
 
 
