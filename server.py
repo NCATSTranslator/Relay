@@ -68,6 +68,7 @@ def validateQuery():
 def runTests():
     unsecret = getUnsecret()
     execUnsecret(unsecret)
+    exit(0)
 
 if __name__ == "__main__":
 
