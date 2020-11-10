@@ -44,7 +44,10 @@ def execUnsecret(unsecret):
         response = requests.get(server+"/ars/api/messages/"+message["pk"]+"?trace=y")
         chain = response.json()
         #print(chain)
+        if 'children' not in chain:
+            print(chain)
         for child in chain["children"]:
+            print("child in children")
             if child["actor"]["pk"] == unsecret:
                 response = requests.get(server+"/ars/api/messages/"+child["message"])
                 #print(str(response.json())[:500])
