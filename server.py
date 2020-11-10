@@ -39,11 +39,11 @@ def execUnsecret(unsecret):
     assert message["model"] == "tr_ars.message"
     print("found ars message model")
     for i in range(5):
+        print("i="+str(i))
         time.sleep(i*i*5)
         response = requests.get(server+"/ars/api/messages/"+message["pk"]+"?trace=y")
         chain = response.json()
         #print(chain)
-        print ("i ="+str(i))
         for child in chain["children"]:
             if child["actor"]["pk"] == unsecret:
                 response = requests.get(server+"/ars/api/messages/"+child["message"])
@@ -104,7 +104,7 @@ if __name__ == "__main__":
         serverfp = None
         serverargs = [python, "tr_sys/manage.py", "runserver", "--noreload"]
         if sys.argv[1] == 'debug' or sys.argv[1] == 'test':
-            serverfp = subprocess.Popen(serverargs, stdout=None, stderr=PIPE)
+            serverfp = subprocess.Popen(serverargs, stdout=None, stderr=None)
             time.sleep(5)
             print("server brought up for debug/testing")
         else:
@@ -116,6 +116,7 @@ if __name__ == "__main__":
         if sys.argv[1] == 'debug' or sys.argv[1] == 'test':
             runTests()
             if serverfp != None:
+                print "Serverfp = None"
                 serverfp.terminate()
                 time.sleep(5)
             sys.exit()
