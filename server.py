@@ -116,7 +116,7 @@ if __name__ == "__main__":
         if sys.argv[1] == 'debug' or sys.argv[1] == 'test':
             runTests()
             if serverfp != None:
-                print "Serverfp = None"
+                print("Serverfp not None")
                 serverfp.terminate()
                 time.sleep(5)
             sys.exit()
