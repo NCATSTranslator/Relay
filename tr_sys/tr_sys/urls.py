@@ -30,6 +30,8 @@ from tr_ara_robokop.robokop_app import AppConfig as RobokopApp
 from tr_ara_unsecret.unsecret_app import AppConfig as UnsecretApp
 from tr_kp_genetics.genetics_app import AppConfig as GeneticsApp
 from tr_kp_molecular.molecular_app import AppConfig as MolecularApp
+from tr_kp_connections.connections_app import AppConfig as ConnectionsApp
+
 from tr_ars.default_ars_app.ars_app import AppConfig as ARSApp
 
 patterns = [
@@ -46,6 +48,7 @@ patterns = [
     url(UnsecretApp.regex_path, include(UnsecretApp.name)),
     url(GeneticsApp.regex_path, include(GeneticsApp.name)),
     url(MolecularApp.regex_path, include(MolecularApp.name)),
+    url(ConnectionsApp.regex_path, include(ConnectionsApp.name))
 ]
 
 def base_index(req):
