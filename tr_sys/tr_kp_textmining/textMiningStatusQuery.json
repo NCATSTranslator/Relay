@@ -9,6 +9,7 @@
           "type": "negatively_regulates_entity_to_entity"
         }
       ],
+
       "nodes": [
         {
           "curie": "CHEBI:3215",
