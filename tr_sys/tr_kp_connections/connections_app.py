@@ -4,7 +4,7 @@ from tr_ars.default_ars_app.api import *
 
 class AppConfig(ARSAppConfig):
     name = 'tr_kp_connections.connections_app' # must be dot path for module
-    actors = [('http://chp.thayer.dartmouth.edu/query',
+    actors = [('https://stars-app.renci.org/cam-kp/query?limit=100',
                'runquery', 'general')] # tuple of remote, name, channel
     app_path = 'kp-connections'
     regex_path = '^' + app_path + '/'

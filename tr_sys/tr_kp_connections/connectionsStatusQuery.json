@@ -1,45 +1,25 @@
 {
   "message": {
     "query_graph": {
-      "edges": {
-        "e0": {
-          "object": "n2",
-          "predicate": "biolink:GeneToDiseaseAssociation",
-          "subject": "n0"
+      "nodes": [
+        {
+          "id": "n0",
+          "type": "gene_or_gene_product"
         },
-        "e1": {
-          "object": "n2",
-          "predicate": "biolink:ChemicalToDiseaseOrPhenotypicFeatureAssociation",
-          "subject": "n1"
-        },
-        "e2": {
-          "object": "n3",
-          "predicate": "biolink:DiseaseToPhenotypicFeatureAssociation",
-          "properties": {
-            "days": 500,
-            "qualifier": ">="
-          },
-          "subject": "n2"
+        {
+          "id": "n1",
+          "type": "anatomical_entity",
+          "curie": "GO:0005634"
         }
-      },
-      "nodes": {
-        "n0": {
-          "category": "biolink:Gene",
-          "id": "ENSEMBL:ENSG00000132155"
-        },
-        "n1": {
-          "category": "biolink:Drug",
-          "id": "CHEMBL:CHEMBL1201585"
-        },
-        "n2": {
-          "category": "biolink:Disease",
-          "id": "MONDO:0007254"
-        },
-        "n3": {
-          "category": "biolink:PhenotypicFeature",
-          "id": "EFO:0000714"
+      ],
+      "edges": [
+        {
+          "id": "e0",
+          "source_id": "n0",
+          "target_id": "n1",
+          "type": "part_of"
         }
-      }
+      ]
     }
   }
 }
