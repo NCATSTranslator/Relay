@@ -44,7 +44,7 @@ INSTALLED_APPS = [
     'tr_ara_unsecret.unsecret_app.AppConfig',
     'tr_kp_genetics.genetics_app.AppConfig',
     'tr_kp_molecular.molecular_app.AppConfig',
-    'tr_kp_cam.connections_app.AppConfig',
+    'tr_kp_cam.cam_app.AppConfig',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
