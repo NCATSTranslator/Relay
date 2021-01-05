@@ -49,7 +49,6 @@ patterns = [
     url(GeneticsApp.regex_path, include(GeneticsApp.name)),
     url(MolecularApp.regex_path, include(MolecularApp.name)),
     url(CamApp.regex_path, include(CamApp.name))
-    url(ConnectionsApp.regex_path, include(ConnectionsApp.name)),
     url(TextMiningApp.regex_path, include(TextMiningApp.name))
 ]
 
