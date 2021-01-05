@@ -48,7 +48,7 @@ patterns = [
     url(UnsecretApp.regex_path, include(UnsecretApp.name)),
     url(GeneticsApp.regex_path, include(GeneticsApp.name)),
     url(MolecularApp.regex_path, include(MolecularApp.name)),
-    url(CamApp.regex_path, include(CamApp.name))
+    url(CamApp.regex_path, include(CamApp.name)),
     url(TextMiningApp.regex_path, include(TextMiningApp.name))
 ]
 
