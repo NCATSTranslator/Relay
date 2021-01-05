@@ -3,10 +3,10 @@ from django.urls import path, include
 from tr_ars.default_ars_app.api import *
 
 class AppConfig(ARSAppConfig):
-    name = 'tr_kp_connections.connections_app' # must be dot path for module
+    name = 'tr_kp_cam.cam_app' # must be dot path for module
     actors = [('https://stars-app.renci.org/cam-kp/query?limit=100',
                'runquery', 'general')] # tuple of remote, name, channel
-    app_path = 'kp-connections'
+    app_path = 'kp-cam'
     regex_path = '^' + app_path + '/'
 
 ### code below this line is required, but doesn't require updating in most cases
