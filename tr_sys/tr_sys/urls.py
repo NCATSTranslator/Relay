@@ -31,7 +31,6 @@ from tr_ara_unsecret.unsecret_app import AppConfig as UnsecretApp
 from tr_kp_genetics.genetics_app import AppConfig as GeneticsApp
 from tr_kp_molecular.molecular_app import AppConfig as MolecularApp
 from tr_kp_cam.cam_app import AppConfig as CamApp
-from tr_kp_connections.connections_app import AppConfig as ConnectionsApp
 from tr_kp_textmining.textmining_app import AppConfig as TextMiningApp
 from tr_ars.default_ars_app.ars_app import AppConfig as ARSApp
 
