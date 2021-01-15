@@ -59,8 +59,8 @@ def submit(req):
         try:
             validate_Query(data)
         except ValidationError:
-            logger.debug("Input query failed TRAPI validation "+str(data))
-            return HttpResponse('Input query failed TRAPI validation',status=400)
+            logger.debug("Warning! Input query failed TRAPI validation "+str(data))
+            #return HttpResponse('Input query failed TRAPI validation',status=400)
         message = Message.create(code=200, status='Running', data=data,
                           actor=get_default_actor())
 
