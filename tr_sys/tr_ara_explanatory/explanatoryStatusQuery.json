@@ -1,25 +1,22 @@
 {
-    "message": {
-        "query_graph": {
-            "edges": [
-                {
-                    "id": "e00",
-                    "source_id": "n00",
-                    "target_id": "n01",
-                    "type": "associated"
-                }
-            ],
-            "nodes": [
-                {
-                    "curie": "EFO:0005208",
-                    "id": "n00",
-                    "type": "disease"
-                },
-                {
-                    "id": "n01",
-                    "type": "gene"
-                }
-            ]
+  "message": {
+    "query_graph": {
+      "edges": {
+        "e00": {
+          "subject": "n00",
+          "object": "n01",
+          "predicate": "biolink:condition_associated_with_gene"
         }
+      },
+      "nodes": {
+        "n00": {
+          "id": "EFO:0000275",
+          "category": "biolink:Disease"
+        },
+        "n01": {
+          "category": "biolink:Gene"
+        }
+      }
     }
+  }
 }
