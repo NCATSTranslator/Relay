@@ -46,7 +46,7 @@ def execUnsecret(unsecret):
     http.mount("https://", adapter)
     http.mount("http://", adapter)
 
-    querySubmit=requests.post(server+"/ars/api/submit",data=open('tr_sys/tr_ara_unsecret/unsecretStatusQuery.json', 'rb'),timeout=10)
+    querySubmit=requests.post(server+"/ars/api/submit",data=open('tr_sys/tr_ara_unsecret/unsecretStatusQueryTRAPIv1.json', 'rb'),timeout=10)
     message =querySubmit.json()
     assert message["model"] == "tr_ars.message"
     for i in range(5):
@@ -63,7 +63,7 @@ def execUnsecret(unsecret):
                 answer = response.json()
                 if answer["fields"]["status"] != "Running":
                     print("retrieved message: "+response.url)
-                    assert len(answer["fields"]["data"]["results"]) > 1
+                    assert len(answer["fields"]["data"]["message"]["results"]) > 1
                     return
     sys.stderr.write("Could not find Unsecret message response!\n")
     assert unsecret < 0

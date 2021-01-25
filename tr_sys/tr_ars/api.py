@@ -7,6 +7,7 @@ from .models import Agent, Message, Channel, Actor
 import json, sys, logging
 from inspect import currentframe, getframeinfo
 from tr_ars import status_report
+from reasoner_validator import validate_Message, ValidationError, validate_Query
 
 logger = logging.getLogger(__name__)
 
@@ -52,11 +53,17 @@ def submit(req):
         return HttpResponse('Only POST is permitted!', status=405)
     try:
         data = json.loads(req.body)
-        if 'message' not in data:
-            return HttpResponse('Not a valid Translator query json', status=400)
+        # if 'message' not in data:
+        #     return HttpResponse('Not a valid Translator query json', status=400)
         # create a head message
+        try:
+            validate_Query(data)
+        except ValidationError:
+            logger.debug("Warning! Input query failed TRAPI validation "+str(data))
+            #return HttpResponse('Input query failed TRAPI validation',status=400)
         message = Message.create(code=200, status='Running', data=data,
                           actor=get_default_actor())
+
         if 'name' in data:
             message.name = data['name']
         # save and broadcast
