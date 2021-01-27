@@ -63,7 +63,7 @@ def execUnsecret(unsecret):
                 answer = response.json()
                 if answer["fields"]["status"] != "Running":
                     print("retrieved message: "+response.url)
-                    assert len(answer["fields"]["data"]["results"]) > 1
+                    assert len(answer["fields"]["data"]["message"]["results"]) > 1
                     return
     sys.stderr.write("Could not find Unsecret message response!\n")
     assert unsecret < 0
