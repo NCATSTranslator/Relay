@@ -1,27 +1,22 @@
 {
   "message": {
     "query_graph": {
-      "edges": [
-        {
-          "id": "e0",
-          "source_id": "n0",
-          "target_id": "n1",
-          "type": "negatively_regulates_entity_to_entity"
+      "edges": {
+        "e00": {
+          "subject": "n0",
+          "object": "n1",
+          "predicate": "biolink:negatively_regulates"
         }
-      ],
-
-      "nodes": [
-        {
-          "curie": "CHEBI:3215",
-          "id": "n0",
-          "type": "chemical_substance"
+      },
+      "nodes": {
+        "n0": {
+          "category": "biolink:ChemicalSubstance",
+          "id": "CHEBI:3215"
         },
-        {
-          "curie": "PR:000031567",
-          "id": "n1",
-          "type": "gene_product"
+        "n1": {
+          "id": "PR:000031567"
         }
-      ]
+      }
     }
   }
 }
