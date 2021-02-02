@@ -52,9 +52,9 @@ INSTALLED_APPS = [
     'tr_kp_molecular.molecular_app.AppConfig',
     'tr_kp_cam.cam_app.AppConfig',
     'tr_kp_textmining.textmining_app.AppConfig',
-    'tr_ara_aragorn-exp.aragorn-exp_app.AppConfig',
     'django_celery_results',
     'markdownify',
+    'tr_ara_aragorn-exp.aragorn-exp_app.AppConfig',
 ]
 
 MIDDLEWARE = [
