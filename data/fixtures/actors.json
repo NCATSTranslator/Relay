@@ -78,5 +78,15 @@
             "remote": "https://translator.broadinstitute.org/molepro_reasoner/query",
             "path": "runquery"
         }
+    },
+    {
+        "model": "tr_ars.actor",
+        "pk": 10,
+        "fields": {
+            "channel": 1,
+            "agent": 10,
+            "remote": "http://aragorn.renci.org/query",
+            "path": "runquery"
+        }
     }
 ]

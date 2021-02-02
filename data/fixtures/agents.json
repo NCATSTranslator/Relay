@@ -95,5 +95,17 @@
             "registered": "2020-08-28T15:23:59.538Z",
             "updated": "2020-08-28T15:23:59.538Z"
         }
+    },
+    {
+        "model": "tr_ars.agent",
+        "pk": 10,
+        "fields": {
+            "name": "ara-aragorn-exp",
+            "description": "ARAGORN experimental: Performs a query operation which compiles data from numerous ARAGORN ranking agent services including Strider, Answer coalesce and Aragorn-ranker.",
+            "uri": "http://localhost:8000/ara-aragorn-exp/api/",
+            "contact": "powen@renci.org",
+            "registered": "2020-08-28T15:23:59.270Z",
+            "updated": "2020-08-28T15:23:59.270Z"
+        }
     }
 ]
