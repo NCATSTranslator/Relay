@@ -54,7 +54,7 @@ INSTALLED_APPS = [
     'tr_kp_textmining.textmining_app.AppConfig',
     'django_celery_results',
     'markdownify',
-    'tr_ara_aragorn-exp.aragorn-exp_app.AppConfig',
+    'tr_ara_aragorn-exp.aragorn-exp_app.AppConfig'
 ]
 
 MIDDLEWARE = [
