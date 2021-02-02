@@ -4,7 +4,7 @@ from tr_ars.default_ars_app.api import *
 
 class AppConfig(ARSAppConfig):
     name = 'tr_kp_molecular.molecular_app' # must be dot path for module
-    actors = [('https://translator.broadinstitute.org/molepro/trapi/v1.0/',
+    actors = [('https://translator.broadinstitute.org/molepro/trapi/v1.0/query',
                'runquery', 'general')] # tuple of remote, name, channel
     app_path = 'kp-molecular'
     regex_path = '^' + app_path + '/'
