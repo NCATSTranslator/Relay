@@ -90,8 +90,8 @@ def status_ars(req, smartresponse, smartapis):
                     if elem[0] == actor['status']:
                         actor['status'] = elem[1]
             data = message.data
-            if data is not None and 'results' in data:
-                actor_results = len(data['results'])
+            if data is not None and 'message' in data and 'results' in data['message'] and data['message']['results'] is not None:
+                actor_results = len(data['message']['results'])
             else:
                 actor_results = 0
         if 'status' not in actor:

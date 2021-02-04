@@ -31,6 +31,12 @@ ALLOWED_HOSTS = ['localhost', 'ars.transltr.io', 'ars-dev.transltr.io']
 # Application definition
 
 INSTALLED_APPS = [
+    'django.contrib.admin',
+    'django.contrib.auth',
+    'django.contrib.contenttypes',
+    'django.contrib.sessions',
+    'django.contrib.messages',
+    'django.contrib.staticfiles',
     'channels',
     'tr_ars.apps.ARSConfig',
     #'tr_ars.default_ars_app.ars_app.AppConfig',
@@ -44,12 +50,8 @@ INSTALLED_APPS = [
     'tr_ara_unsecret.unsecret_app.AppConfig',
     'tr_kp_genetics.genetics_app.AppConfig',
     'tr_kp_molecular.molecular_app.AppConfig',
-    'django.contrib.admin',
-    'django.contrib.auth',
-    'django.contrib.contenttypes',
-    'django.contrib.sessions',
-    'django.contrib.messages',
-    'django.contrib.staticfiles',
+    'tr_kp_cam.cam_app.AppConfig',
+    'tr_kp_textmining.textmining_app.AppConfig',
     'django_celery_results',
     'markdownify',
 ]

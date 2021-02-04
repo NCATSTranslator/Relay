@@ -3,9 +3,10 @@ from django.urls import path, include
 from tr_ars.default_ars_app.api import *
 
 class AppConfig(ARSAppConfig):
-    name = 'tr_ara_explanatory.explanatory_app' # must be dot path for module
-    actors = [('http://explanatory-agent.azurewebsites.net/v1.0/query', 'runquery', 'general')] # tuple of remote, name, channel
-    app_path = 'ara-explanatory'
+    name = 'tr_kp_cam.cam_app' # must be dot path for module
+    actors = [('https://stars-app.renci.org/cam-kp/query?limit=100',
+               'runquery', 'general')] # tuple of remote, name, channel
+    app_path = 'kp-cam'
     regex_path = '^' + app_path + '/'
 
 ### code below this line is required, but doesn't require updating in most cases
