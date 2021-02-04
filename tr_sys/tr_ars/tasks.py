@@ -11,7 +11,7 @@ import html
 logger = get_task_logger(__name__)
 
 @shared_task
-def send_message(actor_dict, mesg_dict, timeout=60):
+def send_message(actor_dict, mesg_dict, timeout=300):
     logger.info(mesg_dict)
     url = settings.DEFAULT_HOST + actor_dict['fields']['url']
     logger.debug('sending message %s to %s...' % (mesg_dict['pk'], url))
@@ -34,15 +34,17 @@ def send_message(actor_dict, mesg_dict, timeout=60):
         callback = settings.DEFAULT_HOST + reverse('ars-messages') + '/' + str(mesg.pk)
         data['fields']['data']['callback'] = callback
 
+    status = 'U'
+    status_code = 0
+    rdata = data['fields']['data']
     try:
         r = requests.post(url, json=data, timeout=timeout)
         logger.debug('%d: receive message from actor %s...\n%s.\n'
                      % (r.status_code, url, str(r.text)[:500]))
+        status_code = r.status_code
         url = r.url
         if 'tr_ars.url' in r.headers:
             url = r.headers['tr_ars.url']
-        status = 'U'
-        rdata = data['fields']['data']
         # status defined in https://github.com/NCATSTranslator/ReasonerAPI/blob/master/TranslatorReasonerAPI.yaml
         # paths: /query: post: responses:
         # 200 = OK. There may or may not be results. Note that some of the provided
@@ -82,13 +84,16 @@ def send_message(actor_dict, mesg_dict, timeout=60):
                 for key in r.headers:
                     if key.lower().find('tr_ars') > -1:
                         rdata['logs'].append(key+": "+r.headers[key])
-        mesg.code = r.status_code
-        mesg.status = status
-        mesg.data = rdata
-        mesg.url = url
-        mesg.save()
-        logger.debug('+++ message saved: %s' % (mesg.pk))
     except:
         logger.exception("Can't send message to actor %s\n%s"
                          % (url,sys.exc_info()))
+        status_code = 598
+        status = 'E'
+
+    mesg.code = status_code
+    mesg.status = status
+    mesg.data = rdata
+    mesg.url = url
+    mesg.save()
+    logger.debug('+++ message saved: %s' % (mesg.pk))
 
