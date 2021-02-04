@@ -37,6 +37,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'corsheaders',
     'channels',
     'tr_ars.apps.ARSConfig',
     #'tr_ars.default_ars_app.ars_app.AppConfig',
@@ -64,9 +65,12 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
 ]
 
 ROOT_URLCONF = 'tr_sys.urls'
+
+CORS_ORIGIN_ALLOW_ALL = True # for further customization see https://pypi.org/project/django-cors-headers/
 
 TEMPLATES = [
     {

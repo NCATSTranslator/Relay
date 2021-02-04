@@ -1,6 +1,6 @@
 requests
 django>=3.1
-channels
+django-cors-headers>=3.7
 python-Levenshtein-wheels
 celery==4.4.7
 django-celery-results
