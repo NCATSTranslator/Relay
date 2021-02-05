@@ -26,7 +26,7 @@ class S(BaseHTTPRequestHandler):
         response['knowledge_graph']['nodes'] = dict()
         response['knowledge_graph']['edges'] = dict()
         response['log'] = str(self.headers)
-        time.sleep(70) # mimic long response times
+        time.sleep(7) # mimic long response times
         self._set_response()
         self.wfile.write(format(json.dumps(response)).encode('utf-8'))
 
