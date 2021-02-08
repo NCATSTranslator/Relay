@@ -4,7 +4,7 @@ from tr_ars.default_ars_app.api import *
 
 class AppConfig(ARSAppConfig):
     name = 'tr_ara_aragorn-exp.aragorn-exp_app' # must be dot path for module
-    actors = [('http://aragorn.renci.org/query', 'runquery', 'general')] # tuple of remote, name, channel
+    actors = [('https://aragorn.renci.org/query', 'runquery', 'general')] # tuple of remote, name, channel
     app_path = 'ara-aragorn-exp'
     regex_path = '^' + app_path + '/'
 
