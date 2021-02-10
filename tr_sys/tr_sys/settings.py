@@ -46,6 +46,7 @@ INSTALLED_APPS = [
     'tr_kp_molecular.molecular_app.AppConfig',
     'tr_kp_cam.cam_app.AppConfig',
     'tr_kp_textmining.textmining_app.AppConfig',
+    'tr_ara_aragorn_exp.aragorn_exp_app.AppConfig',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
