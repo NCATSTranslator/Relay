@@ -25,12 +25,19 @@ SECRET_KEY = 'a=()q#x6$s_2tnzgvoudd=5&gbv*57bcr(^%f)&rp-7ydf(9ao'
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['ars.transltr.io','localhost']
+ALLOWED_HOSTS = ['localhost', 'ars.transltr.io', 'ars-dev.transltr.io']
 
 
 # Application definition
 
 INSTALLED_APPS = [
+    'django.contrib.admin',
+    'django.contrib.auth',
+    'django.contrib.contenttypes',
+    'django.contrib.sessions',
+    'django.contrib.messages',
+    'django.contrib.staticfiles',
+    'corsheaders',
     'channels',
     'tr_ars.apps.ARSConfig',
     #'tr_ars.default_ars_app.ars_app.AppConfig',
@@ -60,6 +67,7 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -68,6 +76,8 @@ MIDDLEWARE = [
 ]
 
 ROOT_URLCONF = 'tr_sys.urls'
+
+CORS_ORIGIN_ALLOW_ALL = True # for further customization see https://pypi.org/project/django-cors-headers/
 
 TEMPLATES = [
     {
