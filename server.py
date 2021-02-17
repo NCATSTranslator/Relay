@@ -22,6 +22,7 @@ def getUnsecret():
     # fp = subprocess.run(syscall, stdout=PIPE)
     # actor = json.loads(fp.stdout)
     # assert actor["model"] == "tr_ars.actor"
+    #nonsense to try to trigger a travis build
     response = requests.get(server+"/ars/api/actors")
     actors = response.json()
     actorpk = 0
