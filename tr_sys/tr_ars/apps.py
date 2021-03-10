@@ -65,6 +65,8 @@ class ARSConfig(AppConfig):
     def ready(self):
         # connect signals
         from . import signals
-        logger.debug('### %s ready...' % (self.name))
+        from django.conf import settings
+        logger.debug('### %s ready...CELERY=%s' % (
+            self.name, settings.USE_CELERY))
         #post_migrate.connect(setup_schema, sender=self)
         signal.signal(signal.SIGINT, my_signal_handler)
