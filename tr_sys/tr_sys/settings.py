@@ -53,6 +53,7 @@ INSTALLED_APPS = [
     'tr_kp_molecular.molecular_app.AppConfig',
     'tr_kp_cam.cam_app.AppConfig',
     'tr_kp_textmining.textmining_app.AppConfig',
+    'tr_kp_openpredict.openpredict_app.AppConfig',
     'tr_ara_aragorn_exp.aragorn_exp_app.AppConfig',
     'django_celery_results',
     'markdownify',
