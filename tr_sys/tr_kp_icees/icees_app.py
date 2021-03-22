@@ -3,9 +3,9 @@ from django.urls import path, include
 from tr_ars.default_ars_app.api import *
 
 class AppConfig(ARSAppConfig):
-    name = 'tr_ara_icees.icees_app' # must be dot path for module
+    name = 'tr_kp_icees.icees_app' # must be dot path for module
     actors = [('https://icees.renci.org:16340/query', 'runquery', 'general')] # tuple of remote, name, channel
-    app_path = 'ara-icees'
+    app_path = 'kp-icees'
     regex_path = '^' + app_path + '/'
 
 ### code below this line is required, but doesn't require updating in most cases

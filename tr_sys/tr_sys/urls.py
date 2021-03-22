@@ -34,7 +34,7 @@ from tr_kp_molecular.molecular_app import AppConfig as MolecularApp
 from tr_kp_cam.cam_app import AppConfig as CamApp
 from tr_kp_textmining.textmining_app import AppConfig as TextMiningApp
 from tr_kp_openpredict.openpredict_app import AppConfig as OpenPredictApp
-from tr_ara_icees.icees_app import AppConfig as IceesApp
+from tr_kp_icees.icees_app import AppConfig as IceesApp
 from tr_ars.default_ars_app.ars_app import AppConfig as ARSApp
 
 patterns = [
