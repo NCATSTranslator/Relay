@@ -1,0 +1,27 @@
+{
+  "message": {
+    "query_graph": {
+      "edges": {
+        "e00": {
+          "subject": "n00",
+          "object": "n01",
+          "predicate": "biolink:correlated_with"
+        }
+      },
+      "nodes": {
+        "n00": {
+          "id": "PUBCHEM:2083",
+          "category": "biolink:Drug"
+        },
+        "n01": {
+          "category": "biolink:ChemicalSubstance"
+        }
+      }
+    },
+    "knowledge_graph": {
+      "nodes": {},
+      "edges": {}
+    },
+    "results": []
+  }
+}
