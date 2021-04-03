@@ -34,6 +34,7 @@ from tr_kp_molecular.molecular_app import AppConfig as MolecularApp
 from tr_kp_cam.cam_app import AppConfig as CamApp
 from tr_kp_textmining.textmining_app import AppConfig as TextMiningApp
 from tr_kp_openpredict.openpredict_app import AppConfig as OpenPredictApp
+from tr_kp_chp.chp_app import AppConfig as ChpApp
 from tr_kp_icees.icees_app import AppConfig as IceesApp
 from tr_ars.default_ars_app.ars_app import AppConfig as ARSApp
 
@@ -55,7 +56,8 @@ patterns = [
     url(MolecularApp.regex_path, include(MolecularApp.name)),
     url(CamApp.regex_path, include(CamApp.name)),
     url(TextMiningApp.regex_path, include(TextMiningApp.name)),
-    url(OpenPredictApp.regex_path, include(OpenPredictApp.name))
+    url(OpenPredictApp.regex_path, include(OpenPredictApp.name)),
+    url(ChpApp.regex_path, include(ChpApp.name)),
 ]
 
 def base_index(req):
