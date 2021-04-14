@@ -23,7 +23,6 @@ services:
   arsserver:
     build: .
     image: relay_ars
-    #command: python manage.py runserver 0.0.0.0:8000
     command: sh -c "wait-for arsdb:3306 && /bin/bash /ars/config/startup.sh && python tr_sys/manage.py runserver 0.0.0.0:8000 --noreload"
     container_name: arsserver
     ports:
