@@ -7,10 +7,10 @@ services:
     command: --default-authentication-plugin=mysql_native_password
     restart: always
     environment:
-      MYSQL_ROOT_PASSWORD: thisisrootpwd
+      MYSQL_ROOT_PASSWORD: <>
       MYSQL_DATABASE: arsdb
       MYSQL_USER: ars
-      MYSQL_PASSWORD: thisisarspwd
+      MYSQL_PASSWORD: <>
     expose:
       - 3306
   rabbitmq:
