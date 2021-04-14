@@ -1,0 +1,52 @@
+version: "3.3"
+   
+services:
+  arsdb:
+    image: mysql:5.7
+    container_name: arsdb
+    command: --default-authentication-plugin=mysql_native_password
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: thisisrootpwd
+      MYSQL_DATABASE: arsdb
+      MYSQL_USER: ars
+      MYSQL_PASSWORD: thisisarspwd
+    expose:
+      - 3306
+  rabbitmq:
+    container_name: rabbitmq
+    hostname: rabbitmq
+    image: rabbitmq:3.8
+    expose:
+      - 5672
+    restart: on-failure
+  arsserver:
+    build: .
+    image: relay_ars
+    #command: python manage.py runserver 0.0.0.0:8000
+    command: sh -c "wait-for arsdb:3306 && /bin/bash /ars/config/startup.sh && python tr_sys/manage.py runserver 0.0.0.0:8000 --noreload"
+    container_name: arsserver
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./config/tr_sys_settings.py:/ars/tr_sys/tr_sys/settings.py
+    depends_on:
+      - arsdb
+      - redis
+  redis:
+    image: redis:6.2
+    container_name: ars_redis
+    expose:
+      - 6379
+  celery_worker:
+    command: sh -c "wait-for rabbitmq:5672 -t 30 && wait-for arsserver:8000 -t 60 -- /bin/bash /ars/config/start_celery.sh"
+    container_name: celery_worker
+    depends_on:
+      - arsserver
+      - arsdb
+      - rabbitmq
+    volumes:
+      - ./config/tr_sys_settings.py:/ars/tr_sys/tr_sys/settings.py
+    hostname: celery_worker
+    image: relay_ars
+    restart: on-failure
