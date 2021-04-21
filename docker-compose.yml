@@ -6,6 +6,9 @@ services:
     container_name: arsdb
     command: --default-authentication-plugin=mysql_native_password
     restart: always
+    # uncomment if need data persistency
+    #volumes:
+    #  - <absolute path to your local folder for db files>:/var/lib/mysql
     environment:
       MYSQL_ROOT_PASSWORD: <>
       MYSQL_DATABASE: arsdb
