@@ -58,8 +58,8 @@ patterns = [
     url(CamApp.regex_path, include(CamApp.name)),
     url(TextMiningApp.regex_path, include(TextMiningApp.name)),
     url(OpenPredictApp.regex_path, include(OpenPredictApp.name)),
-    url(COHDApp.regex_path, include(COHDApp.name))
-    url(ChpApp.regex_path, include(ChpApp.name)),
+    url(COHDApp.regex_path, include(COHDApp.name)),
+    url(ChpApp.regex_path, include(ChpApp.name))
 ]
 
 def base_index(req):
