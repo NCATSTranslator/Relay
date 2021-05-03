@@ -13,7 +13,7 @@ def prep_url(url):
         url = url[:-1]
     s = url.split("/")[2:]
     if ":" not in s[0]:
-        if s[0].startswith("http3:"):
+        if s[0].startswith("https:"):
             s[0] = s[0] + ":443"
         else:
             s[0] = s[0] + ":80"

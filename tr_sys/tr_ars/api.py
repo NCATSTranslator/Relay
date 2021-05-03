@@ -52,6 +52,7 @@ def submit(req):
     if req.method != 'POST':
         return HttpResponse('Only POST is permitted!', status=405)
     try:
+        logger.debug('++ submit: %s' % req.body)
         data = json.loads(req.body)
         # if 'message' not in data:
         #     return HttpResponse('Not a valid Translator query json', status=400)
