@@ -15,7 +15,7 @@
         "fields": {
             "channel": 1,
             "agent": 2,
-            "remote": "https://arax.rtx.ai/api/rtx/v1.1/query",
+            "remote": "https://arax.ncats.io/api/arax/v1.1/query",
             "path": "runquery"
         }
     },
