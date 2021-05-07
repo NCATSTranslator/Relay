@@ -57,12 +57,12 @@ def submit(req):
         # if 'message' not in data:
         #     return HttpResponse('Not a valid Translator query json', status=400)
         # create a head message
-        try:
-            validate_Query(data)
-        except ValidationError as ve:
-            logger.debug("Warning! Input query failed TRAPI validation "+str(data))
-            logger.debug(ve)
-            return HttpResponse('Input query failed TRAPI validation',status=400)
+        # try:
+        #     validate_Query(data)
+        # except ValidationError as ve:
+        #     logger.debug("Warning! Input query failed TRAPI validation "+str(data))
+        #     logger.debug(ve)
+        #     return HttpResponse('Input query failed TRAPI validation',status=400)
         message = Message.create(code=200, status='Running', data=data,
                           actor=get_default_actor())
 
