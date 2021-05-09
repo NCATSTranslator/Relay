@@ -65,7 +65,7 @@
         "fields": {
             "channel": 1,
             "agent": 8,
-            "remote": "https://translator.broadinstitute.org/genetics_data_provider/query",
+            "remote": "https://translator.broadinstitute.org/genetics_provider/trapi/v1.1/query",
             "path": "runquery"
         }
     },
