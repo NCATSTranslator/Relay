@@ -5,7 +5,7 @@
         "fields": {
             "channel": 1,
             "agent": 1,
-            "remote": "https://strider.renci.org/query",
+            "remote": "https://aragorn.renci.org/query?answer_coalesce_type=graph",
             "path": "runquery"
         }
     },
