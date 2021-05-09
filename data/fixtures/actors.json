@@ -75,7 +75,7 @@
         "fields": {
             "channel": 1,
             "agent": 9,
-            "remote": "https://translator.broadinstitute.org/molepro_reasoner/query",
+            "remote": "https://translator.broadinstitute.org/molepro/trapi/v1.1/query",
             "path": "runquery"
         }
     }
