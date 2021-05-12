@@ -12,6 +12,9 @@ def send_messages(actors, messages):
             if (actor == mesg.actor or len(actor.path) == 0
                 or len(actor.agent.uri) == 0):
                 pass
+            elif settings.USE_CELERY:
+                result = send_message.delay(actor.to_dict(), mesg.to_dict())
+                result.forget()
             else:
                 queue.put((actor, mesg))
 
@@ -25,8 +28,6 @@ class BackgroundWorker(threading.Thread):
             actor, mesg = queue.get()
             if actor is None:
                 break
-            if settings.USE_CELERY:
-                send_message.delay(actor.to_dict(), mesg.to_dict())
             else:
                 send_message(actor.to_dict(), mesg.to_dict())
             queue.task_done()

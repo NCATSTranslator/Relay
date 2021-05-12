@@ -5,7 +5,7 @@
         "fields": {
             "channel": 1,
             "agent": 1,
-            "remote": "http://robokop.renci.org:5781/query",
+            "remote": "https://aragorn.renci.org/query?answer_coalesce_type=graph",
             "path": "runquery"
         }
     },
@@ -15,7 +15,7 @@
         "fields": {
             "channel": 1,
             "agent": 2,
-            "remote": "https://arax.rtx.ai/api/rtx/v1/query",
+            "remote": "https://arax.ncats.io/api/arax/v1.1/query",
             "path": "runquery"
         }
     },
@@ -65,7 +65,7 @@
         "fields": {
             "channel": 1,
             "agent": 8,
-            "remote": "https://translator.broadinstitute.org/genetics_data_provider/query",
+            "remote": "https://translator.broadinstitute.org/genetics_provider/trapi/v1.1/query",
             "path": "runquery"
         }
     },
@@ -75,7 +75,7 @@
         "fields": {
             "channel": 1,
             "agent": 9,
-            "remote": "https://translator.broadinstitute.org/molepro_reasoner/query",
+            "remote": "https://translator.broadinstitute.org/molepro/trapi/v1.1/query",
             "path": "runquery"
         }
     }

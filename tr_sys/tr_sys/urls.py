@@ -27,11 +27,16 @@ from tr_ara_explanatory.explanatory_app import AppConfig as ExplanatoryApp
 from tr_ara_improving.improving_app import AppConfig as ImprovingApp
 from tr_ara_ncats.ncats_app import AppConfig as NCATSApp
 from tr_ara_robokop.robokop_app import AppConfig as RobokopApp
+from tr_ara_aragorn_exp.aragorn_exp_app import AppConfig as AragornExpApp
 from tr_ara_unsecret.unsecret_app import AppConfig as UnsecretApp
 from tr_kp_genetics.genetics_app import AppConfig as GeneticsApp
 from tr_kp_molecular.molecular_app import AppConfig as MolecularApp
 from tr_kp_cam.cam_app import AppConfig as CamApp
 from tr_kp_textmining.textmining_app import AppConfig as TextMiningApp
+from tr_kp_openpredict.openpredict_app import AppConfig as OpenPredictApp
+from tr_kp_cohd.cohd_app import AppConfig as COHDApp
+from tr_kp_chp.chp_app import AppConfig as ChpApp
+from tr_kp_icees.icees_app import AppConfig as IceesApp
 from tr_ars.default_ars_app.ars_app import AppConfig as ARSApp
 
 patterns = [
@@ -45,11 +50,16 @@ patterns = [
     url(ImprovingApp.regex_path, include(ImprovingApp.name)),
     url(NCATSApp.regex_path, include(NCATSApp.name)),
     url(RobokopApp.regex_path, include(RobokopApp.name)),
+    url(AragornExpApp.regex_path, include(AragornExpApp.name)),
+    url(IceesApp.regex_path, include(IceesApp.name)),
     url(UnsecretApp.regex_path, include(UnsecretApp.name)),
     url(GeneticsApp.regex_path, include(GeneticsApp.name)),
     url(MolecularApp.regex_path, include(MolecularApp.name)),
     url(CamApp.regex_path, include(CamApp.name)),
-    url(TextMiningApp.regex_path, include(TextMiningApp.name))
+    url(TextMiningApp.regex_path, include(TextMiningApp.name)),
+    url(OpenPredictApp.regex_path, include(OpenPredictApp.name)),
+    url(COHDApp.regex_path, include(COHDApp.name)),
+    url(ChpApp.regex_path, include(ChpApp.name))
 ]
 
 def base_index(req):
