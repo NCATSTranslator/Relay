@@ -369,6 +369,7 @@ def actors(req):
             actor['fields']['agent'] = a.agent.name #a.agent.pk
             actor['fields']['remote'] = a.remote
             actor['fields']['path'] = req.build_absolute_uri(a.url()) #a.path
+            actor['fields']['active'] = a.active
             actors.append(actor)
         return HttpResponse(json.dumps(actors, indent=2),
                             content_type='application/json', status=200)
