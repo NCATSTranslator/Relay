@@ -38,7 +38,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'corsheaders',
-    #'channels',
+#    'channels',
     'tr_ars.apps.ARSConfig',
     #'tr_ars.default_ars_app.ars_app.AppConfig',
     'tr_ara_aragorn.aragorn_app.AppConfig',
@@ -116,18 +116,29 @@ DATABASES = {
     }
 }
 
+LOG_LEVEL = 'DEBUG'
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
     'handlers': {
         'console': {
             'class': 'logging.StreamHandler',
-        },
+        }
     },
     'root': {
         'handlers': ['console'],
         'level': 'DEBUG',
     },
+    'loggers': {
+        'tr_ars.tasks': {
+            'level': 'DEBUG',
+            'handlers': ['console'],
+        },
+        'tr_ars.default_ars_app.api': {
+            'level': 'DEBUG',
+            'handlers': ['console']
+        }
+    }
 }
 
 # Password validation

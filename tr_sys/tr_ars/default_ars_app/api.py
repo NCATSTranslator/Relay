@@ -86,12 +86,15 @@ def init_api_index(actors, app_path):
         data = dict()
         data['agent'] = app_path
         data['actors'] = []
-        for actor in actors:
-            query_name = app_path + '-' + actor[1]
+
+        from tr_ars.models import Actor
+        actobjs = Actor.objects.filter(agent__name=app_path)
+        for actor in actobjs:
+            query_name = app_path + '-' + actor.path #actor[1]
             actorObj = dict()
             actorObj['name'] = query_name
-            actorObj['channel'] = actor[2]
-            actorObj['remote'] = actor[0]
+            actorObj['channel'] = actor.channel.name #actor[2]
+            actorObj['remote'] = actor.remote #actor[0]
             actorObj['path'] = req.build_absolute_uri(reverse(query_name))
             data['actors'].append(actorObj)
         return HttpResponse(json.dumps(data, indent=2),
