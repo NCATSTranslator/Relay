@@ -2,21 +2,31 @@
   "message": {
     "query_graph": {
       "edges": {
-        "e00": {
-          "subject": "n00",
-          "object": "n01",
-          "predicate": "biolink:condition_associated_with_gene"
+        "e0": {
+          "predicates": [
+            "biolink:correlated_with"
+          ],
+          "subject": "n0",
+          "object": "n1"
         }
       },
       "nodes": {
-        "n00": {
-          "id": "EFO:0000275",
-          "category": "biolink:Disease"
+        "n0": {
+          "categories": [
+            "biolink:ChemicalSubstance"
+          ],
+          "ids": [
+            "PUBCHEM.COMPOUND:2244"
+          ]
         },
-        "n01": {
-          "category": "biolink:Gene"
+        "n1": {
+          "categories": [
+            "biolink:Gene"
+          ]
         }
       }
     }
-  }
+  },
+  "log_level": "ERROR",
+  "additionalProp1": {}
 }
