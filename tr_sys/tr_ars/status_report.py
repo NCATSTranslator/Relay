@@ -73,6 +73,8 @@ def status_ars(req, smartresponse, smartapis):
     response['actors'] = dict()
     for a in Actor.objects.exclude(path__exact=''):
         actor = json.loads(serializers.serialize('json', [a]))[0]
+        if(not a.active):
+            continue
         del actor['fields']
         #actor['name'] = a.agent.name + '-' + a.path
         actor['channel'] = a.channel.name
