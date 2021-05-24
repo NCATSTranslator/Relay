@@ -1,0 +1,27 @@
+{
+  "message": {
+    "query_graph": {
+      "edges": {
+        "e00": {
+          "subject": "n00",
+          "object": "n01"
+        }
+      },
+      "nodes": {
+        "n00": {
+          "categories": [
+            "biolink:Disease"
+          ],
+          "ids": [
+            "MONDO:0005737"
+          ]
+        },
+        "n01": {
+          "categories": [
+            "biolink:ChemicalSubstance"
+          ]
+        }
+      }
+    }
+  }
+}

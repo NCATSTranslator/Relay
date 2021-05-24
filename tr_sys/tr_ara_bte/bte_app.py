@@ -4,7 +4,7 @@ from tr_ars.default_ars_app.api import *
 
 class AppConfig(ARSAppConfig):
     name = 'tr_ara_bte.bte_app' # must be dot path for module
-    actors = [('http://dev.api.bte.ncats.io/', 'runquery', 'general')] # tuple of remote, name, channel
+    actors = [('https://dev.api.bte.ncats.io/v1/query', 'runquery', 'general')] # tuple of remote, name, channel
     app_path = 'ara-bte'
     regex_path = '^' + app_path + '/'
 
