@@ -5,7 +5,7 @@
         "fields": {
             "channel": 1,
             "agent": 1,
-            "remote": "https://aragorn.renci.org/query?answer_coalesce_type=graph",
+            "remote": "https://aragorn.renci.org/1.1/query",
             "path": "runquery"
         }
     },
@@ -25,7 +25,7 @@
         "fields": {
             "channel": 1,
             "agent": 3,
-            "remote": "https://api.bte.ncats.io/v1/query",
+            "remote": "https://dev.api.bte.ncats.io/v1/query",
             "path": "runquery"
         }
     },
