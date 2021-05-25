@@ -5,23 +5,26 @@
         "e00": {
           "subject": "n00",
           "object": "n01",
-          "predicate": "biolink:correlated_with"
+          "predicates": [
+            "biolink:correlated_with"
+          ]
         }
       },
       "nodes": {
         "n00": {
-          "id": "PUBCHEM:2083",
-          "category": "biolink:Drug"
+          "ids": [
+            "NCIT:C28421"
+          ],
+          "categories": [
+            "biolink:PhenotypicFeature"
+          ]
         },
         "n01": {
-          "category": "biolink:ChemicalSubstance"
+          "categories": [
+            "biolink:NamedThing"
+          ]
         }
       }
-    },
-    "knowledge_graph": {
-      "nodes": {},
-      "edges": {}
-    },
-    "results": []
+    }
   }
 }
