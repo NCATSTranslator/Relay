@@ -3,9 +3,10 @@ from django.urls import path, include
 from tr_ars.default_ars_app.api import *
 
 class AppConfig(ARSAppConfig):
-    name = 'tr_kp_chp.chp_app' # must be dot path for module
-    actors = [('http://chp.thayer.dartmouth.edu/v1.0/query/', 'runquery', 'general')] # tuple of remote, name, channel
-    app_path = 'kp-chp'
+    name = 'tr_kp_cohd.cohd_app' # must be dot path for module
+    actors = [('https://cohd.io/api/1.0.0/translator/query',
+               'runquery', 'general')] # tuple of remote, name, channel
+    app_path = 'kp-cohd'
     regex_path = '^' + app_path + '/'
 
 ### code below this line is required, but doesn't require updating in most cases

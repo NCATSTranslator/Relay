@@ -20,7 +20,7 @@ def actor_post_save(sender, instance, **kwargs):
 @receiver(post_save, sender=Message)
 def message_post_save(sender, instance, **kwargs):
     message = instance
-    logger.debug('+++ message updated: %s' % (message))
+    logger.debug('+++ post_save message: %s' % (message))
     # now broadcast the message to all actors only if it has code=200 and is a parent node
     if message.code == 200 and message.ref == None:
         if len(Message.objects.filter(ref__pk=message.pk)) == 0: # make sure we haven't already done this broadcast
@@ -47,6 +47,7 @@ def message_post_save(sender, instance, **kwargs):
 
 @receiver(pre_save, sender=Message)
 def message_pre_save(sender, instance, **kwargs):
+    logger.debug('+++ pre_save message: %s' % instance)
     # make sure no cycle
     message = instance
     if message.ref == message:
