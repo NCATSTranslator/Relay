@@ -45,7 +45,6 @@ pipeline {
                 script {
                     docker.build(env.DOCKER_REPO_NAME, "--build-arg SOURCE_FOLDER=./${BUILD_VERSION} --no-cache ./")
                     docker.withRegistry('https://684150170045.dkr.ecr.us-east-1.amazonaws.com', 'ecr:us-east-1:aws-ifx-deploy') {
-                        image.push(env.BUILD_VERSION)
                         docker.image(env.DOCKER_REPO_NAME).push("${BUILD_VERSION}")
                     }
                 }
