@@ -21,6 +21,7 @@ pipeline {
     }
     stages {
         stage('Build Version'){
+            when { expression { return !params.BUILD_VERSION } }
             steps{
                 script {
                     BUILD_VERSION_GENERATED = VersionNumber(
