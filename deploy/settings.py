@@ -100,7 +100,7 @@ CHANNEL_LAYERS = {
     'default': {
         'BACKEND': 'channels_redis.core.RedisChannelLayer',
         'CONFIG': {
-            "hosts": [('redis', 6379)],
+            "hosts": [('0.0.0.0', 6379)],
         },
     },
 }
@@ -186,7 +186,7 @@ STATICFILES_DIRS = (
 
 CELERY_RESULT_BACKEND = 'django-db'
 CELERY_CACHE_BACKEND = 'django-cache'
-CELERY_BROKER_URL = 'pyamqp://rabbitmq:5672'
+CELERY_BROKER_URL = 'pyamqp://0.0.0.0:5672'
 
 # Other important shared settings
 
