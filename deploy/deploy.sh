@@ -28,6 +28,7 @@ sed -i.bak \
 rm ingress.yaml.bak
 
 kubectl apply -f namespace.yaml
+kubectl delete configmap ars-config -n ars
 kubectl create configmap ars-config -n ars --from-file=settings.py --dry-run -o yaml | kubectl apply -f -
 kubectl apply -f deployment.yaml
 kubectl apply -f services.yaml
