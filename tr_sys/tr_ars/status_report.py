@@ -73,6 +73,8 @@ def status_ars(req, smartresponse, smartapis):
     response['actors'] = dict()
     for a in Actor.objects.exclude(path__exact=''):
         actor = json.loads(serializers.serialize('json', [a]))[0]
+        if(not a.active):
+            continue
         del actor['fields']
         #actor['name'] = a.agent.name + '-' + a.path
         actor['channel'] = a.channel.name
@@ -108,24 +110,31 @@ def status_ars(req, smartresponse, smartapis):
         response['actors'][a.agent.name + '-' + a.path] = actor
 
     # match SmartAPI entries to actors
-    matched = []
+    matched = dict()
     for actor in response['actors'].keys():
+        # if remote ends in /query, remove that
+        remote = response['actors'][actor]['remote']
+        if remote[-6:] == '/query':
+            remote = remote[:-6]
         bestmatch = None
         bestmatchserver = None
         bestmatchscore = 100
         bestmatchsources = ''
         for api in smartapis:
-            for server in api['servers']:
-                match = url_score(server['url'], response['actors'][actor]['remote'])
-                if match < bestmatchscore:
-                    bestmatch = api['_id']
-                    bestmatchserver = server['url']
-                    bestmatchscore = match
-                    if bestmatch in smartresponse:
-                        bestmatchsources = smartresponse[bestmatch]['sources']
-                    else:
-                        bestmatchsources = 'error'
-        if bestmatchscore == 0 or (bestmatch not in matched and bestmatchscore < 50):
+            if 'servers' in api:
+                for server in api['servers']:
+                    match = url_score(server['url'], remote)
+                    if match < bestmatchscore:
+                        bestmatch = api['_id']
+                        bestmatchserver = server['url']
+                        bestmatchscore = match
+                        if bestmatch in smartresponse:
+                            bestmatchsources = smartresponse[bestmatch]['sources']
+                        else:
+                            bestmatchsources = 'error'
+        #if bestmatchscore == 0 or (bestmatch not in matched and bestmatchscore < 50):
+        #print(bestmatchscore, bestmatchserver, remote)
+        if bestmatchscore < 50 and (bestmatch not in matched.keys() or matched[bestmatch][0] > bestmatchscore):
             if bestmatchscore == 0:
                 response['actors'][actor]['smartapi'] = "https://smart-api.info/api/metadata/" + bestmatch
                 response['actors'][actor]['sources'] = bestmatchsources
@@ -136,7 +145,9 @@ def status_ars(req, smartresponse, smartapis):
                 response['actors'][actor]['smartapi'] = "Unknown"
                 response['actors'][actor]['smartapiguess'] = "https://smart-api.info/api/metadata/" + bestmatch
                 response['actors'][actor]['smartapiserver'] = bestmatchserver
-            matched.append(bestmatch)
+            if bestmatch in matched.keys():
+                response['actors'][matched[bestmatch][1]]['smartapi'] = 'Unknown'
+            matched[bestmatch] = [bestmatchscore, actor]
         else:
             response['actors'][actor]['smartapi'] = "Unknown"
 
@@ -216,10 +227,11 @@ def status_smartapi():
         api['contact'] = ""
         if 'contact' in entry['info']:
             api['contact'] = entry['info']['contact']
-        api['timestamp'] = entry['_meta']['timestamp']
+        api['timestamp'] = entry['_meta']['last_updated']
         servers = []
-        for item in entry['servers']:
-            servers.append(item['url'])
+        if 'servers' in entry:
+            for item in entry['servers']:
+                servers.append(item['url'])
         api['servers'] = servers
         api['smartapireasonercompliant'] = reasoner_compliant(entry)
         api['entities'] = []
@@ -248,7 +260,7 @@ def status_smartapi():
             for tag in entry['tags']:
                 if tag['name'].lower() == 'translator':
                     trans = True
-                if tag['name'].lower() == 'reasoner':
+                if tag['name'].lower() == 'trapi':
                     trans = True
             if trans:
                 response[entry['_id']] = api

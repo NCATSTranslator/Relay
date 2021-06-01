@@ -7,10 +7,12 @@ from celery.utils.log import get_task_logger
 from django.conf import settings
 from django.urls import reverse
 import html
+from celery.decorators import task
 
 logger = get_task_logger(__name__)
+#logger.propagate = True
 
-@shared_task
+@shared_task(name="send-message-to-actor")
 def send_message(actor_dict, mesg_dict, timeout=300):
     logger.info(mesg_dict)
     url = settings.DEFAULT_HOST + actor_dict['fields']['url']

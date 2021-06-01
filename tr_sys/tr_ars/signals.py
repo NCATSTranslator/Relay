@@ -9,7 +9,8 @@ logger = logging.getLogger(__name__)
 @receiver(post_save, sender=Actor)
 def actor_post_save(sender, instance, **kwargs):
     actor = instance
-    logger.debug('+++ new actor created: %s...%s' % (actor, actor.id))
+    logger.debug('+++ new actor updated/created by %s: %s...%s' % (
+        sender, actor, actor.id))
     # now iterate through each message and pass it to the new actor
     # TODO add flag to turn on/off this behavior
     # TODO Currently failing because triggered before app is initialized to receive request
