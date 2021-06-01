@@ -1,6 +1,8 @@
 from django.apps import AppConfig as SuperAppConfig
 from django.urls import path, include
 from tr_ars.default_ars_app.api import *
+import sys
+import traceback
 
 class AppConfig(SuperAppConfig):
     name = 'tr_ars.default_ars_app.ars_app' # must be dot path for module
@@ -18,6 +20,7 @@ class AppConfig(SuperAppConfig):
             agent['name'] = self.app_path
             agent['uri'] = reverse(self.app_path + '-api')
             get_or_create_agent(agent)
+            #logger.debug('### agent: {0} {1}'.format(agentObj, status));
             for actor in self.actors:
                 actorObj = dict()
                 actorObj['agent'] = agent
@@ -25,10 +28,13 @@ class AppConfig(SuperAppConfig):
                 actorObj['path'] = actor[1]
                 actorObj['remote'] = actor[0]
                 get_or_create_actor(actorObj)
+
         except:
+            #traceback.print_exc()
             pass
 
         logger.debug('### %s ready...' % self.name)
+
 
 apipatterns = [path(r'', init_api_index(AppConfig.actors, AppConfig.app_path), name=AppConfig.app_path + '-api')]
 for actor in AppConfig.actors:
