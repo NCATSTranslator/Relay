@@ -7,7 +7,7 @@ from .models import Agent, Message, Channel, Actor
 import json, sys, logging
 from inspect import currentframe, getframeinfo
 from tr_ars import status_report
-from reasoner_validator import validate_Message, ValidationError, validate_Query
+#from reasoner_validator import validate_Message, ValidationError, validate_Query
 
 logger = logging.getLogger(__name__)
 
