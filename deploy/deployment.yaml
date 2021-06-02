@@ -31,7 +31,7 @@ spec:
           image: 853771734544.dkr.ecr.us-east-1.amazonaws.com/translator-ars:DOCKER_VERSION_VALUE
           imagePullPolicy: Always
           command: ["/bin/sh"]
-          args: ["-c", "wait-for rabbitmq:5672 -t 30 && wait-for arsserver:8000 -t 60 -- /bin/bash /ars/config/start_celery.sh"]
+          args: ["-c", "wait-for localhost:5672 -t 30 && wait-for localhost:8000 -t 60 -- /bin/bash /ars/config/start_celery.sh"]
           volumeMounts:
             - name: config-vol
               mountPath: /ars/tr_sys/tr_sys/settings.py
