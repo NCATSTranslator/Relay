@@ -119,6 +119,7 @@ DATABASES = {
     }
 }
 
+LOG_LEVEL = 'DEBUG'
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
@@ -131,6 +132,16 @@ LOGGING = {
         'handlers': ['console'],
         'level': 'DEBUG',
     },
+    'loggers': {
+        'tr_ars.tasks': {
+            'level': 'DEBUG',
+            'handlers': ['console'],
+        },
+        'tr_ars.default_ars_app.api': {
+            'level': 'DEBUG',
+            'handlers': ['console']
+        }
+    }
 }
 
 # Password validation
