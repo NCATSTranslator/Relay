@@ -6,25 +6,26 @@
           "subject": "n00",
           "object": "n01",
           "predicates": [
-            "biolink:correlated_with"
+            "biolink:gene_associated_with_condition"
           ]
         }
       },
       "nodes": {
         "n00": {
           "ids": [
-            "NCIT:C28421"
+            "ENSEMBL:ENSG00000133401"
           ],
           "categories": [
-            "biolink:PhenotypicFeature"
+            "biolink:Gene"
           ]
         },
         "n01": {
           "categories": [
-            "biolink:NamedThing"
+            "biolink:Disease"
           ]
         }
       }
     }
-  }
+  },
+  "additionalProp1": {}
 }

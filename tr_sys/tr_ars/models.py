@@ -40,6 +40,7 @@ class Actor(ARSModel):
     agent = models.ForeignKey(Agent, on_delete=models.CASCADE)
     path = models.CharField('relative path of actor', max_length=64)
     remote = models.CharField('remote reasoner resource', blank=True, max_length=500) #TODO enforce this to be non-null
+    active = models.BooleanField('actor is active', default=True)
 
     class Meta:
         constraints = [
@@ -48,8 +49,8 @@ class Actor(ARSModel):
         ]
 
     def __str__(self):
-        return "actor{agent:%s, channel:%s, path:%s}" % (
-            self.agent, self.channel, self.path)
+        return "actor{pk:%s, active:%s, %s, channel:%s, path:%s}" % (
+            self.pk, self.active, self.agent, self.channel, self.path)
 
     def url(self):
         return self.agent.uri+self.path

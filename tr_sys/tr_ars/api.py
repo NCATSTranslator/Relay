@@ -7,7 +7,7 @@ from .models import Agent, Message, Channel, Actor
 import json, sys, logging
 from inspect import currentframe, getframeinfo
 from tr_ars import status_report
-from reasoner_validator import validate_Message, ValidationError, validate_Query
+#from reasoner_validator import validate_Message, ValidationError, validate_Query
 
 logger = logging.getLogger(__name__)
 
@@ -57,12 +57,12 @@ def submit(req):
         # if 'message' not in data:
         #     return HttpResponse('Not a valid Translator query json', status=400)
         # create a head message
-        try:
-            validate_Query(data)
-        except ValidationError as ve:
-            logger.debug("Warning! Input query failed TRAPI validation "+str(data))
-            logger.debug(ve)
-            return HttpResponse('Input query failed TRAPI validation',status=400)
+        # try:
+        #     validate_Query(data)
+        # except ValidationError as ve:
+        #     logger.debug("Warning! Input query failed TRAPI validation "+str(data))
+        #     logger.debug(ve)
+        #     return HttpResponse('Input query failed TRAPI validation',status=400)
         message = Message.create(code=200, status='Running', data=data,
                           actor=get_default_actor())
 
@@ -369,6 +369,7 @@ def actors(req):
             actor['fields']['agent'] = a.agent.name #a.agent.pk
             actor['fields']['remote'] = a.remote
             actor['fields']['path'] = req.build_absolute_uri(a.url()) #a.path
+            actor['fields']['active'] = a.active
             actors.append(actor)
         return HttpResponse(json.dumps(actors, indent=2),
                             content_type='application/json', status=200)

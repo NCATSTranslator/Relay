@@ -4,24 +4,21 @@
       "edges": {
         "e00": {
           "subject": "n00",
-          "object": "n01",
-          "predicates": [
-            "biolink:correlated_with"
-          ]
+          "object": "n01"
         }
       },
       "nodes": {
         "n00": {
-          "ids": [
-            "NCIT:C28421"
-          ],
           "categories": [
-            "biolink:PhenotypicFeature"
+            "biolink:Disease"
+          ],
+          "ids": [
+            "MONDO:0005737"
           ]
         },
         "n01": {
           "categories": [
-            "biolink:NamedThing"
+            "biolink:ChemicalSubstance"
           ]
         }
       }
