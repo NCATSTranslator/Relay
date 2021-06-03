@@ -1,0 +1,57 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ars
+  namespace: ars
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ars
+  template:
+    metadata:
+      labels:
+        app: ars
+      annotations:
+        configHash: CONFIG_HASH_VALUE
+    spec:
+      containers:
+        - name: arsserver
+          image: 853771734544.dkr.ecr.us-east-1.amazonaws.com/translator-ars:DOCKER_VERSION_VALUE
+          imagePullPolicy: Always
+          command: ["/bin/sh"]
+          args: ["-c", "/bin/bash /ars/config/startup.sh && python tr_sys/manage.py runserver 0.0.0.0:8000 --noreload"]
+          ports:
+            - containerPort: 8000
+          volumeMounts:
+            - name: config-vol
+              mountPath: /ars/tr_sys/tr_sys/settings.py
+              subPath: settings.py
+        - name: celeryworker
+          image: 853771734544.dkr.ecr.us-east-1.amazonaws.com/translator-ars:DOCKER_VERSION_VALUE
+          imagePullPolicy: Always
+          command: ["/bin/sh"]
+          args: ["-c", "wait-for localhost:5672 -t 30 && wait-for localhost:8000 -t 60 -- /bin/bash /ars/config/start_celery.sh"]
+          volumeMounts:
+            - name: config-vol
+              mountPath: /ars/tr_sys/tr_sys/settings.py
+              subPath: settings.py
+        - name: rabbitmq
+          image: rabbitmq:3.8
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 5672
+        - name: redis
+          image: redis:6.2
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 6379
+      volumes:
+        - name: config-vol
+          configMap:
+            name: ars-config
+            items:
+              - key: settings.py
+                path: settings.py
+      restartPolicy: Always
+      
