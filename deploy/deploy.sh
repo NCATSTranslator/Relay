@@ -3,7 +3,7 @@
 export $(egrep -v '^#' .env)
 
 sed -i.bak \
-    -e "s/ALLOWED_HOSTS_VALUE/${ARS_HOSTNAME}/g" \
+    -e "s/ARS_ALLOWED_HOSTS_VALUE/${ARS_ALLOWED_HOSTS}/g" \
     -e "s/ARS_DATABASE_VALUE/${ARS_DATABASE}/g" \
     -e "s/ARS_DB_USER_VALUE/${ARS_DB_USER}/g" \
     -e "s/ARS_DB_PASSWORD_VALUE/${ARS_DB_PASSWORD}/g" \

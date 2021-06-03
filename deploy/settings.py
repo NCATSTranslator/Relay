@@ -25,7 +25,7 @@ SECRET_KEY = ARS_DJANGO_SECRET_KEY_VALUE
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['ALLOWED_HOSTS_VALUE']
+ALLOWED_HOSTS = ['ARS_ALLOWED_HOSTS_VALUE']
 
 
 # Application definition
