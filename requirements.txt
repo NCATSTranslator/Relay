@@ -6,4 +6,3 @@ celery==4.4.7
 django-celery-results
 django-markdownify >= 0.8.0
 attrs >= 20.3.0
--e git://github.com/NCATSTranslator/reasoner-validator@master#egg=reasoner-validator
