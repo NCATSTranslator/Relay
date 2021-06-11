@@ -1,0 +1,30 @@
+{
+  "message": {
+    "query_graph": {
+      "edges": {
+        "e00": {
+          "subject": "n00",
+          "object": "n01",
+          "predicates": [
+            "biolink:correlated_with"
+          ]
+        }
+      },
+      "nodes": {
+        "n00": {
+          "ids": [
+            "NCIT:C28421"
+          ],
+          "categories": [
+            "biolink:PhenotypicFeature"
+          ]
+        },
+        "n01": {
+          "categories": [
+            "biolink:NamedThing"
+          ]
+        }
+      }
+    }
+  }
+}
