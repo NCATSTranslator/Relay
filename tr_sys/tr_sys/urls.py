@@ -37,6 +37,8 @@ from tr_kp_openpredict.openpredict_app import AppConfig as OpenPredictApp
 from tr_kp_cohd.cohd_app import AppConfig as COHDApp
 from tr_kp_chp.chp_app import AppConfig as ChpApp
 from tr_kp_icees.icees_app import AppConfig as IceesApp
+from tr_kp_icees_dili.icees_dili_app import AppConfig as IceesDiliApp
+
 from tr_ars.default_ars_app.ars_app import AppConfig as ARSApp
 
 patterns = [
@@ -52,6 +54,7 @@ patterns = [
     url(RobokopApp.regex_path, include(RobokopApp.name)),
     url(AragornExpApp.regex_path, include(AragornExpApp.name)),
     url(IceesApp.regex_path, include(IceesApp.name)),
+    url(IceesDiliApp.regex_path, include(IceesDiliApp.name)),
     url(UnsecretApp.regex_path, include(UnsecretApp.name)),
     url(GeneticsApp.regex_path, include(GeneticsApp.name)),
     url(MolecularApp.regex_path, include(MolecularApp.name)),
