@@ -38,7 +38,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'corsheaders',
-    'channels',
+    #'channels',
     'tr_ars.apps.ARSConfig',
     #'tr_ars.default_ars_app.ars_app.AppConfig',
     'tr_ara_aragorn.aragorn_app.AppConfig',
@@ -191,4 +191,4 @@ CELERY_BROKER_URL = 'pyamqp://rabbitmq:5672'
 # Other important shared settings
 
 USE_CELERY = True
-DEFAULT_HOST = 'http://0.0.0.0:8000'
+DEFAULT_HOST = 'http://arsserver:8000'
