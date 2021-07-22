@@ -37,12 +37,12 @@ spec:
               mountPath: /ars/tr_sys/tr_sys/settings.py
               subPath: settings.py
         - name: rabbitmq
-          image: rabbitmq:3.8
+          image: 853771734544.dkr.ecr.us-east-1.amazonaws.com/translator-rabbitmq:3.8
           imagePullPolicy: Always
           ports:
             - containerPort: 5672
         - name: redis
-          image: redis:6.2
+          image: 853771734544.dkr.ecr.us-east-1.amazonaws.com/translator-redis:6.2
           imagePullPolicy: Always
           ports:
             - containerPort: 6379
