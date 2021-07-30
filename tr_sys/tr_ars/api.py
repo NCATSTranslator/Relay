@@ -126,6 +126,7 @@ def trace_message_deepfirst(node):
         n = {
             'message': str(child.id),
             'status': dict(Message.STATUS)[child.status],
+            'code': child.code,
             'actor': {
                 'pk': child.actor.pk,
                 'channel': child.actor.channel.name,
