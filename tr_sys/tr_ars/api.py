@@ -149,6 +149,7 @@ def trace_message(req, key):
                 'channel': mesg.actor.channel.name,
                 'agent': mesg.actor.agent.name,
                 'path': mesg.actor.path
+
             },
             'children': []
         }
