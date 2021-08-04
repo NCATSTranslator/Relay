@@ -4,7 +4,7 @@ from tr_ars.default_ars_app.api import *
 
 class AppConfig(ARSAppConfig):
     name = 'tr_ara_robokop.robokop_app' # must be dot path for module
-    actors = [('https://robokop.renci.org/ranker/api/query/?max_results=-1&output_format=STD&max_connectivity=-1&use_novelty=false',
+    actors = [('https://robokop.renci.org/ara/query',
                'runquery', 'general')] # tuple of remote, name, channel
     app_path = 'ara-robokop'
     regex_path = '^' + app_path + '/'
