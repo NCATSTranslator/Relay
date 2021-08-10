@@ -4,7 +4,7 @@ from tr_ars.default_ars_app.api import *
 
 class AppConfig(ARSAppConfig):
     name = 'tr_ara_unsecret.unsecret_app' # must be dot path for module
-    actors = [('https://unsecret.ncats.io/query', 'runquery', 'general')] # tuple of remote, name, channel
+    actors = [('https://medikanren-trapi.ci.transltr.io/query', 'runquery', 'general')] # tuple of remote, name, channel
     app_path = 'ara-unsecret'
     regex_path = '^' + app_path + '/'
 
