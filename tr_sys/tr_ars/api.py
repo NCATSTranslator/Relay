@@ -173,7 +173,7 @@ def message(req, key):
             return HttpResponse(json.dumps(mesg.to_dict(), indent=2),
                                 status=200)
 
-        except Message.DoesNotExit:
+        except Message.DoesNotExist:
             return HttpResponse('Unknown message: %s' % key, status=404)
 
     elif req.method == 'POST':
@@ -420,7 +420,7 @@ def answers(req, key):
         pass
         print()
         return HttpResponse(json.loads(jsonRes),status=200)
-    except Message.DoesNotExit:
+    except Message.DoesNotExist:
         return HttpResponse('Unknown message: %s' % key, status=404)
 
 @csrf_exempt
