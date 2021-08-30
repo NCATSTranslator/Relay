@@ -10,10 +10,6 @@ from tr_ars import status_report
 #from reasoner_validator import validate_Message, ValidationError, validate_Query
 
 logger = logging.getLogger(__name__)
-logging.basicConfig(
-    format='%(asctime)s %(levelname)-8s %(message)s',
-    level=logging.DEBUG,
-    datefmt='%Y-%m-%d %H:%M:%S')
 
 def index(req):
     data = dict()
