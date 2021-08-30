@@ -25,7 +25,7 @@ SECRET_KEY = 'a=()q#x6$s_2tnzgvoudd=5&gbv*57bcr(^%f)&rp-7ydf(9ao'
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['localhost', 'ars.transltr.io', 'ars-dev.transltr.io']
+ALLOWED_HOSTS = ['arsserver','localhost', 'ars.transltr.io', 'ars-dev.transltr.io']
 
 
 # Application definition
@@ -120,17 +120,35 @@ DATABASES = {
 }
 
 LOGGING = {
+    'formatters': {
+        'simple': {
+            'format': '{levelname} {asctime} {module} {process:d} {thread:d} {message}',
+            'style': '{',
+        }
+    },
     'version': 1,
     'disable_existing_loggers': False,
     'handlers': {
         'console': {
             'class': 'logging.StreamHandler',
-        },
+            'formatter': 'simple'
+        }
     },
     'root': {
         'handlers': ['console'],
         'level': 'DEBUG',
     },
+    'loggers': {
+        'tr_ars.tasks': {
+            'level': 'DEBUG',
+            'handlers': ['console'],
+        },
+        'tr_ars.default_ars_app.api': {
+            'level': 'DEBUG',
+            'handlers': ['console']
+        }
+    }
+
 }
 
 # Password validation
