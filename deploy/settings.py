@@ -119,15 +119,21 @@ DATABASES = {
         'PORT': '3306',
     }
 }
-
-LOG_LEVEL = 'DEBUG'
+DJANGO_LOG_LEVEL=DEBUG
 LOGGING = {
+    'formatters': {
+        'simple': {
+            'format': '{levelname} {asctime} {module} {process:d} {thread:d} {message}',
+            'style': '{',
+        }
+    },
     'version': 1,
     'disable_existing_loggers': False,
     'handlers': {
         'console': {
             'class': 'logging.StreamHandler',
-        },
+            'formatter': 'simple'
+        }
     },
     'root': {
         'handlers': ['console'],

@@ -119,7 +119,7 @@ DATABASES = {
         'PORT': '3306',
     }
 }
-
+DJANGO_LOG_LEVEL=DEBUG
 LOGGING = {
     'formatters': {
         'simple': {

@@ -117,7 +117,7 @@ DATABASES = {
     }
 }
 
-LOG_LEVEL = 'DEBUG'
+DJANGO_LOG_LEVEL = 'DEBUG'
 LOGGING = {
     'formatters': {
         'simple': {
