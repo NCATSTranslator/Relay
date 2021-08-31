@@ -11,7 +11,6 @@ from tr_ars import status_report
 
 logger = logging.getLogger(__name__)
 
-
 def index(req):
     data = dict()
     data['name'] = "Translator Autonomous Relay System (ARS) API"
@@ -49,8 +48,10 @@ def get_default_actor():
 @csrf_exempt
 def submit(req):
     """Query submission"""
+    logger.debug("entering submit")
     if req.method != 'POST':
         return HttpResponse('Only POST is permitted!', status=405)
+
     try:
         logger.debug('++ submit: %s' % req.body)
         data = json.loads(req.body)
@@ -79,6 +80,8 @@ def submit(req):
 
 @csrf_exempt
 def messages(req):
+    logger.debug("entering messages endpoint")
+
     if req.method == 'GET':
         response = []
         for mesg in  Message.objects.order_by('-timestamp')[:10]:
@@ -120,6 +123,8 @@ def messages(req):
 
 
 def trace_message_deepfirst(node):
+    logger.debug('entering trace_message_deepfirst')
+
     children = Message.objects.filter(ref__pk=node['message'])
     logger.debug('%s: %d children' % (node['message'], len(children)))
     for child in children:
@@ -140,6 +145,7 @@ def trace_message_deepfirst(node):
 
 
 def trace_message(req, key):
+    logger.debug("entering trace_message")
     try:
         mesg = Message.objects.get(pk=key)
         tree = {
@@ -165,6 +171,8 @@ def trace_message(req, key):
 
 @csrf_exempt
 def message(req, key):
+    logger.debug("entering message endpoint %s " % key)
+
     if req.method == 'GET':
         if req.GET.get('trace', False):
             return trace_message(req, key)
