@@ -12,6 +12,7 @@ from tr_ars import status_report
 logger = logging.getLogger(__name__)
 
 def index(req):
+    logger.debug("entering index")
     data = dict()
     data['name'] = "Translator Autonomous Relay System (ARS) API"
     data['entries'] = []
@@ -24,6 +25,7 @@ def index(req):
                         content_type='application/json', status=200)
 
 def api_redirect(req):
+    logger.debug("api redirecting")
     response = redirect(reverse('ars-api'))
     return response
 
@@ -47,6 +49,7 @@ def get_default_actor():
 
 @csrf_exempt
 def submit(req):
+    logger.debug("submit")
     """Query submission"""
     logger.debug("entering submit")
     if req.method != 'POST':
