@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 def send_messages(actors, messages):
     logger.debug("++ sending messages ++")
     for mesg in messages:
-        logger.debug("message being sent: \n"+mesg)
+        logger.debug("message being sent: \n"+str(mesg.to_dict))
         for actor in actors:
             logger.debug("Being sent to actor: "+actor)
             if (actor == mesg.actor or len(actor.path) == 0
