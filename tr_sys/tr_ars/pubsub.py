@@ -11,7 +11,7 @@ def send_messages(actors, messages):
     for mesg in messages:
         logger.debug("message being sent: \n"+str(mesg.to_dict))
         for actor in actors:
-            logger.debug("Being sent to actor: "+actor)
+            logger.debug("Being sent to actor: "+str(actor))
             if (actor == mesg.actor or len(actor.path) == 0
                 or len(actor.agent.uri) == 0):
                 pass
