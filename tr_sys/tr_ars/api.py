@@ -94,8 +94,8 @@ def messages(req):
     elif req.method == 'POST':
         try:
             data = json.loads(req.body)
-            if 'actor' not in data:
-                return HttpResponse('Not a valid ARS json', status=400)
+            #if 'actor' not in data:
+            #    return HttpResponse('Not a valid ARS json', status=400)
 
             actor = Agent.objects.get(pk=data['actor'])
             # logger.debug('*** actor: %s' % actor)
