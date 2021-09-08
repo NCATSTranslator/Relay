@@ -190,8 +190,8 @@ def message(req, key):
     elif req.method == 'POST':
         try:
             data = json.loads(req.body)
-            if 'query_graph' not in data or 'knowledge_graph' not in data or 'results' not in data:
-                return HttpResponse('Not a valid Translator API json', status=400)
+            #if 'query_graph' not in data or 'knowledge_graph' not in data or 'results' not in data:
+            #    return HttpResponse('Not a valid Translator API json', status=400)
 
             mesg = Message.objects.get(pk = key)
             status = 'D'
