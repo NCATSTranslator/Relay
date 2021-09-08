@@ -38,7 +38,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'corsheaders',
-#    'channels',
+    #'channels',
     'tr_ars.apps.ARSConfig',
     #'tr_ars.default_ars_app.ars_app.AppConfig',
     'tr_ara_aragorn.aragorn_app.AppConfig',
@@ -54,7 +54,6 @@ INSTALLED_APPS = [
     'tr_kp_cam.cam_app.AppConfig',
     'tr_kp_textmining.textmining_app.AppConfig',
     'tr_kp_openpredict.openpredict_app.AppConfig',
-    'tr_kp_cohd.cohd_app.AppConfig',
     'tr_ara_aragorn_exp.aragorn_exp_app.AppConfig',
     'tr_kp_chp.chp_app.AppConfig',
     'tr_kp_icees.icees_app.AppConfig',
@@ -102,7 +101,7 @@ CHANNEL_LAYERS = {
     'default': {
         'BACKEND': 'channels_redis.core.RedisChannelLayer',
         'CONFIG': {
-            "hosts": [('127.0.0.1', 6379)],
+            "hosts": [('redis', 6379)],
         },
     },
 }
@@ -112,12 +111,15 @@ CHANNEL_LAYERS = {
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': os.path.join(BASE_DIR, 'db.sqlite3'),
+        'ENGINE': 'django.db.backends.mysql',
+        'NAME': 'arsdb',
+        'USER': 'ars',
+        'PASSWORD': 'aocaik7Peib2eiquoosh',
+        'HOST': 'arsdb',
+        'PORT': '3306',
     }
 }
-
-DJANGO_LOG_LEVEL = 'DEBUG'
+DJANGO_LOG_LEVEL=DEBUG
 LOGGING = {
     'formatters': {
         'simple': {
@@ -203,9 +205,9 @@ STATICFILES_DIRS = (
 
 CELERY_RESULT_BACKEND = 'django-db'
 CELERY_CACHE_BACKEND = 'django-cache'
-CELERY_BROKER_URL = 'amqp://localhost'
+CELERY_BROKER_URL = 'pyamqp://rabbitmq:5672'
 
 # Other important shared settings
 
-USE_CELERY = True 
-DEFAULT_HOST = 'http://localhost:8000'
+USE_CELERY = True
+DEFAULT_HOST = 'http://arsserver:8000'

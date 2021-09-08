@@ -11,8 +11,8 @@ from tr_ars import status_report
 
 logger = logging.getLogger(__name__)
 
-
 def index(req):
+    logger.debug("entering index")
     data = dict()
     data['name'] = "Translator Autonomous Relay System (ARS) API"
     data['entries'] = []
@@ -25,6 +25,7 @@ def index(req):
                         content_type='application/json', status=200)
 
 def api_redirect(req):
+    logger.debug("api redirecting")
     response = redirect(reverse('ars-api'))
     return response
 
@@ -48,9 +49,12 @@ def get_default_actor():
 
 @csrf_exempt
 def submit(req):
+    logger.debug("submit")
     """Query submission"""
+    logger.debug("entering submit")
     if req.method != 'POST':
         return HttpResponse('Only POST is permitted!', status=405)
+
     try:
         logger.debug('++ submit: %s' % req.body)
         data = json.loads(req.body)
@@ -79,6 +83,8 @@ def submit(req):
 
 @csrf_exempt
 def messages(req):
+    logger.debug("entering messages endpoint")
+
     if req.method == 'GET':
         response = []
         for mesg in  Message.objects.order_by('-timestamp')[:10]:
@@ -120,12 +126,15 @@ def messages(req):
 
 
 def trace_message_deepfirst(node):
+    logger.debug('entering trace_message_deepfirst')
+
     children = Message.objects.filter(ref__pk=node['message'])
     logger.debug('%s: %d children' % (node['message'], len(children)))
     for child in children:
         n = {
             'message': str(child.id),
             'status': dict(Message.STATUS)[child.status],
+            'code': child.code,
             'actor': {
                 'pk': child.actor.pk,
                 'channel': child.actor.channel.name,
@@ -139,6 +148,7 @@ def trace_message_deepfirst(node):
 
 
 def trace_message(req, key):
+    logger.debug("entering trace_message")
     try:
         mesg = Message.objects.get(pk=key)
         tree = {
@@ -149,6 +159,7 @@ def trace_message(req, key):
                 'channel': mesg.actor.channel.name,
                 'agent': mesg.actor.agent.name,
                 'path': mesg.actor.path
+
             },
             'children': []
         }
@@ -163,6 +174,8 @@ def trace_message(req, key):
 
 @csrf_exempt
 def message(req, key):
+    logger.debug("entering message endpoint %s " % key)
+
     if req.method == 'GET':
         if req.GET.get('trace', False):
             return trace_message(req, key)
@@ -171,7 +184,7 @@ def message(req, key):
             return HttpResponse(json.dumps(mesg.to_dict(), indent=2),
                                 status=200)
 
-        except Message.DoesNotExit:
+        except Message.DoesNotExist:
             return HttpResponse('Unknown message: %s' % key, status=404)
 
     elif req.method == 'POST':
@@ -418,7 +431,7 @@ def answers(req, key):
         pass
         print()
         return HttpResponse(json.loads(jsonRes),status=200)
-    except Message.DoesNotExit:
+    except Message.DoesNotExist:
         return HttpResponse('Unknown message: %s' % key, status=404)
 
 @csrf_exempt

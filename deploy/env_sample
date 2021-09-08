@@ -1,0 +1,10 @@
+ENVIRONMENT_TAG=CI
+ARS_DJANGO_SECRET_KEY='random_string_long_enough'
+ARS_ALLOWED_HOSTS=*
+ARS_DATABASE=arsdb
+ARS_DB_USER=ars
+ARS_DB_PASSWORD=<>
+ARS_DB_HOST=<>
+ARS_HOSTNAME=ars.ci.transltr.io
+ARS_ALB_TAG=transltr-eks-ci-blue-ars
+ARS_ALB_SG=translator-ci-alb-http-sg

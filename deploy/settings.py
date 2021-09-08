@@ -20,12 +20,12 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # See https://docs.djangoproject.com/en/1.11/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'a=()q#x6$s_2tnzgvoudd=5&gbv*57bcr(^%f)&rp-7ydf(9ao'
+SECRET_KEY = ARS_DJANGO_SECRET_KEY_VALUE
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['arsserver','localhost', 'ars.transltr.io', 'ars-dev.transltr.io']
+ALLOWED_HOSTS = ['ARS_ALLOWED_HOSTS_VALUE']
 
 
 # Application definition
@@ -38,7 +38,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'corsheaders',
-#    'channels',
+    #'channels',
     'tr_ars.apps.ARSConfig',
     #'tr_ars.default_ars_app.ars_app.AppConfig',
     'tr_ara_aragorn.aragorn_app.AppConfig',
@@ -54,7 +54,6 @@ INSTALLED_APPS = [
     'tr_kp_cam.cam_app.AppConfig',
     'tr_kp_textmining.textmining_app.AppConfig',
     'tr_kp_openpredict.openpredict_app.AppConfig',
-    'tr_kp_cohd.cohd_app.AppConfig',
     'tr_ara_aragorn_exp.aragorn_exp_app.AppConfig',
     'tr_kp_chp.chp_app.AppConfig',
     'tr_kp_icees.icees_app.AppConfig',
@@ -102,7 +101,7 @@ CHANNEL_LAYERS = {
     'default': {
         'BACKEND': 'channels_redis.core.RedisChannelLayer',
         'CONFIG': {
-            "hosts": [('127.0.0.1', 6379)],
+            "hosts": [('0.0.0.0', 6379)],
         },
     },
 }
@@ -112,12 +111,15 @@ CHANNEL_LAYERS = {
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': os.path.join(BASE_DIR, 'db.sqlite3'),
+        'ENGINE': 'django.db.backends.mysql',
+        'NAME': 'ARS_DATABASE_VALUE',
+        'USER': 'ARS_DB_USER_VALUE',
+        'PASSWORD': 'ARS_DB_PASSWORD_VALUE',
+        'HOST': 'ARS_DB_HOST_VALUE',
+        'PORT': '3306',
     }
 }
-
-DJANGO_LOG_LEVEL = 'DEBUG'
+DJANGO_LOG_LEVEL=DEBUG
 LOGGING = {
     'formatters': {
         'simple': {
@@ -147,7 +149,6 @@ LOGGING = {
             'handlers': ['console']
         }
     }
-
 }
 
 # Password validation
@@ -203,9 +204,9 @@ STATICFILES_DIRS = (
 
 CELERY_RESULT_BACKEND = 'django-db'
 CELERY_CACHE_BACKEND = 'django-cache'
-CELERY_BROKER_URL = 'amqp://localhost'
+CELERY_BROKER_URL = 'pyamqp://0.0.0.0:5672'
 
 # Other important shared settings
 
-USE_CELERY = True 
-DEFAULT_HOST = 'http://localhost:8000'
+USE_CELERY = True
+DEFAULT_HOST = 'http://0.0.0.0:8000'
