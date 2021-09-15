@@ -5,7 +5,7 @@ from tr_ars.default_ars_app.api import *
 class AppConfig(ARSAppConfig):
     name = 'tr_ara_wfr.wfr_app' # must be dot path for module
     actors = [('https://translator-workflow-runner.renci.org/query',
-               'runquery', 'general')] # tuple of remote, name, channel
+               'runquery', 'workflow')] # tuple of remote, name, channel
     app_path = 'ara-wfr'
     regex_path = '^' + app_path + '/'
 

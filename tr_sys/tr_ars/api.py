@@ -83,8 +83,10 @@ def submit(req):
             if(isinstance(wf,list)):
                 if(len(wf)>0):
                     message = Message.create(code=200, status='Running',data=data,actor=get_workflow_actor())
-        message = Message.create(code=200, status='Running', data=data,
-                          actor=get_default_actor())
+                    logger.debug("Sending message to workflow runner")
+        else:
+            message = Message.create(code=200, status='Running', data=data,
+                              actor=get_default_actor())
 
         if 'name' in data:
             message.name = data['name']
