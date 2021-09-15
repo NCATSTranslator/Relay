@@ -39,13 +39,24 @@ DEFAULT_ACTOR = {
     'path': '',
     'remote': ''
 }
-
+WORKFLOW_ACTOR = {
+    'channel': 'workflow',
+    'agent': {
+        'name': 'ars-default-agent',
+        'uri': ''
+    },
+    'path': '',
+    'remote': ''
+}
 
 def get_default_actor():
     # default actor is the first actor initialized in the database per
     # apps.setup_schema()
     return get_or_create_actor(DEFAULT_ACTOR)[0]
-
+def get_workflow_actor():
+    # default actor is the first actor initialized in the database per
+    # apps.setup_schema()
+    return get_or_create_actor(WORKFLOW_ACTOR)[0]
 
 @csrf_exempt
 def submit(req):
@@ -67,6 +78,11 @@ def submit(req):
         #     logger.debug("Warning! Input query failed TRAPI validation "+str(data))
         #     logger.debug(ve)
         #     return HttpResponse('Input query failed TRAPI validation',status=400)
+        if("workflow" in data):
+            wf = data["workflow"]
+            if(isinstance(wf,list)):
+                if(len(wf)>0):
+                    message = Message.create(code=200, status='Running',data=data,actor=get_workflow_actor())
         message = Message.create(code=200, status='Running', data=data,
                           actor=get_default_actor())
 
