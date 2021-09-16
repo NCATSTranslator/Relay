@@ -206,6 +206,7 @@ CELERY_CACHE_BACKEND = 'django-cache'
 CELERY_BROKER_URL = 'amqp://localhost'
 
 # Other important shared settings
-
+DATA_UPLOAD_MAX_MEMORY_SIZE = 100000000
+FILE_UPLOAD_MAX_MEMORY_SIZE = 100000000
 USE_CELERY = True 
 DEFAULT_HOST = 'https://ars-dev.transltr.io'
