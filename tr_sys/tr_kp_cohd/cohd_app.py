@@ -4,7 +4,7 @@ from tr_ars.default_ars_app.api import *
 
 class AppConfig(ARSAppConfig):
     name = 'tr_kp_cohd.cohd_app' # must be dot path for module
-    actors = [('https://trapi-dev.cohd.io/api/query',
+    actors = [('https://cohd.io/api/query',
                'runquery', 'general')] # tuple of remote, name, channel
     app_path = 'kp-cohd'
     regex_path = '^' + app_path + '/'
