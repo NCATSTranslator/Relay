@@ -25,15 +25,6 @@ def message_post_save(sender, instance, **kwargs):
     # now broadcast the message to all actors only if it has code=200 and is a parent node
     if message.code == 200 and message.ref == None:
          if len(Message.objects.filter(ref__pk=message.pk)) == 0: # make sure we haven't already done this broadcast
-        #     if("workflow" in message["data"]):
-        #         wf = message["data"]["workflow"]
-        #         if(isinstance(wf,list)):
-        #             if(len(wf)>0):
-        #                 send_messages(Actor.objects.get())
-            #send_messages(Actor.objects.all(), [message])
-            # qs = Actor.objects.all()
-            # for thing in qs:
-            #     print(str(thing))
             send_messages(Actor.objects.filter(channel = message.actor.channel), [message])
     # check if parent status should be updated to 'Done'
     if message.ref and message.status in ['D', 'S', 'E', 'U']:
