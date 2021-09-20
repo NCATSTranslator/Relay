@@ -209,4 +209,4 @@ CELERY_BROKER_URL = 'amqp://localhost'
 # Other important shared settings
 
 USE_CELERY = True 
-DEFAULT_HOST = 'https://ars-dev.transltr.io'
+DEFAULT_HOST = 'http://localhost:8000'
