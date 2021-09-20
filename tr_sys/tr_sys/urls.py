@@ -29,6 +29,7 @@ from tr_ara_ncats.ncats_app import AppConfig as NCATSApp
 from tr_ara_robokop.robokop_app import AppConfig as RobokopApp
 from tr_ara_aragorn_exp.aragorn_exp_app import AppConfig as AragornExpApp
 from tr_ara_unsecret.unsecret_app import AppConfig as UnsecretApp
+from tr_ara_wfr.wfr_app import AppConfig as WfrApp
 from tr_kp_genetics.genetics_app import AppConfig as GeneticsApp
 from tr_kp_molecular.molecular_app import AppConfig as MolecularApp
 from tr_kp_cam.cam_app import AppConfig as CamApp
@@ -53,6 +54,7 @@ patterns = [
     url(NCATSApp.regex_path, include(NCATSApp.name)),
     url(RobokopApp.regex_path, include(RobokopApp.name)),
     url(AragornExpApp.regex_path, include(AragornExpApp.name)),
+    url(WfrApp.regex_path, include(WfrApp.name)),
     url(IceesApp.regex_path, include(IceesApp.name)),
     url(IceesDiliApp.regex_path, include(IceesDiliApp.name)),
     url(UnsecretApp.regex_path, include(UnsecretApp.name)),

@@ -9,6 +9,9 @@ DEFAULT_CHANNELS = [
     {'name':'general',
      'description': 'General channel for all queries'
      },
+    {'name':'workflow',
+     'description': 'Channel for queries containing workflow and operations parameters'
+     }
 ]
 
 DEFAULT_AGENTS = [
@@ -21,6 +24,10 @@ DEFAULT_AGENTS = [
 
 DEFAULT_ACTORS = [
     {'channel': 'general',
+     'agent': 'ars-default-agent',
+     'path': ''
+     },
+    {'channel': 'workflow',
      'agent': 'ars-default-agent',
      'path': ''
      }

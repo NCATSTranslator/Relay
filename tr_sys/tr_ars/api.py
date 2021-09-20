@@ -7,6 +7,8 @@ from .models import Agent, Message, Channel, Actor
 import json, sys, logging
 from inspect import currentframe, getframeinfo
 from tr_ars import status_report
+from tr_ars.tasks import send_message
+
 #from reasoner_validator import validate_Message, ValidationError, validate_Query
 
 logger = logging.getLogger(__name__)
@@ -39,13 +41,24 @@ DEFAULT_ACTOR = {
     'path': '',
     'remote': ''
 }
-
+WORKFLOW_ACTOR = {
+    'channel': 'workflow',
+    'agent': {
+        'name': 'ars-workflow-agent',
+        'uri': ''
+    },
+    'path': '',
+    'remote': ''
+}
 
 def get_default_actor():
     # default actor is the first actor initialized in the database per
     # apps.setup_schema()
     return get_or_create_actor(DEFAULT_ACTOR)[0]
-
+def get_workflow_actor():
+    # default actor is the first actor initialized in the database per
+    # apps.setup_schema()
+    return get_or_create_actor(WORKFLOW_ACTOR)[0]
 
 @csrf_exempt
 def submit(req):
@@ -67,8 +80,20 @@ def submit(req):
         #     logger.debug("Warning! Input query failed TRAPI validation "+str(data))
         #     logger.debug(ve)
         #     return HttpResponse('Input query failed TRAPI validation',status=400)
-        message = Message.create(code=200, status='Running', data=data,
-                          actor=get_default_actor())
+        if("workflow" in data):
+            wf = data["workflow"]
+            if(isinstance(wf,list)):
+                if(len(wf)>0):
+                    message = Message.create(code=200, status='Running', data=data,
+                                             actor=get_workflow_actor())
+                    logger.debug("Sending message to workflow runner")
+                    # message.save()
+                    # send_message(get_workflow_actor().to_dict(),message.to_dict())
+                    # return HttpResponse(json.dumps(data, indent=2),
+                    #                     content_type='application/json', status=201)
+        else:
+            message = Message.create(code=200, status='Running', data=data,
+                              actor=get_default_actor())
 
         if 'name' in data:
             message.name = data['name']
@@ -94,8 +119,8 @@ def messages(req):
     elif req.method == 'POST':
         try:
             data = json.loads(req.body)
-            if 'actor' not in data:
-                return HttpResponse('Not a valid ARS json', status=400)
+            #if 'actor' not in data:
+            #    return HttpResponse('Not a valid ARS json', status=400)
 
             actor = Agent.objects.get(pk=data['actor'])
             # logger.debug('*** actor: %s' % actor)
@@ -190,8 +215,8 @@ def message(req, key):
     elif req.method == 'POST':
         try:
             data = json.loads(req.body)
-            if 'query_graph' not in data or 'knowledge_graph' not in data or 'results' not in data:
-                return HttpResponse('Not a valid Translator API json', status=400)
+            #if 'query_graph' not in data or 'knowledge_graph' not in data or 'results' not in data:
+            #    return HttpResponse('Not a valid Translator API json', status=400)
 
             mesg = Message.objects.get(pk = key)
             status = 'D'
