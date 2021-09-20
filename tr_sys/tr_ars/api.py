@@ -7,6 +7,8 @@ from .models import Agent, Message, Channel, Actor
 import json, sys, logging
 from inspect import currentframe, getframeinfo
 from tr_ars import status_report
+from tr_ars.tasks import send_message
+
 #from reasoner_validator import validate_Message, ValidationError, validate_Query
 
 logger = logging.getLogger(__name__)
@@ -42,7 +44,7 @@ DEFAULT_ACTOR = {
 WORKFLOW_ACTOR = {
     'channel': 'workflow',
     'agent': {
-        'name': 'ars-default-agent',
+        'name': 'ars-workflow-agent',
         'uri': ''
     },
     'path': '',
@@ -82,8 +84,13 @@ def submit(req):
             wf = data["workflow"]
             if(isinstance(wf,list)):
                 if(len(wf)>0):
-                    message = Message.create(code=200, status='Running',data=data,actor=get_workflow_actor())
+                    message = Message.create(code=200, status='Running', data=data,
+                                             actor=get_workflow_actor())
                     logger.debug("Sending message to workflow runner")
+                    # message.save()
+                    # send_message(get_workflow_actor().to_dict(),message.to_dict())
+                    # return HttpResponse(json.dumps(data, indent=2),
+                    #                     content_type='application/json', status=201)
         else:
             message = Message.create(code=200, status='Running', data=data,
                               actor=get_default_actor())
