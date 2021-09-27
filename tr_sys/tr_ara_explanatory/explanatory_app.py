@@ -4,7 +4,7 @@ from tr_ars.default_ars_app.api import *
 
 class AppConfig(ARSAppConfig):
     name = 'tr_ara_explanatory.explanatory_app' # must be dot path for module
-    actors = [('https://explanatory-agent.azurewebsites.net/v1.1/query', 'runquery', 'general')] # tuple of remote, name, channel
+    actors = [('https://explanatory-agent.azurewebsites.net/v1.2/query', 'runquery', 'general')] # tuple of remote, name, channel
     app_path = 'ara-explanatory'
     regex_path = '^' + app_path + '/'
 
