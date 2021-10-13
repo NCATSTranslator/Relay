@@ -39,7 +39,7 @@ def send_message(actor_dict, mesg_dict, timeout=300):
     status = 'U'
     status_code = 0
     rdata = data['fields']['data']
-    query_endpoint=actor_dict['fields']['remote'].rsplit('/',1)[-1]
+    query_endpoint = actor_dict['fields']['remote'].rsplit('/',1)[-1]
     try:
         r = requests.post(url, json=data, timeout=timeout)
         logger.debug('%d: receive message from actor %s...\n%s.\n'
@@ -73,10 +73,13 @@ def send_message(actor_dict, mesg_dict, timeout=300):
                     ar = requests.get(callback, json=data, timeout=timeout)
                     arj=ar.json()
                     if(arj["fields"]["data"] is None):
+                        logger.debug("data field empty")
                         status = 'R'
                     else:
+                        logger.debug("data field contains "+ arj["fields"]["data"] )
                         status = 'D'
             else:
+                logger.debug("Not async? "+query_endpoint)
                 status = 'D'
             if 'tr_ars.message.status' in r.headers:
                 status = r.headers['tr_ars.message.status']
