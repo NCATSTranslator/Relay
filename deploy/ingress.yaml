@@ -17,14 +17,14 @@ spec:
     - host: ARS_HOSTNAME_VALUE
       http:
         paths:
-        - path: /*
+        - path: /
           pathType: Prefix
           backend:
             service:
               name: ssl-redirect
               port:
                 name: use-annotation
-        - path: /*
+        - path: /
           pathType: Prefix
           backend:
             service: 
