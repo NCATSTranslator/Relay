@@ -9,6 +9,7 @@ sed -i.bak \
     -e "s/ARS_DB_PASSWORD_VALUE/${ARS_DB_PASSWORD}/g" \
     -e "s/ARS_DB_HOST_VALUE/${ARS_DB_HOST}/g" \
     -e "s/ARS_DJANGO_SECRET_KEY_VALUE/${ARS_DJANGO_SECRET_KEY}/g" \
+    -e "s/ARS_SETTINGS_DEFAULT_HOST_VALUE/${ARS_SETTINGS_DEFAULT_HOST}/g" \
     settings.py
 rm settings.py.bak
 

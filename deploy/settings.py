@@ -210,4 +210,4 @@ CELERY_BROKER_URL = 'pyamqp://0.0.0.0:5672'
 # Other important shared settings
 
 USE_CELERY = True
-DEFAULT_HOST = 'http://0.0.0.0:8000'
+DEFAULT_HOST = 'ARS_SETTINGS_DEFAULT_HOST_VALUE'
