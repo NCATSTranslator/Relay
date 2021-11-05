@@ -24,9 +24,9 @@ class AppConfig(SuperAppConfig):
             for actor in self.actors:
                 actorObj = dict()
                 actorObj['agent'] = agent
-                actorObj['channel'] = actor[2]
-                actorObj['path'] = actor[1]
-                actorObj['remote'] = actor[0]
+                actorObj['channel'] =  actor[2] if isinstance(actor,tuple) else actor.path()
+                actorObj['path'] = actor[1] if isinstance(actor,tuple) else actor.name()
+                actorObj['remote'] = actor[0] if isinstance(actor,tuple) else actor.remote()
                 get_or_create_actor(actorObj)
 
         except:
