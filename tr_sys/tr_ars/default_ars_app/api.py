@@ -18,6 +18,7 @@ def index(req):
 
 def query(url, data, timeout=600):
     headers = {'Content-Type': 'application/json'}
+    logging.info("about to POST 3 url={}".format(url))
     r = requests.post(url, json=data, headers=headers, timeout=timeout)
     logger.debug('%d: %s\n%s' % (r.status_code, r.headers, r.text[:500]))
     return r
