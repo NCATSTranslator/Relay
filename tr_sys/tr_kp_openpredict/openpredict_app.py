@@ -4,7 +4,7 @@ from tr_ars.default_ars_app.api import *
 
 class AppConfig(ARSAppConfig):
     name = 'tr_kp_openpredict.openpredict_app' # must be dot path for module
-    actors = [('https://openpredict.semanticscience.org/query',
+    actors = [make_actorconf('https://openpredict.semanticscience.org/query',
                'runquery', 'general')] # tuple of remote, name, channel
     app_path = 'kp-openpredict'
     regex_path = '^' + app_path + '/'
@@ -13,7 +13,7 @@ class AppConfig(ARSAppConfig):
 
 apipatterns = [path(r'', init_api_index(AppConfig.actors, AppConfig.app_path), name=AppConfig.app_path + '-api')]
 for actor in AppConfig.actors:
-    query_path = actor[1]
+    query_path = actor.name()
     query_name = AppConfig.app_path + '-' + query_path
     apipatterns.append(path(query_path, init_api_fn(actor), name=query_name))
 
