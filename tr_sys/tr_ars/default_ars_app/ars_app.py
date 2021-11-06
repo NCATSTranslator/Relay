@@ -21,12 +21,12 @@ class AppConfig(SuperAppConfig):
             agent['uri'] = reverse(self.app_path + '-api')
             get_or_create_agent(agent)
             #logger.debug('### agent: {0} {1}'.format(agentObj, status));
-            for actor in self.actors:
+            for actorconf in self.actors:
                 actorObj = dict()
                 actorObj['agent'] = agent
-                actorObj['channel'] =  actor[2] if isinstance(actor,tuple) else actor.path()
-                actorObj['path'] = actor[1] if isinstance(actor,tuple) else actor.name()
-                actorObj['remote'] = actor[0] if isinstance(actor,tuple) else actor.remote()
+                actorObj['channel'] =  actorconf.path()
+                actorObj['path'] = actorconf.name()
+                actorObj['remote'] = actorconf.remote()
                 get_or_create_actor(actorObj)
 
         except:

@@ -74,12 +74,12 @@ def callquery(url, req):
 def runapp(req):
     return callquery(QUERY_URL, req)
 
-def init_api_fn(actor):
-    remote = actor[0] if isinstance(actor,tuple) else actor.remote()
+def init_api_fn(actorconf):
+    remote = actorconf.remote()
     @csrf_exempt
     def fn(req):
         return callquery(remote, req)
-    fn.__name__ = actor[1] if isinstance(actor,tuple) else actor.name()
+    fn.__name__ = actorconf.name()
     fn.__doc__ = "Forward api request at %s to %s" % (fn.__name__, remote)
     return fn
 
