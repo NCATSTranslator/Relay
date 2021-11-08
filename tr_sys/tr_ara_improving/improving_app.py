@@ -4,7 +4,8 @@ from tr_ars.default_ars_app.api import *
 
 class AppConfig(ARSAppConfig):
     name = 'tr_ara_improving.improving_app' # must be dot path for module
-    actors = [make_actorconf('https://ia.healthdatascience.cloud/api/v1.2', 'runquery', 'general',
+    actors = [make_actorconf('infores:improving-agent',
+                                'https://ia.healthdatascience.cloud/api/v1.2', 'runquery', 'general',
                                 'query')] # tuple of remote, name, channel
     app_path = 'ara-improving'
     regex_path = '^' + app_path + '/'

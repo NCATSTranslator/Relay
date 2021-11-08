@@ -4,7 +4,8 @@ from tr_ars.default_ars_app.api import *
 
 class AppConfig(ARSAppConfig):
     name = 'tr_kp_genetics.genetics_app' # must be dot path for module
-    actors = [make_actorconf('https://translator.broadinstitute.org/genetics_provider/trapi/v1.1',
+    actors = [make_actorconf('infores:genetics-data-provider',
+                'https://translator.broadinstitute.org/genetics_provider/trapi/v1.1',
                'runquery', 'general',
                'query')] # tuple of remote, name, channel
     app_path = 'kp-genetics'

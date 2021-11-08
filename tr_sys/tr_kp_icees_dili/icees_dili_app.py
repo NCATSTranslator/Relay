@@ -4,7 +4,8 @@ from tr_ars.default_ars_app.api import *
 
 class AppConfig(ARSAppConfig):
     name = 'tr_kp_icees_dili.icees_dili_app' # must be dot path for module
-    actors = [make_actorconf('https://icees.renci.org:16341', 'runquery', 'general',
+    actors = [make_actorconf('infores:icees-dili',
+                                'https://icees.renci.org:16341', 'runquery', 'general',
                                 'query', 'reasoner=true&verbose=false')] # tuple of remote, name, channel
     app_path = 'kp-icees-dili'
     regex_path = '^' + app_path + '/'

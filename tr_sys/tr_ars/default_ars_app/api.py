@@ -84,12 +84,16 @@ def init_api_fn(actorconf):
     return fn
 
 class Actorconf:
-    def __init__(self, remote, name, path, method, params) -> None:
+    def __init__(self, inforesid, remote, name, path, method, params) -> None:
+        self._inforesid = inforesid
         self._remote = remote
         self._name = name
         self._path = path
         self._method = method
         self._params = params
+
+    def inforesid(self):
+        return self._inforesid
 
     def remote(self):
         return self._remote
@@ -106,8 +110,9 @@ class Actorconf:
     def params(self):
         return self._params
 
-def make_actorconf(remote, name, path, method=None, params=None):
-    return Actorconf(remote, name, path, method, params)
+
+def make_actorconf(inforesid, remote, name, path, method=None, params=None):
+    return Actorconf(inforesid, remote, name, path, method, params)
 
 def init_api_index(actors, app_path):
     def fn(req):

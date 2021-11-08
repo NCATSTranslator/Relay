@@ -4,7 +4,8 @@ from tr_ars.default_ars_app.api import *
 
 class AppConfig(ARSAppConfig):
     name = 'tr_kp_textmining.textmining_app' # must be dot path for module
-    actors = [make_actorconf('https://api.bte.ncats.io/v1/smartapi/978fe380a147a8641caf72320862697b',
+    actors = [make_actorconf('infores:automat-text-mining-provider',
+                'https://api.bte.ncats.io/v1/smartapi/978fe380a147a8641caf72320862697b',
                'runquery', 'general',
                'query')] # tuple of remote, name, channel
     app_path = 'kp-textmining'
