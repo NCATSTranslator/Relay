@@ -90,13 +90,12 @@ def init_api_fn(actorconf):
                     (("?"+params) if params is not None else "")) if urlServer is not None else None
             return callquery(remote, req)
     fn.__name__ = actorconf.name()
-    fn.__doc__ = "Forward api request at %s to %s" % (fn.__name__, remote)
+    fn.__doc__ = "Forward api request at %s to %s" % (fn.__name__, actorconf.inforesid())
     return fn
 
 class Actorconf:
-    def __init__(self, inforesid, remote, name, path, method, params) -> None:
+    def __init__(self, inforesid,  name, path, method, params) -> None:
         self._inforesid = inforesid
-        self._remote = remote
         self._name = name
         self._path = path
         self._method = method
@@ -105,9 +104,6 @@ class Actorconf:
     def inforesid(self):
         return self._inforesid
 
-    def remote(self):
-        return self._remote
-    
     def name(self):
         return self._name
     
@@ -121,8 +117,8 @@ class Actorconf:
         return self._params
 
 
-def make_actorconf(inforesid, remote, name, path, method=None, params=None):
-    return Actorconf(inforesid, remote, name, path, method, params)
+def make_actorconf(inforesid, name, path, method=None, params=None):
+    return Actorconf(inforesid, name, path, method, params)
 
 def init_api_index(actors, app_path):
     def fn(req):

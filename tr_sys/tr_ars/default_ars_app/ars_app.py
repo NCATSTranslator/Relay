@@ -7,7 +7,7 @@ import traceback
 class AppConfig(SuperAppConfig):
     name = 'tr_ars.default_ars_app.ars_app' # must be dot path for module
     actors = [make_actorconf('infores:ars',  # !!! Fictitous infores
-                            'http://localhost:8080/query', 'runquery', 'general')] # tuple of remote, name, channel; run default test server as `python simple-trapi-test-server.py`
+                            'runquery', 'general')] # tuple of remote, name, channel; run default test server as `python simple-trapi-test-server.py`
     app_path = 'example'
     regex_path = '^' + app_path + '/'
 
@@ -27,7 +27,6 @@ class AppConfig(SuperAppConfig):
                 actorObj['agent'] = agent
                 actorObj['channel'] =  actorconf.path()
                 actorObj['path'] = actorconf.name()
-                actorObj['remote'] = actorconf.query()
                 actorObj['inforesid'] = actorconf.inforesid()
                 get_or_create_actor(actorObj)
 

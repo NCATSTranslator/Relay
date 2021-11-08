@@ -39,8 +39,7 @@ DEFAULT_ACTOR = {
         'uri': ''
     },
     'path': '',
-    'inforesid': '',
-    'remote': ''
+    'inforesid': ''
 }
 WORKFLOW_ACTOR = {
     'channel': 'workflow',
@@ -49,8 +48,7 @@ WORKFLOW_ACTOR = {
         'uri': ''
     },
     'path': '',
-    'inforesid': '',
-    'remote': ''
+    'inforesid': ''
 }
 
 def get_default_actor():

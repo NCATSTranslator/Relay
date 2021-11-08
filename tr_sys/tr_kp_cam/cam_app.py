@@ -5,7 +5,6 @@ from tr_ars.default_ars_app.api import *
 class AppConfig(ARSAppConfig):
     name = 'tr_kp_cam.cam_app' # must be dot path for module
     actors = [make_actorconf('infores:cam-kp',
-                'https://cam-kp-api.renci.org/1.2.0/query?limit=100',
                'runquery', 'general')] # tuple of remote, name, channel
     app_path = 'kp-cam'
     regex_path = '^' + app_path + '/'
