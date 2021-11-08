@@ -8,3 +8,4 @@ ARS_DB_HOST=<>
 ARS_HOSTNAME=ars.ci.transltr.io
 ARS_ALB_TAG=transltr-eks-ci-blue-ars
 ARS_ALB_SG=translator-ci-alb-http-sg
+ARS_SETTINGS_DEFAULT_HOST_VALUE=https://ars.ci.transltr.io
