@@ -56,7 +56,8 @@ def setup_schema(sender, **kwargs):
     for a in DEFAULT_ACTORS:
         actor, created = Actor.objects.get_or_create(
             channel=channels[a['channel']], agent=agents[a['agent']],
-            defaults={'path': a['path']})
+            defaults={'path': a['path'],
+                    'inforesid': a['inforesid']})
 
 def my_signal_handler(*args):
     if os.environ.get('RUN_MAIN') == 'true':  

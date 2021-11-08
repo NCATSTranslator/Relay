@@ -27,7 +27,8 @@ class AppConfig(SuperAppConfig):
                 actorObj['agent'] = agent
                 actorObj['channel'] =  actorconf.path()
                 actorObj['path'] = actorconf.name()
-                actorObj['remote'] = actorconf.remote()
+                actorObj['remote'] = actorconf.query()
+                actorObj['inforesid'] = actorconf.inforesid()
                 get_or_create_actor(actorObj)
 
         except:

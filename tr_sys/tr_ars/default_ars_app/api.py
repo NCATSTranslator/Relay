@@ -6,6 +6,7 @@ import sys
 from django.http import HttpResponse
 from django.urls import reverse
 from django.views.decorators.csrf import csrf_exempt
+from tr_smartapi_client.smart_api_discover import SmartApiDiscover
 
 logger = logging.getLogger(__name__)
 
@@ -75,10 +76,19 @@ def runapp(req):
     return callquery(QUERY_URL, req)
 
 def init_api_fn(actorconf):
-    remote = actorconf.remote()
+    inforesid = actorconf.inforesid()
+    if SmartApiDiscover().urlServer(inforesid) is None:
+        logging.warn("could not configure inforesid={}".format(inforesid))
     @csrf_exempt
     def fn(req):
-        return callquery(remote, req)
+        urlServer=SmartApiDiscover().urlServer(inforesid)
+        if urlServer is not None:
+            endpoint=SmartApiDiscover().endpoint(inforesid)
+            params=SmartApiDiscover().params(inforesid)
+            remote = (urlServer +
+                    (("/"+endpoint) if endpoint is not None else "") +
+                    (("?"+params) if params is not None else "")) if urlServer is not None else None
+            return callquery(remote, req)
     fn.__name__ = actorconf.name()
     fn.__doc__ = "Forward api request at %s to %s" % (fn.__name__, remote)
     return fn

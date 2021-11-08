@@ -39,6 +39,7 @@ DEFAULT_ACTOR = {
         'uri': ''
     },
     'path': '',
+    'inforesid': '',
     'remote': ''
 }
 WORKFLOW_ACTOR = {
@@ -48,6 +49,7 @@ WORKFLOW_ACTOR = {
         'uri': ''
     },
     'path': '',
+    'inforesid': '',
     'remote': ''
 }
 
@@ -162,6 +164,7 @@ def trace_message_deepfirst(node):
             'code': child.code,
             'actor': {
                 'pk': child.actor.pk,
+                'inforesid': child.actor.inforesid,
                 'channel': child.actor.channel.name,
                 'agent': child.actor.agent.name,
                 'path': child.actor.path
@@ -181,6 +184,7 @@ def trace_message(req, key):
             'status': dict(Message.STATUS)[mesg.status],
             'actor': {
                 'pk': mesg.actor.pk,
+                'inforesid': child.actor.inforesid,
                 'channel': mesg.actor.channel.name,
                 'agent': mesg.actor.agent.name,
                 'path': mesg.actor.path
@@ -382,9 +386,10 @@ def get_or_create_actor(data):
 
     if 'remote' not in data:
         data['remote'] = None
+    inforesid = data['inforesid']
 
     actor, created = Actor.objects.get_or_create(
-        channel=channel, agent=agent, path=data['path'], remote=data['remote'])
+        channel=channel, agent=agent, path=data['path'], inforesid=inforesid)
 
     status = 201
     if not created:
