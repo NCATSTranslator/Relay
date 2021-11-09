@@ -30,7 +30,8 @@ class AppConfig(SuperAppConfig):
                 actorObj['inforesid'] = actorconf.inforesid()
                 get_or_create_actor(actorObj)
 
-        except:
+        except Exception as e:
+            logger.error("Unexpected error 8: {}".format(traceback.format_exception(type(e), e, e.__traceback__)))
             #traceback.print_exc()
             pass
 

@@ -9,6 +9,7 @@ from django.urls import reverse
 import html
 from celery.decorators import task
 from tr_smartapi_client.smart_api_discover import SmartApiDiscover
+import traceback
 
 logger = get_task_logger(__name__)
 #logger.propagate = True
@@ -105,7 +106,8 @@ def send_message(actor_dict, mesg_dict, timeout=300):
                 for key in r.headers:
                     if key.lower().find('tr_ars') > -1:
                         rdata['logs'].append(key+": "+r.headers[key])
-    except:
+    except Exception as e:
+        logger.error("Unexpected error 2: {}".format(traceback.format_exception(type(e), e, e.__traceback__)))
         logger.exception("Can't send message to actor %s\n%s"
                          % (url,sys.exc_info()))
         status_code = 598

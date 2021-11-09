@@ -2,6 +2,7 @@ import json
 import logging
 import requests
 import sys
+import traceback
 
 from django.http import HttpResponse
 from django.urls import reverse
@@ -56,15 +57,16 @@ def callquery(url, req):
                     resp['tr_ars.reason'] = r.reason
                     resp['tr_ars.url'] = r.url
                     return resp
-                except:
+                except Exception as e:
+                    logger.error("Unexpected error 6: {}".format(traceback.format_exception(type(e), e, e.__traceback__)))
                     exc_type, exc_value, exc_traceback = sys.exc_info()
                     resp = HttpResponse(exc_value,
                                      status = 503)
                     resp['tr_ars.url'] = url
                     return resp
 
-    except:
-        mesg = 'Unexpected error: %s' % sys.exc_info()
+    except Exception as e:
+        logger.error("Unexpected error 7: {}".format(traceback.format_exception(type(e), e, e.__traceback__)))
         logger.debug(mesg)
 
     # notify the ARS that we have nothing to contribute

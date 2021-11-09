@@ -74,7 +74,8 @@ def base_index(req):
     for item in patterns[1:]:
         try:
             data['entries'].append(req.build_absolute_uri(reverse(item.name)))
-        except:
+        except Exception as e:
+            logger.error("Unexpected error 9: {}".format(traceback.format_exception(type(e), e, e.__traceback__)))
             data['entries'].append(req.build_absolute_uri() + str(item.pattern).replace('^', ''))
     return HttpResponse(json.dumps(data, indent=2),
                         content_type='application/json', status=200)

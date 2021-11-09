@@ -86,7 +86,8 @@ def answer(req,key):
             merged = utils.mergeMessages(utils.QueryGraph(queryGraph),msgs)
             sharedResultsMap = merged.getSharedResults()
             sharedResults = utils.sharedResultsJson(sharedResultsMap)
-        except:
+        except Exception as e:
+            logger.error("Unexpected error 5: {}".format(traceback.format_exception(type(e), e, e.__traceback__)))
             print("Unable to merge results for "+str(key))
             sharedResults=[]
 

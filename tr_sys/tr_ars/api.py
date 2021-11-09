@@ -21,7 +21,8 @@ def index(req):
     for item in apipatterns:
         try:
             data['entries'].append(req.build_absolute_uri(reverse(item.name)))
-        except:
+        except Exception as e:
+            logger.error("Unexpected error 17: {}".format(traceback.format_exception(type(e), e, e.__traceback__)))
             data['entries'].append(req.build_absolute_uri() + str(item.pattern))
     return HttpResponse(json.dumps(data, indent=2),
                         content_type='application/json', status=200)
@@ -102,8 +103,8 @@ def submit(req):
         data = message.to_dict()
         return HttpResponse(json.dumps(data, indent=2),
                             content_type='application/json', status=201)
-    except:
-        logger.debug("Unexpected error: %s" % sys.exc_info())
+    except Exception as e:
+        logger.error("Unexpected error 10: {}".format(traceback.format_exception(type(e), e, e.__traceback__)))
         return HttpResponse('Content is not JSON', status=400)
 
 @csrf_exempt
@@ -144,8 +145,8 @@ def messages(req):
         except Actor.DoesNotExist:
             return HttpResponse('Unknown actor: %s!' % data['actor'],
                                 status=404)
-        except:
-            logger.debug("Unexpected error: %s" % sys.exc_info())
+        except Exception as e:
+            logger.error("Unexpected error 11: {}".format(traceback.format_exception(type(e), e, e.__traceback__)))
 
         return HttpResponse('Internal server error', status=500)
 
@@ -242,8 +243,8 @@ def message(req, key):
         except json.decoder.JSONDecodeError:
             return HttpResponse('Can not decode json:<br>\n%s' % req.body, status=500)
 
-        except:
-            logger.debug("Unexpected error: %s" % sys.exc_info())
+        except Exception as e:
+            logger.error("Unexpected error 12: {}".format(traceback.format_exception(type(e), e, e.__traceback__)))
 
         return HttpResponse('Internal server error', status=500)
 
@@ -278,8 +279,8 @@ def channels(req):
             data = channel.to_dict()
             return HttpResponse(json.dumps(data, indent=2),
                                 content_type='application/json', status=status)
-        except:
-            logger.debug("Unexpected error: %s" % sys.exc_info())
+        except Exception as e:
+            logger.error("Unexpected error 13: {}".format(traceback.format_exception(type(e), e, e.__traceback__)))
             return HttpResponse('Internal server error', status=500)
     return HttpResponse('Unsupported method %s' % req.method, status=400)
 
@@ -327,8 +328,8 @@ def agents(req):
             data, status = get_or_create_agent(data)
             return HttpResponse(json.dumps(data, indent=2),
                                 content_type='application/json', status=status)
-        except:
-            logger.debug("Unexpected error: %s" % sys.exc_info())
+        except Exception as e:
+            logger.error("Unexpected error 14: {}".format(traceback.format_exception(type(e), e, e.__traceback__)))
             return HttpResponse('Not a valid json format', status=400)
     return HttpResponse('Unsupported method %s' % req.method, status=400)
 
@@ -433,8 +434,8 @@ def actors(req):
         except Agent.DoesNotExist:
             logger.debug('Unknown agent: %s' % agent)
             return HttpResponse('Unknown agent: %s' % agent, status=404)
-        except:
-            logger.debug("Unexpected error: %s" % sys.exc_info())
+        except Exception as e:
+            logger.error("Unexpected error 15: {}".format(traceback.format_exception(type(e), e, e.__traceback__)))
             return HttpResponse('Not a valid json format', status=400)
     return HttpResponse('Unsupported method %s' % req.method, status=400)
 
