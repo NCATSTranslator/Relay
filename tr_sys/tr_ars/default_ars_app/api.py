@@ -57,6 +57,10 @@ def callquery(url, req):
                     resp['tr_ars.reason'] = r.reason
                     resp['tr_ars.url'] = r.url
                     return resp
+                except requests.exceptions.RequestException as e:
+                    logging.warn("connection error url1={} error={}".format(url, e))
+                    resp = HttpResponse("connection error url={} error={}".format(url, e),
+                                     status = 503)
                 except Exception as e:
                     logger.error("Unexpected error 6: {}".format(traceback.format_exception(type(e), e, e.__traceback__)))
                     exc_type, exc_value, exc_traceback = sys.exc_info()
