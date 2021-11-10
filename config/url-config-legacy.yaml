@@ -1,4 +1,12 @@
 ---
+# Maps inforesid to a url in the style of the "servers" field of swagger/openapi/smartapi.
+#
+# Provided for purposes of pushing code without breaking any services not yet registered
+# on smart-api with the required x-maturity field.  Once all services are registered on smart-api with
+# x-maturity, url-config-legacy.yaml should be deleted.
+
+# url-config-legacy.yaml is not a way for the ARS to avoid a successful request to smart-api.info in order
+# to be ready to serve requests.
 infores:aragorn-ranker: https://aragorn.renci.org/1.2
 # MW says aragorn_exp_app is experimental.  If so, we don't need a second official infores key.
 infores:aragorn-ranker-exp: https://aragorn.renci.org

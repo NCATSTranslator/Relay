@@ -22,6 +22,23 @@ def getpath(j, fields):
     return getpath_impl(j, fields, 0)
 
 """
+    ConfigFile: load a yaml configuration file
+"""
+class ConfigFile:
+    def __init__(self, filename) -> None:
+        self._path = os.path.join(os.path.dirname(__file__), "..", "..", "config", filename)
+
+    def get_map(self):
+        f = open(self._path)
+        j = {}
+        with open(self._path, "r") as stream:
+            try:
+                j=yaml.safe_load(stream)
+            except yaml.YAMLError as exc:
+                print(exc)
+        return j
+
+"""
     UrlMapSmartApiFetcher: Fetches TRAPI service url configuration from the servers: field in smart-api.info.
 
     Presumes that TRAPI services have registered paths in the way the TRAPI specification recommends, so that
@@ -116,56 +133,6 @@ class UrlMapSmartApiFetcher(object):
 import os
 
 """
-    UrlConfigLegacy: Maps inforesid to a url in the style of the "servers" field of swagger/openapi/smartapi.
-    
-    Provided for purposes of pushing code without breaking any services not yet registered
-    on smart-api with the required x-maturity field.  Once all services are registered on smart-api with
-    x-maturity, UrlConfigLegacy should be deleted.
-
-    UrlConfigLegacy is not a way for the ARS to avoid a successful request to smart-api.info in order
-    to be ready to serve requests.
-"""
-
-class UrlConfigLegacy:
-    def __init__(self) -> None:
-        self._path = os.path.join(os.path.dirname(__file__), "..", "..", "config", "url-config-legacy.yaml")
-
-    def get_map(self, maturity):
-        f = open(self._path)
-        j = {}
-        with open(self._path, "r") as stream:
-            try:
-                j=yaml.safe_load(stream)
-            except yaml.YAMLError as exc:
-                print(exc)
-        return j
-        # TODO? return j[maturity] if maturity in j else {}
-
-"""
-    HttpclientConfig: Maps inforesid to various attributes necessary for making a service call.
-
-    Backed by the file config/config.yaml.  Uses a field httpclients: so that the file could be amended
-    with other kinds of configuration with this class given a name with broader scope.
-
-    Currently does not allow variation by TR_ENV.
-"""
-class HttpclientConfig:
-    def __init__(self) -> None:
-        self._path = os.path.join(os.path.dirname(__file__), "..", "..", "config", "config.yaml")
-
-    def get_map(self, maturity):
-        f = open(self._path)
-        j = {}
-        with open(self._path, "r") as stream:
-            try:
-                j=yaml.safe_load(stream)
-            except yaml.YAMLError as exc:
-                print(exc)
-        logging.info("HttpclientConfig j={}".format(json.dumps(j)))
-        return j["httpclients"] if "httpclients" in j else {}
-
-
-"""
     SmartApiDiscoverer: Responsible for combining HttpclientConfig, UrlConfigLegacy, and UrlMapSmartApiFetcher.
 
     Refreshes between initial failures every secsTimeToLive seconds.
@@ -184,13 +151,15 @@ class SmartApiDiscoverer:
         self._maturity = os.getenv("TR_ENV") if os.getenv("TR_ENV") is not None else "production"
         if self._maturity not in ["production", "development", "staging"]:
             logging.warn("Unknown maturity level in TR_ENV: {}".format(self._maturity))
-        self._config = HttpclientConfig()
-        self._config_legacy = UrlConfigLegacy()
+        self._config = ConfigFile("config.yaml")
+        self._config_legacy = ConfigFile("url-config-legacy.yaml")
         self._urlmap_fetcher = UrlMapSmartApiFetcher()
 
         self._t_next_refresh = time.time()
-        self._map_legacy = self._config_legacy.get_map(self._maturity)
-        self._map_fixed = self._config.get_map(self._maturity)
+        self._map_legacy = self._config_legacy.get_map()
+        tmp1 = self._config.get_map()
+        self._map_fixed = tmp1["httpclients"] if "httpclients" in tmp1 else {}
+        logging.info("read map_legacy={} and map_fixed={}".format(self._map_legacy, self._map_fixed))
         self._map_dynamic = {}
         #logging.info("set map legacy {}".format(self._map))
         super().__init__()

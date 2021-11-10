@@ -1,5 +1,11 @@
 ---
+# See also existing python-code style configuration files:
+#
+#   deploy/settings.py
+#   tr_sys/tr_sys/settings.py
+#
 httpclients:
+# Maps inforesid to various attributes necessary for making a service call.
   infores:aragorn-ranker:
     # https://aragorn.renci.org/1.2
     endpoint: asyncquery 
