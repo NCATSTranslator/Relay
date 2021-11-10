@@ -85,7 +85,7 @@ class UrlMapSmartApiFetcher(object):
         return byIrid
 
     def get_map(self, maturity):
-        #try:
+        try:
             s = requests.Session()
 
             retries = Retry(total=5,
@@ -106,9 +106,11 @@ class UrlMapSmartApiFetcher(object):
                 m[irid] = irhit
             #    logging.info("found 3 {} => {}".format(irid, irhit))
             return m
-        #except (Exception, ArithmeticError) as ex:
-        #    logging.error("ruh roh ex={}".format(ex))
-        #    return False
+        # All exceptions that Requests explicitly raises inherit from requests.exceptions.RequestException.
+        #    https://docs.python-requests.org/en/latest/user/quickstart/#errors-and-exceptions
+        except requests.exceptions.RequestException as e:
+            logging.warn("*** UrlMapSmartApiFetcher: Ran out of retries fetching from smart-api: {}".format(e))
+            return None
 
 import os
 
@@ -198,7 +200,7 @@ class SmartApiDiscoverer:
                 logging.info("set map dynamic")
                 self._t_next_refresh = time.time() + secsTimeToLive
             else:
-                logging.warn("*** map_dynamic: Could not fetch from smart-api")
+                logging.info("smart-api fetch will be attempted again after {} seconds, when configuration is requested again".format(secsBetweenRetries))
                 self._t_next_refresh = time.time() + secsBetweenRetries
 
     def urlServer(self, inforesid):
