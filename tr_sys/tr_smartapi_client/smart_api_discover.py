@@ -82,6 +82,7 @@ class UrlMapSmartApiFetcher(object):
                     irhit0 = byIrid[key] if key in byIrid else None
                     if irhit0 is None or self._newer(irhit, irhit0):
                         byIrid[key] = irhit
+        logging.info("found {} registrations with maturity={}".format(len(byIrid), maturity))
         return byIrid
 
     def get_map(self, maturity):
@@ -96,7 +97,7 @@ class UrlMapSmartApiFetcher(object):
 
             s.mount('http://', HTTPAdapter(max_retries=retries))
             m = {}
-            urlRequest = "{}/api/query?q=tags.name:translator&size=150&fields=_meta,info,servers".format(urlSmartapi)
+            urlRequest = "{}/api/query?q=servers.x-maturity:{}&size=150&fields=_meta,info,servers".format(urlSmartapi, maturity)
             res = s.get(urlRequest, timeout=secsTimeout)
             if not res.ok:
                 logging.warn("status {} for {}".format(res.status_code, urlRequest))
@@ -181,6 +182,8 @@ class SmartApiDiscoverer:
 
     def __init__(self) -> None:
         self._maturity = os.getenv("TR_ENV") if os.getenv("TR_ENV") is not None else "production"
+        if self._maturity not in ["production", "development", "staging"]:
+            logging.warn("Unknown maturity level in TR_ENV: {}".format(self._maturity))
         self._config = HttpclientConfig()
         self._config_legacy = UrlConfigLegacy()
         self._urlmap_fetcher = UrlMapSmartApiFetcher()
