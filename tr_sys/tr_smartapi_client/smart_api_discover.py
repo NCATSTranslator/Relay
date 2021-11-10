@@ -39,7 +39,13 @@ class ConfigFile:
         return j
 
 """
-    UrlMapSmartApiFetcher: Fetches TRAPI service url configuration from the servers: field in smart-api.info.
+    UrlMapSmartApiFetcher: Fetches TRAPI service url configuration from smart-api.info.
+
+    - The servers: field provides the url and "x-maturity" fields.
+    - The infores provides an id for each service.
+
+    What is infores id?  It is a registered of identities in Translator for identifying services (and a few other things):
+        https://docs.google.com/spreadsheets/d/1Ak1hRqlTLr1qa-7O0s5bqeTHukj9gSLQML1-lg6xIHM/edit?pli=1#gid=293462374
 
     Presumes that TRAPI services have registered paths in the way the TRAPI specification recommends, so that
     the servers: field does not contain a method name such as /query.
@@ -65,11 +71,7 @@ class UrlMapSmartApiFetcher(object):
     def _irhits_from_res(self, j):
         for hit in j["hits"]:
             _id = getpath(hit,["_id"])
-            date_created = getpath(hit,["_meta", "date_created"])
             date_updated = getpath(hit,["_meta", "last_updated"])
-            title = getpath(hit, ["info", "title"])
-            #info = getpath(hit, ["info"])
-            x_trapi = getpath(hit, ["info", "x-trapi"])
             x_trapi_version = getpath(hit, ["info", "x-trapi", "version"])
             team = getpath(hit, ["info", "x-translator", "team"])
             infores = getpath(hit, ["info", "x-translator", "infores"])

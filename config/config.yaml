@@ -6,6 +6,10 @@
 #
 httpclients:
 # Maps inforesid to various attributes necessary for making a service call.
+#
+# What is infores id?  It is a registered of identities in Translator for identifying services (and a few other things):
+#     https://docs.google.com/spreadsheets/d/1Ak1hRqlTLr1qa-7O0s5bqeTHukj9gSLQML1-lg6xIHM/edit?pli=1#gid=293462374
+#
   infores:aragorn-ranker:
     # https://aragorn.renci.org/1.2
     endpoint: asyncquery 
