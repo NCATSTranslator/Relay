@@ -1,6 +1,8 @@
 
 import logging
 import requests
+from urllib3.util.retry import Retry
+from requests.adapters import HTTPAdapter
 import json
 import yaml
 import time
@@ -84,10 +86,18 @@ class UrlMapSmartApiFetcher(object):
 
     def get_map(self, maturity):
         #try:
+            s = requests.Session()
+
+            retries = Retry(total=5,
+                            backoff_factor=0.5,
+                            status_forcelist=[ 500, 502, 503, 504 ])
+                            # Parameter definitions at:
+                            #   https://urllib3.readthedocs.io/en/latest/reference/urllib3.util.html#module-urllib3.util.retry
+
+            s.mount('http://', HTTPAdapter(max_retries=retries))
             m = {}
             urlRequest = "{}/api/query?q=tags.name:translator&size=150&fields=_meta,info,servers".format(urlSmartapi)
-            res = requests.get(urlRequest, timeout=secsTimeout)
-            # TODO: retry/backoff
+            res = s.get(urlRequest, timeout=secsTimeout)
             if not res.ok:
                 logging.warn("status {} for {}".format(res.status_code, urlRequest))
                 return False
