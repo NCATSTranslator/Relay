@@ -122,17 +122,16 @@ class UrlMapSmartApiFetcher(object):
             urlRequest = "{}/api/query?q=servers.x-maturity:{}&size=150&fields=_meta,info,servers".format(urlSmartapi, maturity)
             res = s.get(urlRequest, timeout=secsTimeout)
             if not res.ok:
-                logging.warn("status {} for {}".format(res.status_code, urlRequest))
-                return False
+                logging.warn("After retries, HTTP status {} for {}".format(res.status_code, urlRequest))
+                return None
             j = res.json()
             for irid, irhit in self._by_infores_latest(j, maturity).items():
                 m[irid] = irhit
-            #    logging.info("found 3 {} => {}".format(irid, irhit))
             return m
         # All exceptions that Requests explicitly raises inherit from requests.exceptions.RequestException.
         #    https://docs.python-requests.org/en/latest/user/quickstart/#errors-and-exceptions
         except requests.exceptions.RequestException as e:
-            logging.warn("*** UrlMapSmartApiFetcher: Ran out of retries fetching from smart-api: {}".format(e))
+            logging.warn("Exception fetching from smart-api: {}".format(e))
             return None
 
 import os
