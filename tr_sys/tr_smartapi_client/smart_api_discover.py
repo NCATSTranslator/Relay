@@ -48,6 +48,11 @@ class ConfigFile:
     caller to cache.  Currently the caller is SmartApiDiscoverer.
 
     Allows variation according to TR_ENV via the "maturity" field.
+
+    Remember that we have only one instance of smart-api.info, and if it goes down, the ARS
+    in all environments will be dowwn.  A potential improvment to availability under failure is to use
+    a failure-resistant store such as S3 or local filesystem (mounted to persist between containers)
+    to cache the last known successfully fetched configuration.
 """
 
 urlSmartapi = "https://smart-api.info"
@@ -138,8 +143,6 @@ import os
     Refreshes between initial failures every secsTimeToLive seconds.
 
     Refreshes between success every secsTimeToLive seconds.
-
-    Currently does not allow variation by TR_ENV.
 """
 
 secsTimeToLive = 60*60
@@ -149,6 +152,7 @@ class SmartApiDiscoverer:
 
     def __init__(self) -> None:
         self._maturity = os.getenv("TR_ENV") if os.getenv("TR_ENV") is not None else "production"
+        # JH: re maturity, see also sys.argv[1] in server.py
         if self._maturity not in ["production", "development", "staging"]:
             logging.warn("Unknown maturity level in TR_ENV: {}".format(self._maturity))
         self._config = ConfigFile("config.yaml")
