@@ -1,7 +1,6 @@
 from django.apps import AppConfig as SuperAppConfig
 from django.urls import path, include
 from tr_ars.default_ars_app.api import *
-import sys
 import traceback
 
 class AppConfig(SuperAppConfig):

@@ -5,6 +5,7 @@ from django.shortcuts import redirect
 from django.urls import path, re_path, include, reverse
 from .models import Agent, Message, Channel, Actor
 import json, sys, logging
+import traceback
 from inspect import currentframe, getframeinfo
 from tr_ars import status_report
 from tr_ars.tasks import send_message

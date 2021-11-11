@@ -1,6 +1,7 @@
 import copy
 import json
-import sys
+import traceback
+
 class QueryGraph():
     pass
     def __init__(self,qg):

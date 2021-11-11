@@ -14,6 +14,8 @@ Including another URLconf
     2. Add a URL to urlpatterns:  url(r'^blog/', include('blog.urls'))
 """
 import json
+import logging
+import traceback
 from django.conf import settings
 from django.conf.urls import url
 from django.conf.urls.static import static
@@ -41,6 +43,8 @@ from tr_kp_icees.icees_app import AppConfig as IceesApp
 from tr_kp_icees_dili.icees_dili_app import AppConfig as IceesDiliApp
 
 from tr_ars.default_ars_app.ars_app import AppConfig as ARSApp
+
+logger = logging.getLogger(__name__)
 
 patterns = [
     url(r'^admin/', admin.site.urls),
