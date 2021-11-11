@@ -87,13 +87,8 @@ def init_api_fn(actorconf):
         logging.warn("could not configure inforesid={}".format(inforesid))
     @csrf_exempt
     def fn(req):
-        urlServer=SmartApiDiscover().urlServer(inforesid)
-        if urlServer is not None:
-            endpoint=SmartApiDiscover().endpoint(inforesid)
-            params=SmartApiDiscover().params(inforesid)
-            remote = (urlServer +
-                    (("/"+endpoint) if endpoint is not None else "") +
-                    (("?"+params) if params is not None else "")) if urlServer is not None else None
+        remote=urlRemoteFromInforesid(inforesid)
+        if remote is not None:
             return callquery(remote, req)
     fn.__name__ = actorconf.name()
     fn.__doc__ = "Forward api request at %s to %s" % (fn.__name__, actorconf.inforesid())
@@ -125,6 +120,16 @@ class Actorconf:
 
 def make_actorconf(inforesid, name, path, method=None, params=None):
     return Actorconf(inforesid, name, path, method, params)
+
+def urlRemoteFromInforesid(inforesid):
+    urlServer=SmartApiDiscover().urlServer(inforesid)
+    if urlServer is not None:
+        endpoint=SmartApiDiscover().endpoint(inforesid)
+        params=SmartApiDiscover().params(inforesid)
+        return (urlServer +
+                (("/"+endpoint) if endpoint is not None else "") +
+                (("?"+params) if params is not None else "")) if urlServer is not None else None
+    return None
 
 def init_api_index(actors, app_path):
     def fn(req):
