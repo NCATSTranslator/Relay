@@ -3,6 +3,8 @@ from django.views.decorators.csrf import csrf_exempt
 from django.core import serializers
 from django.shortcuts import redirect
 from django.urls import path, re_path, include, reverse
+
+from utils2 import urlRemoteFromInforesid
 from .models import Agent, Message, Channel, Actor
 import json, sys, logging
 import traceback
@@ -410,7 +412,7 @@ def actors(req):
             actor['fields']['name'] = a.agent.name + '-' + a.path
             actor['fields']['channel'] = a.channel.name #a.channel.pk
             actor['fields']['agent'] = a.agent.name #a.agent.pk
-            actor['fields']['remote'] = a.remote
+            actor['fields']['urlRemote'] = urlRemoteFromInforesid(a.inforesid)
             actor['fields']['path'] = req.build_absolute_uri(a.url()) #a.path
             actor['fields']['active'] = a.active
             actors.append(actor)
