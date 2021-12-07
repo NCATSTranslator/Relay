@@ -15,7 +15,7 @@ def send_messages(actors, messages):
             if (actor == mesg.actor or len(actor.path) == 0
                 or len(actor.agent.uri) == 0):
                 pass
-            elif not actor.active:
+            elif actor.active=="0":
                 logger.debug("Skipping actor %s/%s; it's inactive..." % (
                     actor.agent, actor.url()))
             elif settings.USE_CELERY:
