@@ -15,7 +15,8 @@ def send_messages(actors, messages):
             if (actor == mesg.actor or len(actor.path) == 0
                 or len(actor.agent.uri) == 0):
                 pass
-            elif actor.active=="0":
+            #mysql vs sqlite handle this field differently; checking for both ways
+            elif not actor.active or actor.active=="0":
                 logger.debug("Skipping actor %s/%s; it's inactive..." % (
                     actor.agent, actor.url()))
             elif settings.USE_CELERY:
