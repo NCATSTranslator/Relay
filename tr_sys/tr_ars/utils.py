@@ -327,3 +327,15 @@ def canonize(curie):
         return canonical_curie
     else:
         return curie
+
+def canonizeResults(results):
+    canonical_results=[]
+    for result in results:
+        canonical_result=set
+        node_bindings = result.getNodeBindings()
+        for binding in node_bindings:
+            curie = get_safe(binding,"id")
+            canonical=canonize(curie)
+            canonical_result.append(canonical)
+        canonical_results.append(frozenset(canonical_result))
+    return canonical_results
