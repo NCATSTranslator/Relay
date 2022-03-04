@@ -339,3 +339,9 @@ def canonizeResults(results):
             canonical_result.append(canonical)
         canonical_results.append(frozenset(canonical_result))
     return canonical_results
+
+def findSharedResults(sharedResults,messageList):
+    canonicalResults=[]
+    for message in messageList:
+        results = canonizeResults(message.getResults())
+        canonicalResults.append(results)
