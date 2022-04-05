@@ -15,7 +15,7 @@ Including another URLconf
 """
 import json
 from django.conf import settings
-from django.conf.urls import url
+from django.urls import include, re_path
 from django.conf.urls.static import static
 from django.contrib import admin
 from django.http import HttpResponse
@@ -43,28 +43,28 @@ from tr_kp_icees_dili.icees_dili_app import AppConfig as IceesDiliApp
 from tr_ars.default_ars_app.ars_app import AppConfig as ARSApp
 
 patterns = [
-    url(r'^admin/', admin.site.urls),
-    url(r'^ars/', include('tr_ars.urls')),
+    re_path(r'^admin/', admin.site.urls),
+    re_path(r'^ars/', include('tr_ars.urls')),
     #url(r'^example/', include(ARSApp.name)),
-    url(AragornApp.regex_path, include(AragornApp.name)),
-    url(ARAXApp.regex_path, include(ARAXApp.name)),
-    url(BTEApp.regex_path, include(BTEApp.name)),
-    url(ExplanatoryApp.regex_path,include(ExplanatoryApp.name)),
-    url(ImprovingApp.regex_path, include(ImprovingApp.name)),
-    url(NCATSApp.regex_path, include(NCATSApp.name)),
-    url(RobokopApp.regex_path, include(RobokopApp.name)),
-    url(AragornExpApp.regex_path, include(AragornExpApp.name)),
-    url(WfrApp.regex_path, include(WfrApp.name)),
-    url(IceesApp.regex_path, include(IceesApp.name)),
-    url(IceesDiliApp.regex_path, include(IceesDiliApp.name)),
-    url(UnsecretApp.regex_path, include(UnsecretApp.name)),
-    url(GeneticsApp.regex_path, include(GeneticsApp.name)),
-    url(MolecularApp.regex_path, include(MolecularApp.name)),
-    url(CamApp.regex_path, include(CamApp.name)),
-    url(TextMiningApp.regex_path, include(TextMiningApp.name)),
-    url(OpenPredictApp.regex_path, include(OpenPredictApp.name)),
-    url(COHDApp.regex_path, include(COHDApp.name)),
-    url(ChpApp.regex_path, include(ChpApp.name))
+    re_path(AragornApp.regex_path, include(AragornApp.name)),
+    re_path(ARAXApp.regex_path, include(ARAXApp.name)),
+    re_path(BTEApp.regex_path, include(BTEApp.name)),
+    re_path(ExplanatoryApp.regex_path,include(ExplanatoryApp.name)),
+    re_path(ImprovingApp.regex_path, include(ImprovingApp.name)),
+    re_path(NCATSApp.regex_path, include(NCATSApp.name)),
+    re_path(RobokopApp.regex_path, include(RobokopApp.name)),
+    re_path(AragornExpApp.regex_path, include(AragornExpApp.name)),
+    re_path(WfrApp.regex_path, include(WfrApp.name)),
+    re_path(IceesApp.regex_path, include(IceesApp.name)),
+    re_path(IceesDiliApp.regex_path, include(IceesDiliApp.name)),
+    re_path(UnsecretApp.regex_path, include(UnsecretApp.name)),
+    re_path(GeneticsApp.regex_path, include(GeneticsApp.name)),
+    re_path(MolecularApp.regex_path, include(MolecularApp.name)),
+    re_path(CamApp.regex_path, include(CamApp.name)),
+    re_path(TextMiningApp.regex_path, include(TextMiningApp.name)),
+    re_path(OpenPredictApp.regex_path, include(OpenPredictApp.name)),
+    re_path(COHDApp.regex_path, include(COHDApp.name)),
+    re_path(ChpApp.regex_path, include(ChpApp.name))
 ]
 
 def base_index(req):
@@ -79,6 +79,6 @@ def base_index(req):
     return HttpResponse(json.dumps(data, indent=2),
                         content_type='application/json', status=200)
 
-urlpatterns = [url('^$', base_index, name='server-top')] + static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
+urlpatterns = [re_path('^$', base_index, name='server-top')] + static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
 for pattern in patterns:
     urlpatterns.append(pattern)
