@@ -1,7 +1,10 @@
 import copy
 import json
 import traceback
-
+import requests
+import urllib
+import sys
+NORMALIZER_URL='https://nodenormalization-sri.renci.org/1.2/get_normalized_nodes?'
 class QueryGraph():
     pass
     def __init__(self,qg):
@@ -279,4 +282,69 @@ def sharedResultsJson(sharedResultsMap):
         results.append(json.dumps(result,indent=2))
     return results
 
+def keys_exist(element, *keys):
+    if not isinstance(element, dict):
+        raise AttributeError('keys_exists() expects dict as first argument.')
+    if len(keys) == 0:
+        raise AttributeError('keys_exists() expects at least two arguments, one given.')
 
+    _element = element
+    for key in keys:
+        try:
+            _element = _element[key]
+            if _element is None:
+                return False
+        except KeyError:
+            return False
+    return True
+
+def get_safe(element,*keys):
+    '''
+    :param element: JSON to be processed
+    :param keys: list of keys in order to be traversed. e.g. "fields","data","message","results
+    :return: the value of the terminal key if present or None if not
+    '''
+    if element is None:
+        return None
+    _element = element
+    for key in keys:
+        try:
+            _element = _element[key]
+            if _element is None:
+                return None
+            if key == keys[-1]:
+                return _element
+        except KeyError:
+            return None
+    return None
+
+'''
+Takes a CURIE and returns the canonical CURIE from the node normalizer or returns the original CURIE if none is found
+'''
+def canonize(curie):
+    url_curie = urllib.parse.quote_plus(curie)
+    r = requests.get(NORMALIZER_URL+"curie="+url_curie)
+    response = r.json()
+    canonical_curie = get_safe(response,curie,"id","identifier")
+    if canonical_curie is not None:
+        return canonical_curie
+    else:
+        return curie
+
+def canonizeResults(results):
+    canonical_results=[]
+    for result in results:
+        canonical_result=set
+        node_bindings = result.getNodeBindings()
+        for binding in node_bindings:
+            curie = get_safe(binding,"id")
+            canonical=canonize(curie)
+            canonical_result.append(canonical)
+        canonical_results.append(frozenset(canonical_result))
+    return canonical_results
+
+def findSharedResults(sharedResults,messageList):
+    canonicalResults=[]
+    for message in messageList:
+        results = canonizeResults(message.getResults())
+        canonicalResults.append(results)

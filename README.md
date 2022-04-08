@@ -26,6 +26,6 @@ See to [the tr_sys folder](https://github.com/NCATSTranslator/Relay/tree/master/
 ## Register a service
 Documentation can be found [here](https://docs.google.com/document/d/1w54dlbep2BtmLorGaeJ86l1YpSgjqSt1Ra9Ye15hBzs/edit?usp=sharing)
 
-## HOWTO Getting Started Using the ARS
+## HOW-TO Getting Started Using the ARS
 
 Documentation can be found [here](https://docs.google.com/document/d/1_a4gE_lY-2oZTrdFMtaZ_pxqNgd-x_1ZYI7hRGfFjng/edit?usp=sharing)
