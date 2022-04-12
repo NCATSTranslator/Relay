@@ -14,6 +14,8 @@ Including another URLconf
     2. Add a URL to urlpatterns:  url(r'^blog/', include('blog.urls'))
 """
 import json
+import logging
+import traceback
 from django.conf import settings
 from django.urls import include, re_path
 from django.conf.urls.static import static
@@ -41,6 +43,8 @@ from tr_kp_icees.icees_app import AppConfig as IceesApp
 from tr_kp_icees_dili.icees_dili_app import AppConfig as IceesDiliApp
 
 from tr_ars.default_ars_app.ars_app import AppConfig as ARSApp
+
+logger = logging.getLogger(__name__)
 
 patterns = [
     re_path(r'^admin/', admin.site.urls),
@@ -74,7 +78,8 @@ def base_index(req):
     for item in patterns[1:]:
         try:
             data['entries'].append(req.build_absolute_uri(reverse(item.name)))
-        except:
+        except Exception as e:
+            logger.error("Unexpected error 9: {}".format(traceback.format_exception(type(e), e, e.__traceback__)))
             data['entries'].append(req.build_absolute_uri() + str(item.pattern).replace('^', ''))
     return HttpResponse(json.dumps(data, indent=2),
                         content_type='application/json', status=200)

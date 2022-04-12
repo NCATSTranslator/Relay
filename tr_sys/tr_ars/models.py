@@ -39,7 +39,7 @@ class Actor(ARSModel):
     channel = models.ForeignKey(Channel, on_delete=models.CASCADE)
     agent = models.ForeignKey(Agent, on_delete=models.CASCADE)
     path = models.CharField('relative path of actor', max_length=64)
-    remote = models.CharField('remote reasoner resource', blank=True, max_length=500) #TODO enforce this to be non-null
+    inforesid = models.CharField('inforesid', blank=True, max_length=500)
     active = models.BooleanField('actor is active', default=True)
 
     class Meta:

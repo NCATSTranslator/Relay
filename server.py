@@ -110,6 +110,7 @@ if __name__ == "__main__":
         # bring up server
         serverfp = None
         serverargs = [python, "tr_sys/manage.py", "runserver", "--noreload"]
+        # JH: see also "TR_ENV" and "maturity" in tr_sys/tr_smartapi_client/smart_api_discover.py
         if sys.argv[1] == 'debug':
             serverfp = subprocess.Popen(serverargs, stdout=PIPE, stderr=PIPE)
             time.sleep(5)

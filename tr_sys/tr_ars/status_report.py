@@ -3,6 +3,7 @@ from .models import Agent, Message, Channel, Actor
 import json, logging, statistics
 import requests
 import datetime
+import traceback
 import Levenshtein
 from django.conf import settings
 
@@ -55,7 +56,8 @@ def reasoner_compliant(api):
                 path = entry['pathitem']
                 if path['post']['requestBody']['content']['application/json']['schema']['$ref'].find('schemas/Query') > -1:
                     return True
-    except:
+    except Exception as e:
+        logger.error("Unexpected error 1: {}".format(traceback.format_exception(type(e), e, e.__traceback__)))
         pass
     return False
 

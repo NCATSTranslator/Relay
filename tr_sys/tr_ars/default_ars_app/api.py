@@ -2,10 +2,13 @@ import json
 import logging
 import requests
 import sys
+import traceback
 
 from django.http import HttpResponse
 from django.urls import reverse
 from django.views.decorators.csrf import csrf_exempt
+from tr_smartapi_client.smart_api_discover import SmartApiDiscover
+from utils2 import Actorconf, urlRemoteFromInforesid
 
 logger = logging.getLogger(__name__)
 
@@ -18,6 +21,7 @@ def index(req):
 
 def query(url, data, timeout=600):
     headers = {'Content-Type': 'application/json'}
+    logging.info("about to POST 3 url={}".format(url))
     r = requests.post(url, json=data, headers=headers, timeout=timeout)
     logger.debug('%d: %s\n%s' % (r.status_code, r.headers, r.text[:500]))
     return r
@@ -54,15 +58,20 @@ def callquery(url, req):
                     resp['tr_ars.reason'] = r.reason
                     resp['tr_ars.url'] = r.url
                     return resp
-                except:
+                except requests.exceptions.RequestException as e:
+                    logging.warn("connection error url1={} error={}".format(url, e))
+                    resp = HttpResponse("connection error url={} error={}".format(url, e),
+                                     status = 503)
+                except Exception as e:
+                    logger.error("Unexpected error 6: {}".format(traceback.format_exception(type(e), e, e.__traceback__)))
                     exc_type, exc_value, exc_traceback = sys.exc_info()
                     resp = HttpResponse(exc_value,
                                      status = 503)
                     resp['tr_ars.url'] = url
                     return resp
 
-    except:
-        mesg = 'Unexpected error: %s' % sys.exc_info()
+    except Exception as e:
+        logger.error("Unexpected error 7: {}".format(traceback.format_exception(type(e), e, e.__traceback__)))
         logger.debug(mesg)
 
     # notify the ARS that we have nothing to contribute
@@ -73,13 +82,21 @@ def callquery(url, req):
 def runapp(req):
     return callquery(QUERY_URL, req)
 
-def init_api_fn(actor):
+def init_api_fn(actorconf):
+    inforesid = actorconf.inforesid()
+    if SmartApiDiscover().urlServer(inforesid) is None:
+        logging.warn("could not configure inforesid={}".format(inforesid))
     @csrf_exempt
     def fn(req):
-        return callquery(actor[0], req)
-    fn.__name__ = actor[1]
-    fn.__doc__ = "Forward api request at %s to %s" % (actor[1], actor[0])
+        remote=urlRemoteFromInforesid(inforesid)
+        if remote is not None:
+            return callquery(remote, req)
+    fn.__name__ = actorconf.name()
+    fn.__doc__ = "Forward api request at %s to %s" % (fn.__name__, actorconf.inforesid())
     return fn
+
+def make_actorconf(inforesid, name, path, method=None, params=None):
+    return Actorconf(inforesid, name, path, method, params)
 
 def init_api_index(actors, app_path):
     def fn(req):

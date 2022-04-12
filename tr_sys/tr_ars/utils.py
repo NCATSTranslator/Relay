@@ -1,5 +1,6 @@
 import copy
 import json
+import traceback
 import requests
 import urllib
 import sys
@@ -68,7 +69,8 @@ class Results():
             try:
                 bindings = result['edge_bindings']
                 edgeBindings.append(bindings)
-            except:
+            except Exception as e:
+                logger.error("Unexpected error 3: {}".format(traceback.format_exception(type(e), e, e.__traceback__)))
                 print()
         return edgeBindings
     def getNodeBindings(self):
@@ -221,7 +223,8 @@ def mergeKnowledgeGraphs(kg1, kg2):
     try:
         idTest = kg2.getAllIds()
         secondIds = set(idTest)
-    except:
+    except Exception as e:
+        logger.error("Unexpected error 4: {}".format(traceback.format_exception(type(e), e, e.__traceback__)))
         print()
     intersection = firstIds.intersection(secondIds)
     firstOnly = firstIds.difference(secondIds)

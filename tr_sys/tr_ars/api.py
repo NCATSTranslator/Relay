@@ -3,8 +3,11 @@ from django.views.decorators.csrf import csrf_exempt
 from django.core import serializers
 from django.shortcuts import redirect
 from django.urls import path, re_path, include, reverse
+
+from utils2 import urlRemoteFromInforesid
 from .models import Agent, Message, Channel, Actor
 import json, sys, logging
+import traceback
 from inspect import currentframe, getframeinfo
 from tr_ars import status_report
 from tr_ars.tasks import send_message
@@ -21,7 +24,8 @@ def index(req):
     for item in apipatterns:
         try:
             data['entries'].append(req.build_absolute_uri(reverse(item.name)))
-        except:
+        except Exception as e:
+            logger.error("Unexpected error 17: {}".format(traceback.format_exception(type(e), e, e.__traceback__)))
             data['entries'].append(req.build_absolute_uri() + str(item.pattern))
     return HttpResponse(json.dumps(data, indent=2),
                         content_type='application/json', status=200)
@@ -39,7 +43,7 @@ DEFAULT_ACTOR = {
         'uri': ''
     },
     'path': '',
-    'remote': ''
+    'inforesid': ''
 }
 WORKFLOW_ACTOR = {
     'channel': 'workflow',
@@ -48,7 +52,7 @@ WORKFLOW_ACTOR = {
         'uri': ''
     },
     'path': '',
-    'remote': ''
+    'inforesid': ''
 }
 
 def get_default_actor():
@@ -102,8 +106,8 @@ def submit(req):
         data = message.to_dict()
         return HttpResponse(json.dumps(data, indent=2),
                             content_type='application/json', status=201)
-    except:
-        logger.debug("Unexpected error: %s" % sys.exc_info())
+    except Exception as e:
+        logger.error("Unexpected error 10: {}".format(traceback.format_exception(type(e), e, e.__traceback__)))
         return HttpResponse('Content is not JSON', status=400)
 
 @csrf_exempt
@@ -144,8 +148,8 @@ def messages(req):
         except Actor.DoesNotExist:
             return HttpResponse('Unknown actor: %s!' % data['actor'],
                                 status=404)
-        except:
-            logger.debug("Unexpected error: %s" % sys.exc_info())
+        except Exception as e:
+            logger.error("Unexpected error 11: {}".format(traceback.format_exception(type(e), e, e.__traceback__)))
 
         return HttpResponse('Internal server error', status=500)
 
@@ -162,6 +166,7 @@ def trace_message_deepfirst(node):
             'code': child.code,
             'actor': {
                 'pk': child.actor.pk,
+                'inforesid': child.actor.inforesid,
                 'channel': child.actor.channel.name,
                 'agent': child.actor.agent.name,
                 'path': child.actor.path
@@ -181,6 +186,7 @@ def trace_message(req, key):
             'status': dict(Message.STATUS)[mesg.status],
             'actor': {
                 'pk': mesg.actor.pk,
+                'inforesid': child.actor.inforesid,
                 'channel': mesg.actor.channel.name,
                 'agent': mesg.actor.agent.name,
                 'path': mesg.actor.path
@@ -240,8 +246,8 @@ def message(req, key):
         except json.decoder.JSONDecodeError:
             return HttpResponse('Can not decode json:<br>\n%s' % req.body, status=500)
 
-        except:
-            logger.debug("Unexpected error: %s" % sys.exc_info())
+        except Exception as e:
+            logger.error("Unexpected error 12: {}".format(traceback.format_exception(type(e), e, e.__traceback__)))
 
         return HttpResponse('Internal server error', status=500)
 
@@ -276,8 +282,8 @@ def channels(req):
             data = channel.to_dict()
             return HttpResponse(json.dumps(data, indent=2),
                                 content_type='application/json', status=status)
-        except:
-            logger.debug("Unexpected error: %s" % sys.exc_info())
+        except Exception as e:
+            logger.error("Unexpected error 13: {}".format(traceback.format_exception(type(e), e, e.__traceback__)))
             return HttpResponse('Internal server error', status=500)
     return HttpResponse('Unsupported method %s' % req.method, status=400)
 
@@ -325,8 +331,8 @@ def agents(req):
             data, status = get_or_create_agent(data)
             return HttpResponse(json.dumps(data, indent=2),
                                 content_type='application/json', status=status)
-        except:
-            logger.debug("Unexpected error: %s" % sys.exc_info())
+        except Exception as e:
+            logger.error("Unexpected error 14: {}".format(traceback.format_exception(type(e), e, e.__traceback__)))
             return HttpResponse('Not a valid json format', status=400)
     return HttpResponse('Unsupported method %s' % req.method, status=400)
 
@@ -382,9 +388,10 @@ def get_or_create_actor(data):
 
     if 'remote' not in data:
         data['remote'] = None
+    inforesid = data['inforesid']
 
     actor, created = Actor.objects.get_or_create(
-        channel=channel, agent=agent, path=data['path'], remote=data['remote'])
+        channel=channel, agent=agent, path=data['path'], inforesid=inforesid)
 
     status = 201
     if not created:
@@ -405,7 +412,7 @@ def actors(req):
             actor['fields']['name'] = a.agent.name + '-' + a.path
             actor['fields']['channel'] = a.channel.name #a.channel.pk
             actor['fields']['agent'] = a.agent.name #a.agent.pk
-            actor['fields']['remote'] = a.remote
+            actor['fields']['urlRemote'] = urlRemoteFromInforesid(a.inforesid)
             actor['fields']['path'] = req.build_absolute_uri(a.url()) #a.path
             actor['fields']['active'] = a.active
             actors.append(actor)
@@ -430,8 +437,8 @@ def actors(req):
         except Agent.DoesNotExist:
             logger.debug('Unknown agent: %s' % agent)
             return HttpResponse('Unknown agent: %s' % agent, status=404)
-        except:
-            logger.debug("Unexpected error: %s" % sys.exc_info())
+        except Exception as e:
+            logger.error("Unexpected error 15: {}".format(traceback.format_exception(type(e), e, e.__traceback__)))
             return HttpResponse('Not a valid json format', status=400)
     return HttpResponse('Unsupported method %s' % req.method, status=400)
 

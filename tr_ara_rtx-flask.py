@@ -1,5 +1,6 @@
 from flask import Flask, request, url_for, jsonify, abort
 import requests, sys, threading, time, json
+import traceback
 
 ARS_API = 'http://localhost:8000/ars/api'
 RTX_URL = 'https://arax.rtx.ai/api/rtx/v1/query'
@@ -48,8 +49,8 @@ def rtxquery():
         return (jsonify(r.text),
                 r.status_code, # return status code
                 {'tr_ars.message.status': 'D'}) # set the status of the message
-    except:
-        app.logger.error('RTX failed: %s' % sys.exc_info())
+    except Exception as e:
+        app.logger.error("RTX failed: {}".format(traceback.format_exception(type(e), e, e.__traceback__)))
     
             
 if __name__ == '__main__':

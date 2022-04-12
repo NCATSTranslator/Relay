@@ -8,6 +8,8 @@ from django.conf import settings
 from django.urls import reverse
 import html
 from celery.decorators import task
+from tr_smartapi_client.smart_api_discover import SmartApiDiscover
+import traceback
 
 logger = get_task_logger(__name__)
 #logger.propagate = True
@@ -39,7 +41,11 @@ def send_message(actor_dict, mesg_dict, timeout=300):
     status = 'U'
     status_code = 0
     rdata = data['fields']['data']
-    query_endpoint = actor_dict['fields']['remote'].rsplit('/',1)[-1]
+    inforesid = actor_dict['fields']['inforesid']
+    endpoint=SmartApiDiscover().endpoint(inforesid)
+    params=SmartApiDiscover().params(inforesid)
+    query_endpoint = (endpoint if endpoint is not None else "") + (("?"+params) if params is not None else "")
+
     try:
         r = requests.post(url, json=data, timeout=timeout)
         logger.debug('%d: receive message from actor %s...\n%s.\n'
@@ -67,7 +73,7 @@ def send_message(actor_dict, mesg_dict, timeout=300):
         # ('U', 'Unknown')
         if r.status_code == 200:
             # now create a new message here
-            if(query_endpoint)=="asyncquery":
+            if(endpoint)=="asyncquery":
                 pass
                 if(callback is not None):
                     ar = requests.get(callback, json=data, timeout=timeout)
@@ -100,7 +106,8 @@ def send_message(actor_dict, mesg_dict, timeout=300):
                 for key in r.headers:
                     if key.lower().find('tr_ars') > -1:
                         rdata['logs'].append(key+": "+r.headers[key])
-    except:
+    except Exception as e:
+        logger.error("Unexpected error 2: {}".format(traceback.format_exception(type(e), e, e.__traceback__)))
         logger.exception("Can't send message to actor %s\n%s"
                          % (url,sys.exc_info()))
         status_code = 598
