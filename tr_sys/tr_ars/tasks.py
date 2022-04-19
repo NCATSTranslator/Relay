@@ -82,8 +82,12 @@ def send_message(actor_dict, mesg_dict, timeout=300):
                         logger.debug("data field empty")
                         status = 'R'
                     else:
-                        logger.debug("data field contains "+ arj["fields"]["data"] )
-                        status = 'D'
+                        if(arj["fields"]["data"]["message"] is None):
+                            logger.debug("data field doesnt contains messages, still running... ")
+                            status = 'R'
+                        else:
+                            logger.debug("data field contains "+ arj["fields"]["data"]["message"])
+                            status = 'D'
             else:
                 logger.debug("Not async? "+query_endpoint)
                 status = 'D'
