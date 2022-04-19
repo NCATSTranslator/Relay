@@ -1,2 +1,10 @@
 __pycache__/
 db.sqlite3
+.DS_Store
+.idea/.gitignore
+.idea/misc.xml
+.idea/modules.xml
+.idea/vcs.xml
+Relay.iml
+tr_sys/.DS_Store
+tr_sys/tr_ars/.DS_Store
