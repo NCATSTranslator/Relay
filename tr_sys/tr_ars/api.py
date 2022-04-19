@@ -186,7 +186,7 @@ def trace_message(req, key):
             'status': dict(Message.STATUS)[mesg.status],
             'actor': {
                 'pk': mesg.actor.pk,
-                'inforesid': child.actor.inforesid,
+                'inforesid': mesg.actor.inforesid,
                 'channel': mesg.actor.channel.name,
                 'agent': mesg.actor.agent.name,
                 'path': mesg.actor.path
@@ -390,15 +390,30 @@ def get_or_create_actor(data):
         data['remote'] = None
     inforesid = data['inforesid']
 
-    actor, created = Actor.objects.get_or_create(
-        channel=channel, agent=agent, path=data['path'], inforesid=inforesid)
-
-    status = 201
-    if not created:
-        if actor.path != data['path']:
-            actor.path = data['path']
-            actor.save()  # update
+    #Testing code here
+    created = False
+    inforesid_update=False
+    try:
+        actor = Actor.objects.get(
+            channel=channel, agent=agent, path=data['path'])
+        if (actor.inforesid is not None):
+            if not actor.inforesid == inforesid:
+                inforesid_update=True
+        else:
+            inforesid_update=True
+        if (inforesid_update):
+            actor.inforesid=inforesid
+            actor.save()
         status = 302
+    #TODO Exceptions as part of flow control?  Is this Django or have I done a bad?
+    except Actor.DoesNotExist:
+           logger.debug("No such actor found for "+inforesid)
+           actor, created = Actor.objects.get_or_create(
+               channel=channel, agent=agent, path=data['path'], inforesid=inforesid)
+           status = 201
+
+    #Testing Code Above
+
     return (actor, status)
 
 
