@@ -1,6 +1,7 @@
 __pycache__/
 tr_sys/db.sqlite3
 Relay.iml
+.idea/
 .idea/misc.xml
 .idea/vcs.xml
 .idea/workspace.xml
