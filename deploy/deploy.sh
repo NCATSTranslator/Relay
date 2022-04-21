@@ -10,9 +10,12 @@ sed -i.bak \
     -e "s/ARS_DB_HOST_VALUE/${ARS_DB_HOST}/g" \
     -e "s/ARS_DJANGO_SECRET_KEY_VALUE/${ARS_DJANGO_SECRET_KEY}/g" \
     -e "s/ARS_SETTINGS_DEFAULT_HOST_VALUE/${ARS_SETTINGS_DEFAULT_HOST}/g" \
-    -e "s/ARS_ENV_VALUE/${ARS_ENV}/g" \
     settings.py
 rm settings.py.bak
+
+sed -i.bak \
+    -e "s/ARS_ALLOWED_HOSTS_VALUE/${ARS_ALLOWED_HOSTS}/g" \
+    tr_sys/tr_smartapi_client/smart_api_discovery.py 
 
 CONFIG_HASH="$(shasum settings.py | cut -d ' ' -f 1 | tr -d '\n')"
 
