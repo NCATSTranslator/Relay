@@ -13,10 +13,6 @@ sed -i.bak \
     settings.py
 rm settings.py.bak
 
-sed -i.bak \
-    -e "s/TR_ENV_VALUE/${TR_ENV}/g" \
-    tr_sys/tr_smartapi_client/smart_api_discovery.py 
-
 CONFIG_HASH="$(shasum settings.py | cut -d ' ' -f 1 | tr -d '\n')"
 
 sed -i.bak \
