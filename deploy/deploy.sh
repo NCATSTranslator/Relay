@@ -14,7 +14,7 @@ sed -i.bak \
 rm settings.py.bak
 
 sed -i.bak \
-    -e "s/ARS_ALLOWED_HOSTS_VALUE/${ARS_ALLOWED_HOSTS}/g" \
+    -e "s/TR_ENV_VALUE/${TR_ENV}/g" \
     tr_sys/tr_smartapi_client/smart_api_discovery.py 
 
 CONFIG_HASH="$(shasum settings.py | cut -d ' ' -f 1 | tr -d '\n')"
