@@ -27,6 +27,9 @@ spec:
             - name: config-vol
               mountPath: /ars/tr_sys/tr_sys/settings.py
               subPath: settings.py
+          env:
+            - name: TR_ENV
+              value: TR_ENV_VALUE
         - name: celeryworker
           image: 853771734544.dkr.ecr.us-east-1.amazonaws.com/translator-ars:DOCKER_VERSION_VALUE
           imagePullPolicy: Always
@@ -46,9 +49,6 @@ spec:
           imagePullPolicy: Always
           ports:
             - containerPort: 6379
-          env:
-            - name: TR_ENV
-              value: TR_ENV_VALUE
       volumes:
         - name: config-vol
           configMap:
