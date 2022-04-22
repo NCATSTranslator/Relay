@@ -46,6 +46,9 @@ spec:
           imagePullPolicy: Always
           ports:
             - containerPort: 6379
+          env:
+            - name: TR_ENV
+              value: TR_ENV_VALUE
       volumes:
         - name: config-vol
           configMap:
