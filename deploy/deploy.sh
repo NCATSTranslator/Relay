@@ -18,7 +18,7 @@ CONFIG_HASH="$(shasum settings.py | cut -d ' ' -f 1 | tr -d '\n')"
 sed -i.bak \
     -e "s/CONFIG_HASH_VALUE/${CONFIG_HASH}/g" \
     -e "s/DOCKER_VERSION_VALUE/${BUILD_VERSION}/g" \
-    -e "s/TR_ENV_VALUE/${TR_ENV_HOST}/g" \
+    -e "s/TR_ENV_VALUE/${TR_ENV}/g" \
     deployment.yaml
 rm deployment.yaml.bak
 
