@@ -1,0 +1,60 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.appname }}
+  namespace: ars
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ .Values.appname }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.appname }}
+      annotations:
+        configHash: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }} 
+    spec:
+      containers:
+        - name: arsserver
+          image: "{{ .Values.arsserver.image.repository }}:{{ .Values.arsserver.image.tag }}"
+          imagePullPolicy: {{ .Values.arsserver.image.PullPolicy }}
+          command: ["/bin/sh"]
+          args: ["-c", "/bin/bash /ars/config/startup.sh && python tr_sys/manage.py runserver 0.0.0.0:8000 --noreload"]
+          ports:
+            - containerPort: {{ .Values.arsserver.containerPort }}
+          volumeMounts:
+            - name: config-vol
+              mountPath: /ars/tr_sys/tr_sys/settings.py
+              subPath: settings.py
+          env:
+            - name: TR_ENV
+              value: TR_ENV_VALUE    
+        - name: celeryworker
+          image: "{{ .Values.celeryworker.image.repository }}:{{ .Values.celeryworker.image.tag }}"
+          imagePullPolicy: {{ .Values.celeryworker.image.PullPolicy }}
+          command: ["/bin/sh"]
+          args: ["-c", "wait-for localhost:5672 -t 30 && wait-for localhost:8000 -t 60 -- /bin/bash /ars/config/start_celery.sh"]
+          volumeMounts:
+            - name: config-vol
+              mountPath: /ars/tr_sys/tr_sys/settings.py
+              subPath: settings.py
+        - name: rabbitmq
+          image: "{{ .Values.rabbitmq.image.repository }}:{{ .Values.rabbitmq.image.tag }}"
+          imagePullPolicy: {{ .Values.rabbitmq.image.PullPolicy }}
+          ports:
+            - containerPort: {{ .Values.rabbitmq.containerPort }}
+        - name: redis
+          image: "{{ .Values.redis.image.repository }}:{{ .Values.redis.image.tag }}"
+          imagePullPolicy: {{ .Values.redis.image.PullPolicy }}
+          ports:
+            - containerPort: {{ .Values.redis.containerPort }}
+      volumes:
+        - name: config-vol
+          configMap:
+            name: {{ include "ars.fullname" . }}-config
+            items:
+              - key: settings.py
+                path: settings.py
+      restartPolicy: Always
+      
