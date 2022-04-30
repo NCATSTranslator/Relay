@@ -1,0 +1,66 @@
+# Default values for helm.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+replicaCount: 1
+appname: ars
+
+arsserver:
+  image:
+    repository: 853771734544.dkr.ecr.us-east-1.amazonaws.com/translator-ars
+    tag: DOCKER_VERSION_VALUE
+    PullPolicy: Always
+  containerPort: 8000  
+    
+celeryworker:
+  image:
+    repository: 853771734544.dkr.ecr.us-east-1.amazonaws.com/translator-ars
+    tag: DOCKER_VERSION_VALUE
+    PullPolicy: Always
+
+rabbitmq:
+  image:
+    repository: 853771734544.dkr.ecr.us-east-1.amazonaws.com/translator-rabbitmq
+    tag: 3.8
+    PullPolicy: Always
+  containerPort: 5672  
+
+redis:
+  image:
+    repository: 853771734544.dkr.ecr.us-east-1.amazonaws.com/translator-redis
+    tag: 6.2
+    PullPolicy: Always
+  containerPort: 6379
+
+service:
+  type: NodePort
+  port: 80
+  targetPort: 8080
+
+ingress:
+  annotations:
+    kubernetes.io/ingress.class: alb
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/tags: Environment=CI
+    alb.ingress.kubernetes.io/security-groups: translator-ci-alb-http-sg
+    alb.ingress.kubernetes.io/ssl-policy: ELBSecurityPolicy-TLS-1-2-Ext-2018-06
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS":443}]'
+    alb.ingress.kubernetes.io/actions.ssl-redirect: '{"Type": "redirect", "RedirectConfig": { "Protocol": "HTTPS", "Port": "443", "StatusCode": "HTTP_301"}}'
+    alb.ingress.kubernetes.io/success-codes: '200'  
+  host: ars.ci.transltr.io    
+
+db:
+  ARS_DATABASE: arsdb
+  ARS_DB_USER: ars
+  ARS_DB_PASSWORD: aocaik7Peib2eiquoosh
+  ARS_DB_HOST: transltr-ci-rds-mysql-ars.ceyknq0yekb3.us-east-1.rds.amazonaws.com
+
+app:  
+  ENVIRONMENT_TAG: CI
+  ARS_HOSTNAME: ars.ci.transltr.io
+  ARS_ALB_TAG: transltr-eks-ci-blue-ars
+  ARS_ALB_SG: translator-ci-alb-http-sg
+  ARS_DJANGO_SECRET_KEY: a=()q#x6$s_2tnzgvoudd=5&gbv*57bcr(^%f)&rp-7ydf(9ao
+  ARS_ALLOWED_HOSTS: '*'
+  ARS_SETTINGS_DEFAULT_HOST_VALUE: https://ars.ci.transltr.io
+  TR_ENV: development

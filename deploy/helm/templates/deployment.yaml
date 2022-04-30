@@ -13,7 +13,7 @@ spec:
       labels:
         app: {{ .Values.appname }}
       annotations:
-        configHash: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }} 
+        config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }} 
     spec:
       containers:
         - name: arsserver

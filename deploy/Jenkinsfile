@@ -54,12 +54,13 @@ pipeline {
         stage('Deploy to AWS EKS Blue') {
             steps {
                 configFileProvider([
-                    configFile(fileId: 'translator-ci-ars-env', targetLocation: 'deploy/.env')
+                    configFile(fileId: 'values-ars.yaml', targetLocation: 'deploy/helm/values.ars.yaml')
                 ]){
                     withAWS(credentials:'aws-ifx-deploy') {
                         sh '''
                         aws --region ${AWS_REGION} eks update-kubeconfig --name ${KUBERNETES_BLUE_CLUSTER_NAME}
-                        cd deploy && /bin/bash deploy.sh
+                        cp -R deploy/*.sh deploy/helm/ 
+                        cd deploy/helm && /bin/bash deploy.sh
                         '''
                     }
                 }
