@@ -26,7 +26,7 @@ spec:
           volumeMounts:
             - name: config-vol
               mountPath: /ars/tr_sys/tr_sys/settings.py
-              subPath: settings.py
+              subPath: configs/settings.py
           env:
             - name: TR_ENV
               value: {{ .Values.arsserver.env.TR_ENV }}    
@@ -38,7 +38,7 @@ spec:
           volumeMounts:
             - name: config-vol
               mountPath: /ars/tr_sys/tr_sys/settings.py
-              subPath: settings.py
+              subPath: configs/settings.py
         - name: rabbitmq
           image: "{{ .Values.rabbitmq.image.repository }}:{{ .Values.rabbitmq.image.tag }}"
           imagePullPolicy: {{ .Values.rabbitmq.image.PullPolicy }}
