@@ -12,23 +12,12 @@ toReplace=('BUILD_VERSION')
 
 # printenv
 
-sed -i.bak \
-    -e "s/ARS_ALLOWED_HOSTS_VALUE/${ARS_ALLOWED_HOSTS}/g" \
-    -e "s/ARS_DATABASE_VALUE/${ARS_DATABASE}/g" \
-    -e "s/ARS_DB_USER_VALUE/${ARS_DB_USER}/g" \
-    -e "s/ARS_DB_PASSWORD_VALUE/${ARS_DB_PASSWORD}/g" \
-    -e "s/ARS_DB_HOST_VALUE/${ARS_DB_HOST}/g" \
-    -e "s/ARS_DJANGO_SECRET_KEY_VALUE/${ARS_DJANGO_SECRET_KEY}/g" \
-    -e "s/ARS_SETTINGS_DEFAULT_HOST_VALUE/${ARS_SETTINGS_DEFAULT_HOST}/g" \
-    settings.py
-rm settings.py.bak
+CONFIG_HASH="$(shasum configs/settings.py | cut -d ' ' -f 1 | tr -d '\n')"
 
-# CONFIG_HASH="$(shasum settings.py | cut -d ' ' -f 1 | tr -d '\n')"
-
-# sed -i.bak \
-#    -e "s/CONFIG_HASH_VALUE/${CONFIG_HASH}/g" \
-#    deployment.yaml
-# rm deployment.yaml.bak
+  sed -i.bak \
+     -e "s/CONFIG_HASH_VALUE/${CONFIG_HASH}/g" \
+    templates/deployment.yaml
+  rm templates/deployment.yaml.bak
 
 # replace variables in values.yaml with env vars
 
