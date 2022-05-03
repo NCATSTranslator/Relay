@@ -60,7 +60,6 @@ pipeline {
                 ]){
                     withAWS(credentials:'aws-ifx-deploy') {
                         sh '''
-                        kubectl delete deployment ars -n ars
                         aws --region ${AWS_REGION} eks update-kubeconfig --name ${KUBERNETES_BLUE_CLUSTER_NAME}
                         cd deploy/ars && /bin/bash deploy.sh
                         '''
