@@ -53,8 +53,6 @@ spec:
         - name: config-vol
           configMap:
             name: {{ .Values.appname }}-config
-            items:
-              - key: settings.py
-                path: settings.py
+            defaultMode: 0644
       restartPolicy: Always
       
