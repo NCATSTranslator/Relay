@@ -8,7 +8,7 @@ appname: ars
 arsserver:
   image:
     repository: 853771734544.dkr.ecr.us-east-1.amazonaws.com/translator-ars
-    tag: "BUILD_VERSION"
+    tag: DOCKER_VERSION_VALUE
     PullPolicy: Always
   containerPort: 8000  
   env:
@@ -17,7 +17,7 @@ arsserver:
 celeryworker:
   image:
     repository: 853771734544.dkr.ecr.us-east-1.amazonaws.com/translator-ars
-    tag: "BUILD_VERSION"
+    tag: DOCKER_VERSION_VALUE
     PullPolicy: Always
 
 rabbitmq:
