@@ -3,7 +3,7 @@ namespace="ars"
 
 export $(egrep -v '^#' .env)
 
-CONFIG_HASH="$(shasum settings.py | cut -d ' ' -f 1 | tr -d '\n')"
+CONFIG_HASH="$(shasum configs/settings.py | cut -d ' ' -f 1 | tr -d '\n')"
 
 sed -i.bak \
     -e "s/CONFIG_HASH_VALUE/${CONFIG_HASH}/g" \
