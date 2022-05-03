@@ -13,7 +13,7 @@ spec:
       labels:
         app: {{ .Values.appname }}
       annotations:
-        config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }} 
+        checksum/config: {{ include (print $.Template.BasePath "/settings.py") . | sha256sum }}
     spec:
       containers:
         - name: arsserver
@@ -29,7 +29,7 @@ spec:
               subPath: settings.py
           env:
             - name: TR_ENV
-              value: TR_ENV_VALUE    
+              value: {{ .Values.arsserver.env.TR_ENV }}    
         - name: celeryworker
           image: "{{ .Values.celeryworker.image.repository }}:{{ .Values.celeryworker.image.tag }}"
           imagePullPolicy: {{ .Values.celeryworker.image.PullPolicy }}
@@ -52,7 +52,7 @@ spec:
       volumes:
         - name: config-vol
           configMap:
-            name: {{ include "ars.fullname" . }}-config
+            name: {{ .Values.appname }}-config
             items:
               - key: settings.py
                 path: settings.py
