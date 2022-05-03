@@ -25,4 +25,4 @@ do
 done
 
 # deploy helm chart
-helm -n ${namespace} upgrade --install ${projectName} -f values.ars.yaml ./
+helm -n ${namespace} upgrade --install ${projectName} -f values.yaml ars ./
