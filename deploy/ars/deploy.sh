@@ -15,9 +15,9 @@ toReplace=('BUILD_VERSION')
 CONFIG_HASH="$(shasum configs/settings.py | cut -d ' ' -f 1 | tr -d '\n')"
 
   sed -i.bak \
-    -e "s/CONFIG_HASH_VALUE/${CONFIG_HASH}/g" \
+     -e "s/CONFIG_HASH_VALUE/${CONFIG_HASH}/g" \
     templates/deployment.yaml
-  rm deployment.yaml.bak
+  rm templates/deployment.yaml.bak
 
 # replace variables in values.yaml with env vars
 
