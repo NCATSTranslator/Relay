@@ -25,8 +25,8 @@ for item in "${toReplace[@]}";
 do
   sed -i.bak \
       -e "s/${item}/${!item}/g" \
-      values.yaml
-  rm values.yaml.bak
+      values-ci.yaml
+  rm values-ci.yaml.bak
 done
 
 kubectl apply -f namespace.yaml
