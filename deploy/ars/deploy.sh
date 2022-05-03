@@ -32,4 +32,4 @@ done
 kubectl apply -f namespace.yaml
 
 # deploy helm chart
-helm upgrade --install -n ${namespace} -f values.yaml ars . 
+helm upgrade --install -n ${namespace} -f values.yaml -f values-ci.yaml ars . 
