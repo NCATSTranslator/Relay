@@ -93,7 +93,12 @@ class UrlMapSmartApiFetcher(object):
     def _key_of_irhit(self, irhit):
         return irhit["infores"] if "infores" in irhit else None
 
+
     def _newer(self, irhit1, irhit2):
+        date1=getpath(irhit1,"date_updated")
+        date2=getpath(irhit2,"date_updated")
+        if date1 is None and date2 is None:
+            return None
         # Assumes lexicographically comparable date format: 2021-11-04T07:06:04.827864+00:00
         return irhit1["date_updated"] > irhit2["date_updated"]
 
