@@ -54,14 +54,14 @@ pipeline {
         stage('Deploy to AWS EKS Blue') {
             steps {
                 configFileProvider([
-                    configFile(fileId: 'values-ci.yaml', targetLocation: 'deploy/ars/values-ci.yaml'),
-                    configFile(fileId: 'translator-ci-ars-env', targetLocation: 'deploy/ars/translator-ci-ars-env'),
-                    configFile(fileId: 'ars-settings.py', targetLocation: 'deploy/ars/configs/settings.py')
+                    configFile(fileId: 'values-ci.yaml', targetLocation: 'deploy/values-ci.yaml'),
+                    configFile(fileId: 'translator-ci-ars-env', targetLocation: 'deploy/translator-ci-ars-env'),
+                    configFile(fileId: 'ars-settings.py', targetLocation: 'deploy/configs/settings.py')
                 ]){
                     withAWS(credentials:'aws-ifx-deploy') {
                         sh '''
                         aws --region ${AWS_REGION} eks update-kubeconfig --name ${KUBERNETES_BLUE_CLUSTER_NAME}
-                        cd deploy/ars && /bin/bash deploy.sh
+                        cd deploy && /bin/bash deploy.sh
                         '''
                     }
                 }
