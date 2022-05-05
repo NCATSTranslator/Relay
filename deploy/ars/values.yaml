@@ -11,7 +11,9 @@ arsserver:
     tag: DOCKER_VERSION_VALUE
     PullPolicy: Always
   containerPort: 8000  
-    
+  env:
+    TR_ENV: TR_ENV_VALUE 
+
 celeryworker:
   image:
     repository: 853771734544.dkr.ecr.us-east-1.amazonaws.com/translator-ars
