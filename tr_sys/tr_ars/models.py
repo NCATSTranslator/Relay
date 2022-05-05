@@ -34,8 +34,6 @@ class Channel(ARSModel):
     def __str__(self):
         return self.name
 
-
-    
 class Actor(ARSModel):
     channels = models.ManyToManyField(Channel, through='ActorIntermediateModel')
     agent = models.ForeignKey(Agent, on_delete=models.CASCADE)
@@ -48,7 +46,6 @@ class Actor(ARSModel):
             models.UniqueConstraint(fields=['agent', 'path'],
                                     name='unique_actor')
         ]
-
     def __str__(self):
         return "actor{pk:%s, active:%s, %s, channel:%s, path:%s}" % (
             self.pk, self.active, self.agent, self.channels, self.path)
@@ -64,8 +61,11 @@ class Actor(ARSModel):
 class ActorIntermediateModel(ARSModel):
     channel = models.ForeignKey(Channel, on_delete=models.CASCADE)
     actor = models.ForeignKey(Actor, on_delete=models.CASCADE)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now_add=True)
+
     class Meta:
-        unique_together = ('Channel', 'actor')
+        unique_together = ('channel', 'actor')
 
 class Message(ARSModel):
     STATUS = (
