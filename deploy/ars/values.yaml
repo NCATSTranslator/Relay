@@ -11,8 +11,6 @@ arsserver:
     tag: DOCKER_VERSION_VALUE
     PullPolicy: Always
   containerPort: 8000  
-  env:
-    TR_ENV: development
     
 celeryworker:
   image:
