@@ -1,4 +1,3 @@
-projectName="ars"
 namespace="ars"
 
 export $(egrep -v '^#' .env)
@@ -18,4 +17,4 @@ rm values.yaml.bak
 kubectl apply -f namespace.yaml
 
 # deploy helm chart
-helm upgrade --install -n ${namespace} -f values.yaml -f values-ci.yaml ars . 
+helm upgrade --install -n ${namespace} -f values-ci.yaml ars . 
