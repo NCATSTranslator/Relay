@@ -35,7 +35,7 @@ class Channel(ARSModel):
         return self.name
 
 class Actor(ARSModel):
-    channels = models.ManyToManyField(Channel, through='ActorIntermediateModel')
+    channel = models.ManyToManyField(Channel) #, through='ActorIntermediateModel'
     agent = models.ForeignKey(Agent, on_delete=models.CASCADE)
     path = models.CharField('relative path of actor', max_length=64)
     inforesid = models.CharField('inforesid', blank=True, max_length=500)
@@ -58,14 +58,14 @@ class Actor(ARSModel):
         jsonobj['fields']['url'] = self.url()
         return jsonobj
 
-class ActorIntermediateModel(ARSModel):
-    channel = models.ForeignKey(Channel, on_delete=models.CASCADE)
-    actor = models.ForeignKey(Actor, on_delete=models.CASCADE)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now_add=True)
+#class ActorIntermediateModel(ARSModel):
+ #   channel = models.ForeignKey(Channel, on_delete=models.CASCADE)
+  #  actor = models.ForeignKey(Actor, on_delete=models.CASCADE)
+  #  created_at = models.DateTimeField(auto_now_add=True)
+  #  updated_at = models.DateTimeField(auto_now_add=True)
 
-    class Meta:
-        unique_together = ('channel', 'actor')
+    #class Meta:
+       # unique_together = ('channel', 'actor')
 
 class Message(ARSModel):
     STATUS = (
