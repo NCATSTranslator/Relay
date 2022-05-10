@@ -1,0 +1,52 @@
+# Default values for helm.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+replicaCount: 1
+appname: ars
+
+arsserver:
+  image:
+    repository: 853771734544.dkr.ecr.us-east-1.amazonaws.com/translator-ars
+    tag: DOCKER_VERSION_VALUE
+    PullPolicy: Always
+  containerPort: 8000  
+  env:
+    TR_ENV: TR_ENV_VALUE 
+
+celeryworker:
+  image:
+    repository: 853771734544.dkr.ecr.us-east-1.amazonaws.com/translator-ars
+    tag: DOCKER_VERSION_VALUE
+    PullPolicy: Always
+
+rabbitmq:
+  image:
+    repository: 853771734544.dkr.ecr.us-east-1.amazonaws.com/translator-rabbitmq
+    tag: 3.8
+    PullPolicy: Always
+  containerPort: 5672  
+
+redis:
+  image:
+    repository: 853771734544.dkr.ecr.us-east-1.amazonaws.com/translator-redis
+    tag: 6.2
+    PullPolicy: Always
+  containerPort: 6379
+
+service:
+  type: NodePort
+  port: 80
+
+ingress:
+  annotations:
+    kubernetes.io/ingress.class: alb
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/tags: Name=ARS_ALB_TAG_VALUE,Environment=ENVIRONMENT_TAG_VALUE
+    alb.ingress.kubernetes.io/security-groups: ARS_ALB_SG_VALUE
+    alb.ingress.kubernetes.io/ssl-policy: ELBSecurityPolicy-TLS-1-2-Ext-2018-06
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS":443}]'
+    alb.ingress.kubernetes.io/actions.ssl-redirect: '{"Type": "redirect", "RedirectConfig": { "Protocol": "HTTPS", "Port": "443", "StatusCode": "HTTP_301"}}'
+    alb.ingress.kubernetes.io/success-codes: '200'  
+  host: ARS_HOSTNAME_VALUE    
+
