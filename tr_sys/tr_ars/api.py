@@ -409,7 +409,8 @@ def get_or_create_actor(data):
     except Actor.DoesNotExist:
            logger.debug("No such actor found for "+inforesid)
            actor, created = Actor.objects.get_or_create(
-               channel=channel, agent=agent, path=data['path'], inforesid=inforesid)
+               agent=agent, path=data['path'], inforesid=inforesid)
+           actor.channel.add(channel)
            status = 201
 
     #Testing Code Above
