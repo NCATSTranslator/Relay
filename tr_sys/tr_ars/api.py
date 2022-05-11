@@ -354,19 +354,24 @@ def get_or_create_actor(data):
             status=400)
 
     channel = data['channel']
-    if isinstance(channel, int):
-        channel = Channel.objects.get(pk=channel)
-    elif channel.isnumeric():
-        # primary channel key
-        channel = Channel.objects.get(pk=int(channel))
-    else:
-        # name
-        channel, created = Channel.objects.get_or_create(name=channel)
-        if created:
-            logger.debug('%s:%d: new channel created "%s"'
-                         % (__name__, getframeinfo(currentframe()).lineno,
-                            data['channel']))
+    temp_channel=[]
+    if isinstance(channel,list):
+        for item in channel:
+            if isinstance(item, int):
+                temp_channel.append(Channel.objects.get(pk=item))
+            elif item.isnumeric():
+                # primary channel key
+                temp_channel = Channel.objects.get(pk=int(item))
+            else:
+                # name
+                channel_by_name, created = Channel.objects.get_or_create(name=item)
+                temp_channel.append(channel_by_name)
+                if created:
+                    logger.debug('%s:%d: new channel created "%s"'
+                                 % (__name__, getframeinfo(currentframe()).lineno,
+                                    data['channel']))
 
+    channel = temp_channel
     agent = data['agent']
     if isinstance(agent, int):
         agent = Agent.objects.get(pk=agent)
@@ -395,7 +400,7 @@ def get_or_create_actor(data):
     inforesid_update=False
     try:
         actor = Actor.objects.get(
-            channel=channel, agent=agent, path=data['path'])
+             agent=agent, path=data['path'])
         if (actor.inforesid is not None):
             if not actor.inforesid == inforesid:
                 inforesid_update=True
@@ -408,9 +413,11 @@ def get_or_create_actor(data):
     #TODO Exceptions as part of flow control?  Is this Django or have I done a bad?
     except Actor.DoesNotExist:
            logger.debug("No such actor found for "+inforesid)
-           actor, created = Actor.objects.get_or_create(
-               agent=agent, path=data['path'], inforesid=inforesid)
-           actor.channel.add(channel)
+           #JSON serializer added for 'channel' as we are now using a list that we're approximating by using a JSON
+           #because Django's db models do not support List fields in SQLite
+           actor, created = Actor.objects.update_or_create(
+               channel=json.loads(serializers.serialize('json',channel)), agent=agent, path=data['path'], inforesid=inforesid)
+
            status = 201
 
     #Testing Code Above
@@ -426,7 +433,11 @@ def actors(req):
             actor = json.loads(serializers.serialize('json', [a]))[0]
             actor['fields'] = dict()
             actor['fields']['name'] = a.agent.name + '-' + a.path
-            actor['fields']['channel'] = a.channel.name #a.channel.pk
+            #actor['fields']['channel'] = str(a.channel) #a.channel.pk
+            #need to add these in a for each as we now support lists of channels
+            actor['fields']['channel']=[]
+            for channel in a.channel:
+                actor['fields']['channel'].append(channel['fields']['name'])
             actor['fields']['agent'] = a.agent.name #a.agent.pk
             actor['fields']['urlRemote'] = urlRemoteFromInforesid(a.inforesid)
             actor['fields']['path'] = req.build_absolute_uri(a.url()) #a.path

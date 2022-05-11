@@ -25,7 +25,7 @@ def message_post_save(sender, instance, **kwargs):
     # now broadcast the message to all actors only if it has code=200 and is a parent node
     if message.code == 200 and message.ref == None:
          if len(Message.objects.filter(ref__pk=message.pk)) == 0: # make sure we haven't already done this broadcast
-            send_messages(Actor.objects.filter(channel__in = message.actor.channel), [message])
+            send_messages(Actor.objects.filter(message.actor.channel in channel), [message]) #this line will need to be changed to adapt to lists of channels
     # check if parent status should be updated to 'Done'
     if message.ref and message.status in ['D', 'S', 'E', 'U']:
         pmessage = message.ref
