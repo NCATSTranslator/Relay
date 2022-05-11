@@ -30,12 +30,14 @@ class Channel(ARSModel):
     name = models.SlugField('channel name', unique=True,
                             null=False, max_length=128)
     description = models.TextField('description of channel', null=True)
+    channels = models.ManyToManyField('self')
 
-    def __str__(self):
+def __str__(self):
         return self.name
 
 class Actor(ARSModel):
-    channel = models.ManyToManyField(Channel)
+    #channel = models.SeparatedValuesField(Channel)
+    channel=models.JSONField(null=True)
     agent = models.ForeignKey(Agent, on_delete=models.CASCADE)
     path = models.CharField('relative path of actor', max_length=64)
     inforesid = models.CharField('inforesid', blank=True, max_length=500)
