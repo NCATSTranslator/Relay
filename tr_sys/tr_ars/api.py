@@ -425,7 +425,6 @@ def get_or_create_actor(data):
            #because Django's db models do not support List fields in SQLite
            actor, created = Actor.objects.update_or_create(
                channel=json.loads(serializers.serialize('json',channel)), agent=agent, path=data['path'], inforesid=inforesid)
-
            status = 201
 
     #Testing Code Above
