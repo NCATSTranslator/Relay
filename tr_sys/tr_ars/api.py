@@ -37,7 +37,7 @@ def api_redirect(req):
 
 
 DEFAULT_ACTOR = {
-    'channel': 'general',
+    'channel': ['general'],
     'agent': {
         'name': 'ars-default-agent',
         'uri': ''
@@ -46,7 +46,7 @@ DEFAULT_ACTOR = {
     'inforesid': ''
 }
 WORKFLOW_ACTOR = {
-    'channel': 'workflow',
+    'channel': ['workflow'],
     'agent': {
         'name': 'ars-workflow-agent',
         'uri': ''
@@ -372,7 +372,7 @@ def get_or_create_actor(data):
                                     data['channel']))
 
     channel = temp_channel
-    agent = data['agent']
+    agent = data['agent']  #{'name': 'ars-workflow-agent', 'uri': ''}
     if isinstance(agent, int):
         agent = Agent.objects.get(pk=agent)
     elif isinstance(agent, str):
@@ -383,7 +383,7 @@ def get_or_create_actor(data):
     else:
         if 'name' in agent and 'uri' in agent:
             agent, created = Agent.objects.get_or_create(
-                name=agent['name'], uri=agent['uri'])
+                name=agent['name'], uri=agent['uri'])  #<Agent: agent{name:ars-workflow-agent, uri:}>
             if created:
                 logger.debug('%s:%d: new agent created "%s"'
                              % (__name__, getframeinfo(currentframe()).lineno,
