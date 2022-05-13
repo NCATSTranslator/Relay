@@ -30,7 +30,7 @@ class Channel(ARSModel):
     name = models.SlugField('channel name', unique=True,
                             null=False, max_length=128)
     description = models.TextField('description of channel', null=True)
-    channels = models.ManyToManyField('self')
+    #channels = models.ManyToManyField('self')
 
 def __str__(self):
         return self.name

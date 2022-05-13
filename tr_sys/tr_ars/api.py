@@ -62,6 +62,7 @@ def get_default_actor():
 def get_workflow_actor():
     # default actor is the first actor initialized in the database per
     # apps.setup_schema()
+    print("boop")
     return get_or_create_actor(WORKFLOW_ACTOR)[0]
 
 @csrf_exempt
@@ -90,7 +91,7 @@ def submit(req):
                 if(len(wf)>0):
                     message = Message.create(code=200, status='Running', data=data,
                                              actor=get_workflow_actor())
-                    logger.debug("Sending message to workflow runner")
+                    logger.debug("Sending message to workflow runner")#TO-DO CHANGE
                     # message.save()
                     # send_message(get_workflow_actor().to_dict(),message.to_dict())
                     # return HttpResponse(json.dumps(data, indent=2),
@@ -160,6 +161,9 @@ def trace_message_deepfirst(node):
     children = Message.objects.filter(ref__pk=node['message'])
     logger.debug('%s: %d children' % (node['message'], len(children)))
     for child in children:
+        channel_names=[]
+        for ch in child.actor.channel:
+            channel_names.append(ch['fields']['name'])
         n = {
             'message': str(child.id),
             'status': dict(Message.STATUS)[child.status],
@@ -167,7 +171,8 @@ def trace_message_deepfirst(node):
             'actor': {
                 'pk': child.actor.pk,
                 'inforesid': child.actor.inforesid,
-                'channel': child.actor.channel.name,
+                #'channel': child.actor.channel.name,
+                'channel': channel_names,
                 'agent': child.actor.agent.name,
                 'path': child.actor.path
             },
@@ -181,13 +186,17 @@ def trace_message(req, key):
     logger.debug("entering trace_message")
     try:
         mesg = Message.objects.get(pk=key)
+        channel_names=[]
+        for ch in mesg.actor.channel:
+            channel_names.append(ch['fields']['name'])
         tree = {
             'message': str(mesg.id),
             'status': dict(Message.STATUS)[mesg.status],
             'actor': {
                 'pk': mesg.actor.pk,
                 'inforesid': mesg.actor.inforesid,
-                'channel': mesg.actor.channel.name,
+                #'channel': mesg.actor.channel.name,
+                'channel':channel_names,
                 'agent': mesg.actor.agent.name,
                 'path': mesg.actor.path
 
@@ -361,7 +370,7 @@ def get_or_create_actor(data):
                 temp_channel.append(Channel.objects.get(pk=item))
             elif item.isnumeric():
                 # primary channel key
-                temp_channel = Channel.objects.get(pk=int(item))
+                temp_channel.append(Channel.objects.get(pk=int(item)))
             else:
                 # name
                 channel_by_name, created = Channel.objects.get_or_create(name=item)
@@ -395,7 +404,6 @@ def get_or_create_actor(data):
         data['remote'] = None
     inforesid = data['inforesid']
 
-    #Testing code here
     created = False
     inforesid_update=False
     try:
