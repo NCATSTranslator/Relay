@@ -59,6 +59,7 @@ INSTALLED_APPS = [
     'tr_kp_chp.chp_app.AppConfig',
     'tr_kp_icees.icees_app.AppConfig',
     'tr_kp_icees_dili.icees_dili_app.AppConfig',
+    'tr_kp_icees_pcd.icees_pcd_app.AppConfig',
     'django_celery_results',
     'markdownify',
 ]

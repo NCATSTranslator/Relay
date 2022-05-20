@@ -61,6 +61,7 @@ patterns = [
     re_path(WfrApp.regex_path, include(WfrApp.name)),
     re_path(IceesApp.regex_path, include(IceesApp.name)),
     re_path(IceesDiliApp.regex_path, include(IceesDiliApp.name)),
+    re_path(IceesPcdApp.regex_path, include(IceesPcdApp.name)),
     re_path(UnsecretApp.regex_path, include(UnsecretApp.name)),
     re_path(GeneticsApp.regex_path, include(GeneticsApp.name)),
     re_path(MolecularApp.regex_path, include(MolecularApp.name)),

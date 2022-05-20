@@ -22,8 +22,9 @@ infores:cam-kp: https://cam-kp-api.renci.org/1.2.0
 infores:connections-hypothesis: http://chp.thayer.dartmouth.edu
 infores:cohd: https://cohd.io/api
 infores:genetics-data-provider: https://translator.broadinstitute.org/genetics_provider/trapi/v1.1
-infores:icees-asthma:           https://icees.renci.org:16339
+infores:icees-asthma: https://icees.renci.org:16339
 infores:icees-dili: https://icees.renci.org:16341
+infores:icees-pcd:  https://icees-pcd.renci.org
 infores:molepro: https://translator.broadinstitute.org/molepro/trapi/v1.2
 infores:openpredict: https://openpredict.semanticscience.org
 infores:automat-text-mining-provider: https://api.bte.ncats.io/v1/smartapi/978fe380a147a8641caf72320862697b
