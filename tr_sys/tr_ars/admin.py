@@ -7,3 +7,4 @@ admin.site.register(Agent)
 admin.site.register(Channel)
 admin.site.register(Actor)
 admin.site.register(Message)
+

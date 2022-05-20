@@ -30,13 +30,14 @@ class Channel(ARSModel):
     name = models.SlugField('channel name', unique=True,
                             null=False, max_length=128)
     description = models.TextField('description of channel', null=True)
+    #channels = models.ManyToManyField('self')
 
-    def __str__(self):
+def __str__(self):
         return self.name
 
-    
 class Actor(ARSModel):
-    channel = models.ForeignKey(Channel, on_delete=models.CASCADE)
+    #channel = models.SeparatedValuesField(Channel)
+    channel=models.JSONField(null=True)
     agent = models.ForeignKey(Agent, on_delete=models.CASCADE)
     path = models.CharField('relative path of actor', max_length=64)
     inforesid = models.CharField('inforesid', blank=True, max_length=500)
@@ -44,10 +45,9 @@ class Actor(ARSModel):
 
     class Meta:
         constraints = [
-            models.UniqueConstraint(fields=['channel', 'agent', 'path'],
+            models.UniqueConstraint(fields=['agent', 'path'],
                                     name='unique_actor')
         ]
-
     def __str__(self):
         return "actor{pk:%s, active:%s, %s, channel:%s, path:%s}" % (
             self.pk, self.active, self.agent, self.channel, self.path)
@@ -59,6 +59,7 @@ class Actor(ARSModel):
         jsonobj = ARSModel.to_dict(self)
         jsonobj['fields']['url'] = self.url()
         return jsonobj
+
 
 class Message(ARSModel):
     STATUS = (

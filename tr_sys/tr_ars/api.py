@@ -37,7 +37,7 @@ def api_redirect(req):
 
 
 DEFAULT_ACTOR = {
-    'channel': 'general',
+    'channel': ['general'],
     'agent': {
         'name': 'ars-default-agent',
         'uri': ''
@@ -46,7 +46,7 @@ DEFAULT_ACTOR = {
     'inforesid': ''
 }
 WORKFLOW_ACTOR = {
-    'channel': 'workflow',
+    'channel': ['workflow'],
     'agent': {
         'name': 'ars-workflow-agent',
         'uri': ''
@@ -62,6 +62,7 @@ def get_default_actor():
 def get_workflow_actor():
     # default actor is the first actor initialized in the database per
     # apps.setup_schema()
+    print("boop")
     return get_or_create_actor(WORKFLOW_ACTOR)[0]
 
 @csrf_exempt
@@ -90,7 +91,7 @@ def submit(req):
                 if(len(wf)>0):
                     message = Message.create(code=200, status='Running', data=data,
                                              actor=get_workflow_actor())
-                    logger.debug("Sending message to workflow runner")
+                    logger.debug("Sending message to workflow runner")#TO-DO CHANGE
                     # message.save()
                     # send_message(get_workflow_actor().to_dict(),message.to_dict())
                     # return HttpResponse(json.dumps(data, indent=2),
@@ -160,6 +161,9 @@ def trace_message_deepfirst(node):
     children = Message.objects.filter(ref__pk=node['message'])
     logger.debug('%s: %d children' % (node['message'], len(children)))
     for child in children:
+        channel_names=[]
+        for ch in child.actor.channel:
+            channel_names.append(ch['fields']['name'])
         n = {
             'message': str(child.id),
             'status': dict(Message.STATUS)[child.status],
@@ -167,7 +171,8 @@ def trace_message_deepfirst(node):
             'actor': {
                 'pk': child.actor.pk,
                 'inforesid': child.actor.inforesid,
-                'channel': child.actor.channel.name,
+                #'channel': child.actor.channel.name,
+                'channel': channel_names,
                 'agent': child.actor.agent.name,
                 'path': child.actor.path
             },
@@ -181,13 +186,17 @@ def trace_message(req, key):
     logger.debug("entering trace_message")
     try:
         mesg = Message.objects.get(pk=key)
+        channel_names=[]
+        for ch in mesg.actor.channel:
+            channel_names.append(ch['fields']['name'])
         tree = {
             'message': str(mesg.id),
             'status': dict(Message.STATUS)[mesg.status],
             'actor': {
                 'pk': mesg.actor.pk,
                 'inforesid': mesg.actor.inforesid,
-                'channel': mesg.actor.channel.name,
+                #'channel': mesg.actor.channel.name,
+                'channel':channel_names,
                 'agent': mesg.actor.agent.name,
                 'path': mesg.actor.path
 
@@ -354,19 +363,24 @@ def get_or_create_actor(data):
             status=400)
 
     channel = data['channel']
-    if isinstance(channel, int):
-        channel = Channel.objects.get(pk=channel)
-    elif channel.isnumeric():
-        # primary channel key
-        channel = Channel.objects.get(pk=int(channel))
-    else:
-        # name
-        channel, created = Channel.objects.get_or_create(name=channel)
-        if created:
-            logger.debug('%s:%d: new channel created "%s"'
-                         % (__name__, getframeinfo(currentframe()).lineno,
-                            data['channel']))
+    temp_channel=[]
+    if isinstance(channel,list):
+        for item in channel:
+            if isinstance(item, int):
+                temp_channel.append(Channel.objects.get(pk=item))
+            elif item.isnumeric():
+                # primary channel key
+                temp_channel.append(Channel.objects.get(pk=int(item)))
+            else:
+                # name
+                channel_by_name, created = Channel.objects.get_or_create(name=item)
+                temp_channel.append(channel_by_name)
+                if created:
+                    logger.debug('%s:%d: new channel created "%s"'
+                                 % (__name__, getframeinfo(currentframe()).lineno,
+                                    data['channel']))
 
+    channel = temp_channel
     agent = data['agent']
     if isinstance(agent, int):
         agent = Agent.objects.get(pk=agent)
@@ -390,12 +404,11 @@ def get_or_create_actor(data):
         data['remote'] = None
     inforesid = data['inforesid']
 
-    #Testing code here
     created = False
     inforesid_update=False
     try:
         actor = Actor.objects.get(
-            channel=channel, agent=agent, path=data['path'])
+             agent=agent, path=data['path'])
         if (actor.inforesid is not None):
             if not actor.inforesid == inforesid:
                 inforesid_update=True
@@ -408,8 +421,10 @@ def get_or_create_actor(data):
     #TODO Exceptions as part of flow control?  Is this Django or have I done a bad?
     except Actor.DoesNotExist:
            logger.debug("No such actor found for "+inforesid)
-           actor, created = Actor.objects.get_or_create(
-               channel=channel, agent=agent, path=data['path'], inforesid=inforesid)
+           #JSON serializer added for 'channel' as we are now using a list that we're approximating by using a JSON
+           #because Django's db models do not support List fields in SQLite
+           actor, created = Actor.objects.update_or_create(
+               channel=json.loads(serializers.serialize('json',channel)), agent=agent, path=data['path'], inforesid=inforesid)
            status = 201
 
     #Testing Code Above
@@ -425,7 +440,11 @@ def actors(req):
             actor = json.loads(serializers.serialize('json', [a]))[0]
             actor['fields'] = dict()
             actor['fields']['name'] = a.agent.name + '-' + a.path
-            actor['fields']['channel'] = a.channel.name #a.channel.pk
+            #actor['fields']['channel'] = str(a.channel) #a.channel.pk
+            #need to add these in a for each as we now support lists of channels
+            actor['fields']['channel']=[]
+            for channel in a.channel:
+                actor['fields']['channel'].append(channel['fields']['name'])
             actor['fields']['agent'] = a.agent.name #a.agent.pk
             actor['fields']['urlRemote'] = urlRemoteFromInforesid(a.inforesid)
             actor['fields']['path'] = req.build_absolute_uri(a.url()) #a.path
