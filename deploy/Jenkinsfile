@@ -54,7 +54,8 @@ pipeline {
         stage('Deploy to AWS EKS Blue') {
             steps {
                 configFileProvider([
-                    configFile(fileId: 'translator-ci-ars-env', targetLocation: 'deploy/.env')
+                    configFile(fileId: 'values-ci.yaml', targetLocation: 'deploy/values-ncats.yaml'),
+                    configFile(fileId: 'ars-settings.py', targetLocation: 'deploy/configs/settings.py')
                 ]){
                     withAWS(credentials:'aws-ifx-deploy') {
                         sh '''
