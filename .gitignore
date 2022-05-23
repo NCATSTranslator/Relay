@@ -1,6 +1,5 @@
 __pycache__/
 tr_sys/db.sqlite3
-tr_sys/tr_ars/migrations
 Relay.iml
 .idea/
 .idea/misc.xml
