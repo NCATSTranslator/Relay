@@ -61,6 +61,9 @@ httpclients:
   infores:icees-dili:
     endpoint: query 
     params: reasoner=true&verbose=false
+  infores:icees-pcd:
+    endpoint: query
+    params: reasoner=true&verbose=false
   infores:molepro:
     endpoint: query 
     params:

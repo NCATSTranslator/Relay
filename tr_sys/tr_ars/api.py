@@ -382,6 +382,7 @@ def get_or_create_actor(data):
 
     channel = temp_channel
     agent = data['agent']
+
     if isinstance(agent, int):
         agent = Agent.objects.get(pk=agent)
     elif isinstance(agent, str):

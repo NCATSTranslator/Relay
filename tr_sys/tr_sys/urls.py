@@ -41,6 +41,7 @@ from tr_kp_cohd.cohd_app import AppConfig as COHDApp
 from tr_kp_chp.chp_app import AppConfig as ChpApp
 from tr_kp_icees.icees_app import AppConfig as IceesApp
 from tr_kp_icees_dili.icees_dili_app import AppConfig as IceesDiliApp
+from tr_kp_icees_pcd.icees_pcd_app import AppConfig as IceesPcdApp
 
 from tr_ars.default_ars_app.ars_app import AppConfig as ARSApp
 
@@ -61,6 +62,7 @@ patterns = [
     re_path(WfrApp.regex_path, include(WfrApp.name)),
     re_path(IceesApp.regex_path, include(IceesApp.name)),
     re_path(IceesDiliApp.regex_path, include(IceesDiliApp.name)),
+    re_path(IceesPcdApp.regex_path, include(IceesPcdApp.name)),
     re_path(UnsecretApp.regex_path, include(UnsecretApp.name)),
     re_path(GeneticsApp.regex_path, include(GeneticsApp.name)),
     re_path(MolecularApp.regex_path, include(MolecularApp.name)),
