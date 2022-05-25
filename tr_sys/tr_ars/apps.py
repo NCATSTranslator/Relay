@@ -25,11 +25,13 @@ DEFAULT_AGENTS = [
 DEFAULT_ACTORS = [
     {'channel': 'general',
      'agent': 'ars-default-agent',
-     'path': ''
+     'path': '',
+     'team': 'ars_general'
      },
     {'channel': 'workflow',
      'agent': 'ars-default-agent',
-     'path': ''
+     'path': '',
+     'team': 'ars_workflow'
      }
 ]
 
@@ -57,7 +59,8 @@ def setup_schema(sender, **kwargs):
         actor, created = Actor.objects.get_or_create(
             channel=channels[a['channel']], agent=agents[a['agent']],
             defaults={'path': a['path'],
-                    'inforesid': a['inforesid']})
+                    'inforesid': a['inforesid'],
+                    'team': a['team']})
 
 def my_signal_handler(*args):
     if os.environ.get('RUN_MAIN') == 'true':  

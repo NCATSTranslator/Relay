@@ -5,7 +5,7 @@ from tr_ars.default_ars_app.api import *
 class AppConfig(ARSAppConfig):
     name = 'tr_ara_ncats.ncats_app' # must be dot path for module
     actors = [make_actorconf('infores:example', # !!! fictitious inforesid
-                                'runquery', ['general'],
+                                'runquery', ['general'], 'ncats',
                                 'query')] # tuple of remote, name, channel
     app_path = 'ara-ncats'
     regex_path = '^' + app_path + '/'
