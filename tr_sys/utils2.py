@@ -2,10 +2,11 @@
 from tr_smartapi_client.smart_api_discover import SmartApiDiscover
 
 class Actorconf:
-    def __init__(self, inforesid,  name, path, method, params) -> None:
+    def __init__(self, inforesid,  name, path, team, method, params) -> None:
         self._inforesid = inforesid
         self._name = name
         self._path = path
+        self._team = team
         self._method = method
         self._params = params
 
@@ -17,6 +18,9 @@ class Actorconf:
 
     def path(self):
         return self._path
+
+    def team(self):
+        return self._team
 
     def method(self):
         return self._method

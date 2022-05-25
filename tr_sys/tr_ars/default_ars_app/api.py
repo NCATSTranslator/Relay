@@ -95,8 +95,8 @@ def init_api_fn(actorconf):
     fn.__doc__ = "Forward api request at %s to %s" % (fn.__name__, actorconf.inforesid())
     return fn
 
-def make_actorconf(inforesid, name, path, method=None, params=None):
-    return Actorconf(inforesid, name, path, method, params)
+def make_actorconf(inforesid, name, path, team, method=None, params=None):
+    return Actorconf(inforesid, name, path, team, method, params)
 
 def init_api_index(actors, app_path):
     def fn(req):
