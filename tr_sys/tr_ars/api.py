@@ -450,7 +450,7 @@ def actors(req):
             actor['fields']['channel']=[]
             for channel in a.channel:
                 actor['fields']['channel'].append(channel['fields']['name'])
-            actor['field']['team'] = a.team
+            actor['fields']['team'] = a.team
             actor['fields']['agent'] = a.agent.name #a.agent.pk
             actor['fields']['urlRemote'] = urlRemoteFromInforesid(a.inforesid)
             actor['fields']['path'] = req.build_absolute_uri(a.url()) #a.path
