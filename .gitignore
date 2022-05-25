@@ -1,4 +1,5 @@
 __pycache__/
+.gitignore
 tr_sys/db.sqlite3
 Relay.iml
 .idea/

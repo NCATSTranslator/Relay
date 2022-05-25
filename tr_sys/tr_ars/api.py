@@ -43,7 +43,8 @@ DEFAULT_ACTOR = {
         'uri': ''
     },
     'path': '',
-    'inforesid': ''
+    'inforesid': '',
+    'team': ''
 }
 WORKFLOW_ACTOR = {
     'channel': ['workflow'],
@@ -52,7 +53,8 @@ WORKFLOW_ACTOR = {
         'uri': ''
     },
     'path': '',
-    'inforesid': ''
+    'inforesid': '',
+    'team': ''
 }
 
 def get_default_actor():
@@ -362,6 +364,8 @@ def get_or_create_actor(data):
             'JSON does not contain "channel", "agent", and "path" fields',
             status=400)
 
+    team = data['team']
+
     channel = data['channel']
     temp_channel=[]
     if isinstance(channel,list):
@@ -425,7 +429,7 @@ def get_or_create_actor(data):
            #JSON serializer added for 'channel' as we are now using a list that we're approximating by using a JSON
            #because Django's db models do not support List fields in SQLite
            actor, created = Actor.objects.update_or_create(
-               channel=json.loads(serializers.serialize('json',channel)), agent=agent, path=data['path'], inforesid=inforesid)
+               channel=json.loads(serializers.serialize('json',channel)), agent=agent, path=data['path'], inforesid=inforesid, team=team)
            status = 201
 
     #Testing Code Above
@@ -446,6 +450,7 @@ def actors(req):
             actor['fields']['channel']=[]
             for channel in a.channel:
                 actor['fields']['channel'].append(channel['fields']['name'])
+            actor['field']['team'] = a.team
             actor['fields']['agent'] = a.agent.name #a.agent.pk
             actor['fields']['urlRemote'] = urlRemoteFromInforesid(a.inforesid)
             actor['fields']['path'] = req.build_absolute_uri(a.url()) #a.path
