@@ -5,7 +5,7 @@ from tr_ars.default_ars_app.api import *
 class AppConfig(ARSAppConfig):
     name = 'tr_kp_icees_pcd.icees_pcd_app' # must be dot path for module
     actors = [make_actorconf('infores:icees-pcd',
-                                'runquery', ['general'], 'kp_icees_pcd',
+                                'runquery', ['general'], 'Exposures Provider',
                                 'query', 'reasoner=true&verbose=false')] # tuple of remote, name, channel
     app_path = 'kp-icees-pcd'
     regex_path = '^' + app_path + '/'

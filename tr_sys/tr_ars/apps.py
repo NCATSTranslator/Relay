@@ -26,12 +26,12 @@ DEFAULT_ACTORS = [
     {'channel': 'general',
      'agent': 'ars-default-agent',
      'path': '',
-     'team': 'ars_general'
+     'team': 'Linkbrokers'
      },
     {'channel': 'workflow',
      'agent': 'ars-default-agent',
      'path': '',
-     'team': 'ars_workflow'
+     'team': 'Linkbrokers'
      }
 ]
 
