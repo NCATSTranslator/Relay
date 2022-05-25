@@ -27,6 +27,7 @@ class AppConfig(SuperAppConfig):
                 actorObj['channel'] =  actorconf.path()
                 actorObj['path'] = actorconf.name()
                 actorObj['inforesid'] = actorconf.inforesid()
+                actorObj['team'] = actorconf.team()
                 get_or_create_actor(actorObj)
 
         except Exception as e:
