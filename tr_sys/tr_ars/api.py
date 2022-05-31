@@ -417,6 +417,10 @@ def get_or_create_actor(data):
         if (inforesid_update):
             actor.inforesid=inforesid
             actor.save()
+        #This catches initial cases where an Actor had been created in the older way with Channel being an Int not List
+        if(actor.channel != channel):
+            actor.channel = json.loads(serializers.serialize('json',channel))
+            actor.save()
         status = 302
     #TODO Exceptions as part of flow control?  Is this Django or have I done a bad?
     except Actor.DoesNotExist:
