@@ -74,7 +74,7 @@ def send_message(actor_dict, mesg_dict, timeout=300):
         if r.status_code == 200:
             # now create a new message here
             if(endpoint)=="asyncquery":
-                pass
+
                 if(callback is not None):
                     ar = requests.get(callback, json=data, timeout=timeout)
                     arj=ar.json()
@@ -85,9 +85,11 @@ def send_message(actor_dict, mesg_dict, timeout=300):
                         if(arj["fields"]["data"]["message"] is None):
                             logger.debug("data field doesnt contains the message, still running... ")
                             status = 'R'
+                            status_code=202
                         else:
                             logger.debug("data field contains "+ arj["fields"]["data"]["message"])
                             status = 'D'
+                            status_code=200
             else:
                 logger.debug("Not async? "+query_endpoint)
                 status = 'D'
