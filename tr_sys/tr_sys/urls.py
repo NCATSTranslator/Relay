@@ -37,6 +37,7 @@ from tr_kp_molecular.molecular_app import AppConfig as MolecularApp
 from tr_kp_cam.cam_app import AppConfig as CamApp
 from tr_kp_textmining.textmining_app import AppConfig as TextMiningApp
 from tr_kp_openpredict.openpredict_app import AppConfig as OpenPredictApp
+from tr_kp_collaboratory.collaboratory_app import AppConfig as CollaboratoryApp
 from tr_kp_cohd.cohd_app import AppConfig as COHDApp
 from tr_kp_chp.chp_app import AppConfig as ChpApp
 from tr_kp_icees.icees_app import AppConfig as IceesApp
@@ -69,6 +70,7 @@ patterns = [
     re_path(CamApp.regex_path, include(CamApp.name)),
     re_path(TextMiningApp.regex_path, include(TextMiningApp.name)),
     re_path(OpenPredictApp.regex_path, include(OpenPredictApp.name)),
+    re_path(CollaboratoryApp.regex_path, include(CollaboratoryApp.name)),
     re_path(COHDApp.regex_path, include(COHDApp.name)),
     re_path(ChpApp.regex_path, include(ChpApp.name))
 ]

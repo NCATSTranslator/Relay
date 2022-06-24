@@ -73,3 +73,6 @@ httpclients:
   infores:automat-text-mining-provider:
     endpoint: query 
     params:
+  infores:knowledge-collaboratory:
+    endpoint: query 
+    params:
