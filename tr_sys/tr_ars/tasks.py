@@ -81,6 +81,7 @@ def send_message(actor_dict, mesg_dict, timeout=300):
                     if(arj["fields"]["data"] is None):
                         logger.debug("data field empty")
                         status = 'R'
+                        status_code=202
                     else:
                         if(arj["fields"]["data"]["message"] is None):
                             logger.debug("data field doesnt contains the message, still running... ")
