@@ -28,3 +28,4 @@ infores:icees-pcd:  https://icees-pcd.renci.org
 infores:molepro: https://translator.broadinstitute.org/molepro/trapi/v1.2
 infores:openpredict: https://openpredict.semanticscience.org
 infores:automat-text-mining-provider: https://api.bte.ncats.io/v1/smartapi/978fe380a147a8641caf72320862697b
+infores:knowledge-collaboratory: https://api.collaboratory.semanticscience.org
