@@ -89,7 +89,7 @@ def submit(req):
             wf = data["workflow"]
             if(isinstance(wf,list)):
                 if(len(wf)>0):
-                    message = Message.create(code=200, status='Running', data=data,
+                    message = Message.create(code=202, status='Running', data=data,
                                              actor=get_workflow_actor())
                     logger.debug("Sending message to workflow runner")#TO-DO CHANGE
                     # message.save()
@@ -97,7 +97,7 @@ def submit(req):
                     # return HttpResponse(json.dumps(data, indent=2),
                     #                     content_type='application/json', status=201)
         else:
-            message = Message.create(code=200, status='Running', data=data,
+            message = Message.create(code=202, status='Running', data=data,
                               actor=get_default_actor())
 
         if 'name' in data:

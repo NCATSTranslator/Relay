@@ -23,7 +23,7 @@ def message_post_save(sender, instance, **kwargs):
     message = instance
     logger.debug('+++ post_save message: %s' % (message))
     # now broadcast the message to all actors only if it has code=200 and is a parent node
-    if message.code == 200 and message.ref == None:
+    if message.code == 202 and message.ref == None:
          if len(Message.objects.filter(ref__pk=message.pk)) == 0: # make sure we haven't already done this broadcast
             matching_actors=[]
             for actor in Actor.objects.all():

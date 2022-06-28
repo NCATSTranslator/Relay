@@ -30,13 +30,17 @@ def send_message(actor_dict, mesg_dict, timeout=300):
                           name=mesg_dict['fields']['name'], status='R',
                           ref=Message.objects.get(pk=mesg_dict['pk']))
     mesg.save()
-
+    if(mesg.actor_id==20):
+        print("asdf")
     # TODO Add Translator API Version to Actor Model ... here one expects strict 0.92 format
     if 'url' in actor_dict['fields'] and actor_dict['fields']['url'].find('/ara-explanatory/api/runquery') == 0:
         pass
     else:
         callback = settings.DEFAULT_HOST + reverse('ars-messages') + '/' + str(mesg.pk)
         data['fields']['data']['callback'] = callback
+        print("Callback = "+callback)
+        print("Callback = "+data['fields']['data']['callback'])
+
 
     status = 'U'
     status_code = 0
@@ -78,22 +82,25 @@ def send_message(actor_dict, mesg_dict, timeout=300):
                 if(callback is not None):
                     ar = requests.get(callback, json=data, timeout=timeout)
                     arj=ar.json()
-                    if(arj["fields"]["data"] is None):
+                    if(arj["fields"]["data"] is None or
+                            arj["fields"]["data"]["message"] is None):
                         logger.debug("data field empty")
                         status = 'R'
                         status_code=202
                     else:
-                        if(arj["fields"]["data"]["message"] is None):
-                            logger.debug("data field doesnt contains the message, still running... ")
-                            status = 'R'
-                            status_code=202
-                        else:
-                            logger.debug("data field contains "+ arj["fields"]["data"]["message"])
-                            status = 'D'
-                            status_code=200
+                        # if(arj["fields"]["data"]["message"] is None):
+                        #     logger.debug("data field doesnt contains the message, still running... ")
+                        #     status = 'R'
+                        #     status_code=202
+                        # else:
+                        logger.debug("data field contains "+ arj["fields"]["data"]["message"])
+                        status = 'D'
+                        status_code=200
             else:
                 logger.debug("Not async? "+query_endpoint)
                 status = 'D'
+                status_code = 200
+
             if 'tr_ars.message.status' in r.headers:
                 status = r.headers['tr_ars.message.status']
             rdata = dict()
