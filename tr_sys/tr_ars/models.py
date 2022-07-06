@@ -42,7 +42,7 @@ class Actor(ARSModel):
     path = models.CharField('relative path of actor', max_length=64)
     inforesid = models.CharField('inforesid', blank=True, max_length=500)
     active = models.BooleanField('actor is active', default=True)
-    team = models.CharField('Team names', blank=True, max_length=50)
+    #team = models.CharField('Team names', blank=True, max_length=50)
 
     class Meta:
         constraints = [
