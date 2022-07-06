@@ -159,7 +159,7 @@ class SmartApiDiscoverer:
     def __init__(self) -> None:
         self._maturity = os.getenv("TR_ENV") if os.getenv("TR_ENV") is not None else "production"
         # JH: re maturity, see also sys.argv[1] in server.py
-        if self._maturity not in ["production", "development", "staging"]:
+        if self._maturity not in ["production", "development", "staging","testing"]:
             logging.warn("Unknown maturity level in TR_ENV: {}".format(self._maturity))
         self._config = ConfigFile("config.yaml")
         self._config_legacy = ConfigFile("url-config-legacy.yaml")
