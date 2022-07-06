@@ -221,7 +221,10 @@ def message(req, key):
             return trace_message(req, key)
         try:
             mesg = Message.objects.get(pk=key)
-            return HttpResponse(json.dumps(mesg.to_dict(), indent=2),
+            actor = Actor.objects.get(pk=mesg.actor_id)
+            mesg.name = actor.agent.name
+            mesg_dict = mesg.to_dict()
+            return HttpResponse(json.dumps(mesg_dict, indent=2),
                                 status=200)
 
         except Message.DoesNotExist:
