@@ -83,6 +83,10 @@ def base_index(req):
         except Exception as e:
             logger.error("Unexpected error 9: {}".format(traceback.format_exception(type(e), e, e.__traceback__)))
             data['entries'].append(req.build_absolute_uri() + str(item.pattern).replace('^', ''))
+
+    for idx, element in enumerate(data['entries']):
+        data['entries'][idx] = element.replace('%5E', '')
+        
     return HttpResponse(json.dumps(data, indent=2),
                         content_type='application/json', status=200)
 
