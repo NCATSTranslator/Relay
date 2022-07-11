@@ -49,7 +49,7 @@ logger = logging.getLogger(__name__)
 
 patterns = [
     re_path(r'^admin/', admin.site.urls),
-    re_path(r'^ars/', include('tr_ars.urls')),
+    re_path(r'ars/', include('tr_ars.urls')),
     #url(r'^example/', include(ARSApp.name)),
     re_path(AragornApp.regex_path, include(AragornApp.name)),
     re_path(ARAXApp.regex_path, include(ARAXApp.name)),

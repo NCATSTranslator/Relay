@@ -7,7 +7,7 @@ class AppConfig(ARSAppConfig):
     actors = [make_actorconf('infores:cam-kp',
                'runquery', ['general'])] # tuple of remote, name, channel
     app_path = 'kp-cam'
-    regex_path = '^' + app_path + '/'
+    regex_path = '' + app_path + '/'
 
 ### code below this line is required, but doesn't require updating in most cases
 

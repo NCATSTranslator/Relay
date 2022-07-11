@@ -8,7 +8,7 @@ class AppConfig(SuperAppConfig):
     actors = [make_actorconf('infores:ars',  # !!! Fictitous infores
                             'runquery', ['general'])] # tuple of remote, name, channel; run default test server as `python simple-trapi-test-server.py`
     app_path = 'example'
-    regex_path = '^' + app_path + '/'
+    regex_path = '' + app_path + '/'
 
 ### code below this line is required, but doesn't require updating in most cases
 

@@ -7,7 +7,7 @@ class AppConfig(ARSAppConfig):
     actors = [make_actorconf('infores:aragorn-ranker', 'runquery', ['general', 'workflow'],
                             'asyncquery')] # tuple of remote, name, channel
     app_path = 'ara-aragorn'
-    regex_path = '^' + app_path + '/'
+    regex_path = '' + app_path + '/'
 
 ### code below this line is required, but doesn't require updating in most cases
 
