@@ -7,7 +7,7 @@
 
 # url-config-legacy.yaml is not a way for the ARS to avoid a successful request to smart-api.info in order
 # to be ready to serve requests.
-infores:aragorn-ranker: https://aragorn.renci.org/1.2
+infores:aragorn: https://aragorn.renci.org/1.2
 # MW says aragorn_exp_app is experimental.  If so, we don't need a second official infores key.
 infores:aragorn-ranker-exp: https://aragorn.renci.org
 infores:arax: https://arax.ncats.io/api/arax/v1.2
