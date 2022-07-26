@@ -102,6 +102,24 @@ class UrlMapSmartApiFetcher(object):
         # Assumes lexicographically comparable date format: 2021-11-04T07:06:04.827864+00:00
         return irhit1["date_updated"] > irhit2["date_updated"]
 
+    def _whichItrb(self, irhit1, irhit2):
+        itrb1 = self._isItrb(irhit1)
+        itrb2 = self._isItrb(irhit2)
+        if itrb1 and itrb2:
+            logging.error("Two ITRB servers of the same x-maturity?\n"+
+                          str(irhit1)+"\n"+
+                          str(irhit2))
+            return None
+        else:
+            return itrb1 and not itrb2
+
+    def _isItrb(self,irhit):
+        server = irhit["urlServer"]
+        if server is None:
+            return None
+        else:
+            return "transltr.io" in server
+
     def _by_infores_latest(self, j, maturity):
         byIrid = {}
         for irhit in self._irhits_from_res(j):
@@ -109,7 +127,7 @@ class UrlMapSmartApiFetcher(object):
                 key = self._key_of_irhit(irhit)
                 if key is not None:
                     irhit0 = byIrid[key] if key in byIrid else None
-                    if irhit0 is None or self._newer(irhit, irhit0):
+                    if irhit0 is None or self._whichItrb(irhit, irhit0):
                         byIrid[key] = irhit
         logging.info("found {} registrations with maturity={}".format(len(byIrid), maturity))
         return byIrid
