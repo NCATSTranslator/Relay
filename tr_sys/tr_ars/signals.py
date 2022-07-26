@@ -62,6 +62,8 @@ def message_pre_save(sender, instance, **kwargs):
     if message.ref == message:
         logger.warning('Self-referencing message; removing reference!')
         message.ref = None
+    if message.status == 'D':
+        message.code = 200
 
 @receiver(post_save, sender=Channel)
 def channel_post_save(sender, instance, **kwargs):
