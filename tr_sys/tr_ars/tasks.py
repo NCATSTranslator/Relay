@@ -81,11 +81,11 @@ def send_message(actor_dict, mesg_dict, timeout=300):
                             arj["fields"]["data"]["message"] is None):
                         logger.debug("data field empty")
                         status = 'R'
-                        status_code=202
+                        status_code = 202
                     else:
                         logger.debug("data field contains "+ arj["fields"]["data"]["message"])
                         status = 'D'
-                        status_code=200
+                        status_code = 200
             else:
                 logger.debug("Not async? "+query_endpoint)
                 status = 'D'
@@ -124,6 +124,10 @@ def send_message(actor_dict, mesg_dict, timeout=300):
     if mesg.status == 'D':
         if mesg.code == 202:
             mesg.code == 200
-            logger.warning('the new status code for %s is %s ' % (mesg.url, mesg.code))
+
+    if mesg.status == 'R':
+        if mesg.code == 200:
+            mesg.code == 202
+
     mesg.save()
     logger.debug('+++ message saved: %s' % (mesg.pk))
