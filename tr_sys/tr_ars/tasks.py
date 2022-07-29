@@ -121,6 +121,11 @@ def send_message(actor_dict, mesg_dict, timeout=300):
     mesg.status = status
     mesg.data = rdata
     mesg.url = url
+    if mesg.status == 'D':
+        if mesg.code == 202:
+            mesg.code == 200
+            logger.warning('the new status code for %s is %s ' % (mesg.url, mesg.code))
+        else:
+            pass
     mesg.save()
     logger.debug('+++ message saved: %s' % (mesg.pk))
-
