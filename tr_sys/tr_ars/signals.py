@@ -21,10 +21,10 @@ def actor_post_save(sender, instance, **kwargs):
 @receiver(post_save, sender=Message)
 def message_post_save(sender, instance, **kwargs):
     message = instance
-    if message.status == 'D':
-        message.code = 200
     if message.status == 'R':
         message.code = 202
+    if message.status == 'D':
+        message.code = 200
     logger.debug('+++ post_save message: %s with the code: %s' % (message, message.code))
     # now broadcast the message to all actors only if it has code=200 and is a parent node
     if message.code == 202 and message.ref == None:

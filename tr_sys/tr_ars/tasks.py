@@ -29,6 +29,8 @@ def send_message(actor_dict, mesg_dict, timeout=300):
     mesg = Message.create(actor=Actor.objects.get(pk=actor_dict['pk']),
                           name=mesg_dict['fields']['name'], status='R',
                           ref=Message.objects.get(pk=mesg_dict['pk']))
+    if mesg.status == 'R':
+        mesg.code = 202
     mesg.save()
     # TODO Add Translator API Version to Actor Model ... here one expects strict 0.92 format
     if 'url' in actor_dict['fields'] and actor_dict['fields']['url'].find('/ara-explanatory/api/runquery') == 0:
@@ -121,6 +123,14 @@ def send_message(actor_dict, mesg_dict, timeout=300):
     mesg.status = status
     mesg.data = rdata
     mesg.url = url
+    if mesg.status == 'D':
+        if mesg.code == 202:
+            mesg.code == 200
+
+    if mesg.status == 'R':
+        if mesg.code == 200:
+            mesg.code == 202
+
     mesg.save()
     logger.debug('+++ message saved: %s' % (mesg.pk))
 

@@ -245,7 +245,6 @@ def message(req, key):
             if mesg.data and 'results' in mesg.data and mesg.data['results'] != None and len(mesg.data['results']) > 0:
                 mesg = Message.create(name=mesg.name, status=status,
                                   actor=mesg.actor, ref=mesg)
-
             mesg.status = status
             mesg.data = data
             mesg.save()
