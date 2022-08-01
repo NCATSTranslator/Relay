@@ -219,5 +219,5 @@ CELERY_BROKER_URL = 'amqp://localhost'
 # Other important shared settings
 DATA_UPLOAD_MAX_MEMORY_SIZE=1073741824
 
-USE_CELERY = True 
+USE_CELERY = True
 DEFAULT_HOST = 'http://localhost:8000'
