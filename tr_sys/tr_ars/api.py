@@ -238,6 +238,7 @@ def message(req, key):
 
             mesg = Message.objects.get(pk = key)
             status = 'D'
+            mesg.code = 200
             if 'tr_ars.message.status' in req.headers:
                 status = req.headers['tr_ars.message.status']
 
