@@ -61,7 +61,7 @@ class ConfigFile:
     to cache the last known successfully fetched configuration.
 """
 
-urlSmartapi = "https://smart-api.info"
+urlSmartapi = "http://smart-api.info"
 secsTimeout = 5
 
 class UrlMapSmartApiFetcher(object):
