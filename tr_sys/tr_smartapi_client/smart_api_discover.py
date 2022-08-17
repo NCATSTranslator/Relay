@@ -86,7 +86,8 @@ class UrlMapSmartApiFetcher(object):
                             "urlServer":urlServer,
                             "maturity":maturity,
                             "_id":_id,
-                            "date_updated":date_updated
+                            "date_updated":date_updated,
+                            "version":x_trapi_version
                             } #,team,title,x_trapi_version]
                         yield d
 
@@ -124,11 +125,12 @@ class UrlMapSmartApiFetcher(object):
         byIrid = {}
         for irhit in self._irhits_from_res(j):
             if maturity == irhit["maturity"]:
-                key = self._key_of_irhit(irhit)
-                if key is not None:
-                    irhit0 = byIrid[key] if key in byIrid else None
-                    if irhit0 is None or self._whichItrb(irhit, irhit0):
-                        byIrid[key] = irhit
+                if irhit["version"] == '1.3.0':
+                    key = self._key_of_irhit(irhit)
+                    if key is not None:
+                        irhit0 = byIrid[key] if key in byIrid else None
+                        if irhit0 is None or self._whichItrb(irhit, irhit0):
+                            byIrid[key] = irhit
         logging.info("found {} registrations with maturity={}".format(len(byIrid), maturity))
         return byIrid
 
