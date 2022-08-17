@@ -66,52 +66,5 @@ pipeline {
                 }
             }
         }
-        stage('Performance Testing') {
-            steps {
-                script {
-                    sleep(time:10, unit:"MINUTES")
-                    def data = readJSON(text: """
-                    {
-                        "message": {
-                            "query_graph": {
-                                "edges": {
-                                    "e01": {
-                                        "object": "n0",
-                                        "subject": "n1",
-                                        "predicates": [
-                                            "biolink:entity_negatively_regulates_entity"
-                                        ]
-                                    }
-                                },
-                                "nodes": {
-                                    "n0": {
-                                        "ids": [
-                                            "NCBIGene:23221"
-                                        ],
-                                        "categories": [
-                                            "biolink:Gene"
-                                        ]
-                                    },
-                                    "n1": {
-                                        "categories": [
-                                            "biolink:Gene"
-                                        ]
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    """
-                    )
-                    writeJSON(file: 'test_data.json', json: data)
-                    try{
-                        sh "curl -H 'Content-Type: application/json' -X POST -d @test_data.json https://ars.ci.translator.io/ars/api/submit"
-                    }
-                    catch (err){
-                        echo err
-                    }
-                }
-            }
-        }
     }
 }
