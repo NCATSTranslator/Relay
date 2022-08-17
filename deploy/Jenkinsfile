@@ -102,7 +102,7 @@ pipeline {
                         }
                     }
                     """
-                    writeJson(file: 'test_data.json', json: data)
+                    writeJSON(file: 'test_data.json', json: data)
                     try{
                         sh "curl -H 'Content-Type: application/json' -X POST -d @test_data.json https://ars.ci.translator.io/ars/api/submit"
                     }
