@@ -69,7 +69,7 @@ pipeline {
         stage('Performance Testing') {
             steps {
                 script {
-                    sleep(time:10, unit:"MINUTES")
+                    sleep(time:2, unit:"MINUTES")
                     def data = readJSON(text: """
                     {
                         "message": {
@@ -105,7 +105,7 @@ pipeline {
                     )
                     writeJSON(file: 'test_data.json', json: data)
                     try{
-                        sh "curl -H 'Content-Type: application/json' -X POST -d @test_data.json https://ars.ci.translator.io/ars/api/submit"
+                        sh "curl -H 'Content-Type: application/json' -X POST -d @test_data.json https://ars.ci.transltr.io/ars/api/submit"
                     }
                     catch (err){
                         echo err
