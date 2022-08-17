@@ -5,9 +5,9 @@
 # the repo. Unless a later match takes precedence,
 # all of these users will be requested for
 # review when someone opens a pull request.
-* @MarkDWilliams
 * @ShervinAbd92
 * @sstemann 
+* @MarkDWilliams
 # In this example, they own any files in the specified
 # directory at the root of the repository and any of its
 # subdirectories.
