@@ -69,7 +69,7 @@ pipeline {
         stage('Performance Testing') {
             steps {
                 script {
-                    sleep(time:2, unit:"MINUTES")
+                    sleep(time:10, unit:"MINUTES")
                     def data = readJSON(text: """
                     {
                         "message": {
