@@ -105,7 +105,12 @@ pipeline {
                     )
                     writeJSON(file: 'test_data.json', json: data)
                     try{
-                        sh "curl -H 'Content-Type: application/json' -X POST -d @test_data.json https://ars.ci.transltr.io/ars/api/submit"
+                        final def(String response, int code) =
+                            sh(script: "curl -H 'Content-Type: application/json' -w '\\n%{response_code}' -X POST -d @test_data.json https://ars.ci.transltr.io/ars/api/submit", returnStdout: true)
+                                 .trim()
+                                 .tokenize("\n")
+                        echo "HTTP response status code: $code"
+                        echo "HTTP response body is: $response"
                     }
                     catch (err){
                         echo err
