@@ -105,7 +105,9 @@ pipeline {
                     )
                     writeJSON(file: 'test_data.json', json: data)
                     try{
-                        sh "curl -H 'Content-Type: application/json' -X POST -d @test_data.json https://ars.ci.transltr.io/ars/api/submit"
+                        int status = sh(script: "curl -H 'Content-Type: application/json' -X POST -d @data.json https://ars.ci.transltr.io/ars/api/submit -o /dev/null -w '%{http_code}'", returnStdout: true)
+                        if (status != 200 && status != 201) {
+                            error("Returned status code = $status ")
                     }
                     catch (err){
                         echo err
