@@ -32,7 +32,7 @@ class Channel(ARSModel):
     description = models.TextField('description of channel', null=True)
     #channels = models.ManyToManyField('self')
 
-def __str__(self):
+    def __str__(self):
         return self.name
 
 class Actor(ARSModel):
@@ -53,7 +53,7 @@ class Actor(ARSModel):
             self.pk, self.active, self.agent, self.channel, self.path)
 
     def url(self):
-        return self.agent.uri+self.path
+            return self.agent.uri+self.path
 
     def to_dict(self):
         jsonobj = ARSModel.to_dict(self)
