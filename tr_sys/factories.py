@@ -25,7 +25,7 @@ class AgentFactory(factory.django.DjangoModelFactory):
 class ChannelFactory(factory.django.DjangoModelFactory):
     class Meta:
         model = models.Channel
-    name = 'general'
+    name = 'test'
     description = fake.text()
 
 class ActorFactory(factory.django.DjangoModelFactory):
@@ -33,7 +33,7 @@ class ActorFactory(factory.django.DjangoModelFactory):
         model = models.Actor
 
     agent = factory.SubFactory(AgentFactory)
-    channel = 'general'
+    channel = 'test'
     path = 'runquery'
     inforesid = fake.word()
     active = 'True'
@@ -44,7 +44,7 @@ class MessageFactory(factory.django.DjangoModelFactory):
 
     id = fake.uuid4()
     name = 'default_message'
-    status = 'D'
+    status = 'W'
     actor = factory.SubFactory(ActorFactory)
 
 
