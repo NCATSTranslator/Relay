@@ -9,4 +9,6 @@ attrs >= 20.3.0
 channels==3.0.3
 pymysql==1.0.2
 PyYAML==6.0
-
+pytest-django
+factory-boy
+selenium

@@ -85,7 +85,7 @@ def runapp(req):
 def init_api_fn(actorconf):
     inforesid = actorconf.inforesid()
     if SmartApiDiscover().urlServer(inforesid) is None:
-        logging.warn("could not configure inforesid={}".format(inforesid))
+        logging.warning("could not configure inforesid={}".format(inforesid))
     @csrf_exempt
     def fn(req):
         remote=urlRemoteFromInforesid(inforesid)
