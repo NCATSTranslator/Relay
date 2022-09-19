@@ -42,11 +42,13 @@ pipeline {
         }
         stage("Pytest Unit Testing") {
             steps {
-                withPythonEnv('python3') {
-                    sh 'pip install pytest'
-                    def statusCode = sh( script: "cd tr_sys/tr_ars/tests/unit && pytest .", returnStatus:true )
-                    if (statusCode != 0) {
-                        error 'unit test failed, exiting ....'
+                script {
+                    withPythonEnv('python3') {
+                        sh 'pip install -r requirements.txt'
+                        def statusCode = sh(script: "cd tr_sys/tr_ars/tests/unit && pytest .", returnStatus:true)
+                        if (statusCode != 0) {
+                            error 'unit test failed, exiting ....'
+                        }
                     }
                 }
             }
