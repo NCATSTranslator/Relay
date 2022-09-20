@@ -1,10 +1,10 @@
 
 import pytest
 from pytest_factoryboy import register
-from factories import UserFactory, AgentFactory, ActorFactory, MessageFactory, ChannelFactory
+from factories import AgentFactory, ActorFactory, MessageFactory, ChannelFactory
 from selenium import webdriver
 
-register(UserFactory)
+
 register(AgentFactory)
 register(ActorFactory)
 register(ChannelFactory)

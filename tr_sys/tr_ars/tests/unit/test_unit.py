@@ -56,7 +56,7 @@ def test_messages_response(client, test_message):
      response = client.get(url)
      assert response.status_code == 200
 
-#------------------------ Testing for Selenium Webdriver --------------
+#------------------------ Testing for Selenium Webdriver -------------
 # def take_screenshot(driver, name):
 #      time.sleep(1)
 #      os.makedirs(os.path.join("screenshot", os.path.dirname(name)), exist_ok=True)
