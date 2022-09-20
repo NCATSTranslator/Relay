@@ -5,7 +5,7 @@ pipeline {
         disableConcurrentBuilds()
     }
     agent {
-        node { label 'translator && aws && build' }
+        node { label 'translator && aws && build && ars' }
     }
     parameters {
         string(name: 'BUILD_VERSION', defaultValue: '', description: 'The build version to deploy (optional)')
@@ -43,9 +43,10 @@ pipeline {
         stage("Pytest Unit Testing") {
             steps {
                 script {
-                    withPythonEnv('python3') {
+                    withPythonEnv('python3.9') {
+                        sh 'python --version'
                         sh 'pip install -r requirements.txt'
-                        def statusCode = sh(script: "cd tr_sys/tr_ars/tests/unit && pytest .", returnStatus:true)
+                        def statusCode = sh(script: "cd tr_sys/tr_ars/tests/unit && pytest test_unit.py", returnStatus:true)
                         if (statusCode != 0) {
                             error 'unit test failed, exiting ....'
                         }
