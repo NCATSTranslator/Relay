@@ -10,13 +10,4 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.RemoveField(
-            model_name='actor',
-            name='remote',
-        ),
-        migrations.AddField(
-            model_name='actor',
-            name='inforesid',
-            field=models.CharField(blank=True, max_length=500, verbose_name='inforesid'),
-        ),
     ]

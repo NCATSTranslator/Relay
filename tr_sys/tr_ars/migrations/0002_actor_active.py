@@ -10,9 +10,4 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.AddField(
-            model_name='actor',
-            name='active',
-            field=models.BooleanField(default=True, verbose_name='actor is active'),
-        ),
     ]
