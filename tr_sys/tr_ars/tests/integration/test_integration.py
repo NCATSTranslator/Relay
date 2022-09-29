@@ -1,5 +1,8 @@
 import requests
 import os
+from urllib.parse import urlparse
+import warnings
+import pytest
 
 hostname=os.getenv('TARGET_HOST')
 def test_agent_endopoint():
@@ -19,3 +22,17 @@ def test_actor_endpoint():
     for actor in response_body:
         acotr_agent_names.append(actor['fields']['agent'])
     assert "ara-aragorn" in acotr_agent_names
+
+
+def test_RemoteURL_validation():
+    response = requests.get("https://"+hostname+"/ars/api/actors")
+    response_body = response.json()
+    invalid_url=[]
+    for actor in response_body:
+        if '//' in urlparse(actor['fields']['urlRemote']).path:
+            invalid_url.append(actor['fields']['urlRemote'])
+
+    if len(invalid_url) > 0:
+        warnings.warn(f'the following agents have wrong RemoteURL: {invalid_url}')
+
+
