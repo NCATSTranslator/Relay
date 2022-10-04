@@ -21,6 +21,7 @@ class AppConfig(SuperAppConfig):
             agent['uri'] = reverse(self.app_path + '-api')
             get_or_create_agent(agent)
             #logger.debug('### agent: {0} {1}'.format(agentObj, status));
+            test = self.actors
             for actorconf in self.actors:
                 actorObj = dict()
                 actorObj['agent'] = agent

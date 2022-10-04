@@ -10,6 +10,7 @@ import json, sys, logging
 import traceback
 from inspect import currentframe, getframeinfo
 from tr_ars import status_report
+from datetime import datetime, timedelta
 from tr_ars.tasks import send_message
 
 #from reasoner_validator import validate_Message, ValidationError, validate_Query
@@ -211,6 +212,35 @@ def trace_message(req, key):
         logger.debug('Unknown message: %s' % key)
         return HttpResponse('Unknown message: %s' % key, status=404)
     return HttpResponse('Internal server error', status=500)
+
+@csrf_exempt
+def reports(req):
+    now =datetime.now()
+    if req.method == 'GET':
+        if req.GET.get('name', True):
+            time_threshold = datetime.now() - timedelta(hours=24)
+            results = Message.objects.filter(timestamp__lt=time_threshold)
+    return results
+
+@csrf_exempt
+def get_report(req,inforesid):
+    try:
+        report={}
+        now =datetime.now()
+        if req.method == 'GET':
+            if req.GET.get('name', True):
+                time_threshold = datetime.now() - timedelta(hours=24)
+                messages = Message.objects.filter(timestamp__lt=time_threshold,actor__inforesid__iendswith=inforesid)
+                for msg in messages:
+                    code = msg.code
+                    mid = msg.id
+                    report[str(mid)]=code
+            return HttpResponse(json.dumps(report, indent=2),
+                                status=200)
+    except Exception as e:
+        print(e.__traceback__)
+        print(inforesid)
+
 
 @csrf_exempt
 def message(req, key):
@@ -513,6 +543,10 @@ def status(req):
     if req.method == 'GET':
         return HttpResponse(json.dumps(status_report.status(req), indent=2),
                             content_type='application/json', status=200)
+def timeoutTest(req,time=300):
+    if req.method == 'POST':
+        time.sleep(time)
+
 
 apipatterns = [
     path('', index, name='ars-api'),
@@ -524,6 +558,10 @@ apipatterns = [
     path('agents/<name>', get_agent, name='ars-agent'),
     path('messages/<uuid:key>', message, name='ars-message'),
     re_path(r'^status/?$', status, name='ars-status'),
+    re_path(r'^reports/?$', reports, name='ars-reports'),
+    path('reports/<inforesid>',get_report,name='ars-report'),
+    re_path(r'^timeoutTst/?$', status, name='ars-timeout')
+
 ]
 
 urlpatterns = [
