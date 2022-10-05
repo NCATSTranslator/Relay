@@ -45,6 +45,7 @@ INSTALLED_APPS = [
     'tr_ara_arax.arax_app.AppConfig',
     'tr_ara_bte.bte_app.AppConfig',
     'tr_ara_explanatory.explanatory_app.AppConfig',
+    'tr_ara_explanatory_exp.explanatory_exp_app.AppConfig',
     'tr_ara_improving.improving_app.AppConfig',
     'tr_ara_ncats.ncats_app.AppConfig',
     'tr_ara_robokop.robokop_app.AppConfig',
@@ -219,5 +220,5 @@ CELERY_BROKER_URL = 'amqp://localhost'
 # Other important shared settings
 DATA_UPLOAD_MAX_MEMORY_SIZE=1073741824
 
-USE_CELERY = True
+USE_CELERY = False
 DEFAULT_HOST = 'http://localhost:8000'
