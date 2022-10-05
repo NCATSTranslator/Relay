@@ -29,6 +29,8 @@ def urlRemoteFromInforesid(inforesid):
     if urlServer is not None:
         endpoint=SmartApiDiscover().endpoint(inforesid)
         params=SmartApiDiscover().params(inforesid)
+        if (urlServer[-1]=="/"): #removing trailing slashes in SmartAPI registrations before we add our own slash below
+            urlServer=urlServer[:-1]
         return (urlServer +
                 (("/"+endpoint) if endpoint is not None else "") +
                 (("?"+params) if params is not None else "")) if urlServer is not None else None

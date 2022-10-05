@@ -28,6 +28,9 @@ httpclients:
   infores:explanatory-agent:
     endpoint: query 
     params:
+  infores:explanatory-agent-creative-mode:
+    endpoint: asyncquery
+    params:
   infores:improving-agent:
     endpoint: query 
     params:
