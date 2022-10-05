@@ -210,8 +210,6 @@ class SmartApiDiscoverer:
         return u["urlServer"] if "urlServer" in u else None
 
     def endpoint(self, inforesid):
-        if("explanatory-agent-creative" in inforesid):
-            print("1")
         m = self._map_fixed[inforesid] if inforesid in self._map_fixed else {}
         u = m["endpoint"] if "endpoint" in m else None
         return u
