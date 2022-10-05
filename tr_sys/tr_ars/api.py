@@ -475,8 +475,6 @@ def actors(req):
     if req.method == 'GET':
         actors = []
         for a in Actor.objects.exclude(path__exact=''):
-            if("explanatory-agent-creative" in a.inforesid):
-                print("1")
             actor = json.loads(serializers.serialize('json', [a]))[0]
             actor['fields'] = dict()
             actor['fields']['name'] = a.agent.name + '-' + a.path
