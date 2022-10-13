@@ -11,6 +11,7 @@ import traceback
 from inspect import currentframe, getframeinfo
 from tr_ars import status_report
 from datetime import datetime, timedelta
+from django.utils import timezone
 from tr_ars.tasks import send_message
 
 #from reasoner_validator import validate_Message, ValidationError, validate_Query
@@ -63,7 +64,6 @@ def get_default_actor():
 def get_workflow_actor():
     # default actor is the first actor initialized in the database per
     # apps.setup_schema()
-    print("boop")
     return get_or_create_actor(WORKFLOW_ACTOR)[0]
 
 @csrf_exempt
@@ -217,24 +217,22 @@ def trace_message(req, key):
 def reports(req):
     now =datetime.now()
     if req.method == 'GET':
-        if req.GET.get('name', True):
-            time_threshold = datetime.now() - timedelta(hours=24)
-            results = Message.objects.filter(timestamp__lt=time_threshold)
+        time_threshold = datetime.now() - timedelta(hours=24)
+        results = Message.objects.filter(timestamp__lt=time_threshold)
     return results
 
 @csrf_exempt
 def get_report(req,inforesid):
     try:
         report={}
-        now =datetime.now()
+        now =timezone.now()
         if req.method == 'GET':
-            if req.GET.get('name', True):
-                time_threshold = datetime.now() - timedelta(hours=24)
-                messages = Message.objects.filter(timestamp__lt=time_threshold,actor__inforesid__iendswith=inforesid)
-                for msg in messages:
-                    code = msg.code
-                    mid = msg.id
-                    report[str(mid)]=code
+            time_threshold = now - timezone.timedelta(hours=24)
+            messages = Message.objects.filter(timestamp__gt=time_threshold,actor__inforesid__iendswith=inforesid)
+            for msg in messages:
+                code = msg.code
+                mid = msg.id
+                report[str(mid)]=code
             return HttpResponse(json.dumps(report, indent=2),
                                 status=200)
     except Exception as e:
