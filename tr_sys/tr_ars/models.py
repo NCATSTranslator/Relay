@@ -77,12 +77,14 @@ class Message(ARSModel):
                                             null=False, default=200)
     status = models.CharField(max_length=2, choices=STATUS)
     actor = models.ForeignKey(Actor, null=False, on_delete=models.CASCADE)
-    timestamp = models.DateTimeField(null=False, default=timezone.now)
+    timestamp = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
     data = models.JSONField('data payload', null=True)
     url = models.URLField('location of data', max_length=256, null=True)
     ref = models.ForeignKey('self', null=True, blank=True,
                             on_delete=models.CASCADE)
-    
+    result_count = models.IntegerField(null=True, default=None)
+
     def __str__(self):
         return "message[%s]{name:%s, status:%s}" % (self.id,
                                                     self.name, self.status)

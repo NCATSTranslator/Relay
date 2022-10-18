@@ -3,6 +3,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.core import serializers
 from django.shortcuts import redirect
 from django.urls import path, re_path, include, reverse
+from django.utils import timezone
 
 from utils2 import urlRemoteFromInforesid
 from .models import Agent, Message, Channel, Actor
@@ -215,10 +216,9 @@ def trace_message(req, key):
 
 @csrf_exempt
 def reports(req):
-    now =datetime.now()
     if req.method == 'GET':
         if req.GET.get('name', True):
-            time_threshold = datetime.now() - timedelta(hours=24)
+            time_threshold = timezone.now() - timedelta(hours=24)
             results = Message.objects.filter(timestamp__lt=time_threshold)
     return results
 
@@ -226,16 +226,21 @@ def reports(req):
 def get_report(req,inforesid):
     try:
         report={}
-        now =datetime.now()
+        now =timezone.now()
         if req.method == 'GET':
             if req.GET.get('name', True):
-                time_threshold = datetime.now() - timedelta(hours=24)
-                messages = Message.objects.filter(timestamp__lt=time_threshold,actor__inforesid__iendswith=inforesid)
+                time_threshold = now - timezone.timedelta(hours=24)
+                messages = Message.objects.filter(timestamp__gt=time_threshold,actor__inforesid__iendswith=inforesid)
                 for msg in messages:
                     code = msg.code
                     mid = msg.id
-                    report[str(mid)]=code
-            return HttpResponse(json.dumps(report, indent=2),
+                    time_start = msg.timestamp
+                    time_end = msg.updated_at
+                    time_elapsed = time_end - time_start
+                    result_count = msg.result_count
+                    report[str(mid)]= [code, str(time_elapsed), result_count]
+
+            return HttpResponse(json.dumps(report, indent=2), content_type='text/plain',
                                 status=200)
     except Exception as e:
         print(e.__traceback__)
@@ -271,6 +276,8 @@ def message(req, key):
             mesg.code = 200
             if 'tr_ars.message.status' in req.headers:
                 status = req.headers['tr_ars.message.status']
+
+            mesg.result_count = len(data["fields"]["data"]["message"]["results"])
 
             # create child message if this one already has results
             if mesg.data and 'results' in mesg.data and mesg.data['results'] != None and len(mesg.data['results']) > 0:
