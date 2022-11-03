@@ -44,7 +44,8 @@ INSTALLED_APPS = [
     'tr_ara_aragorn.aragorn_app.AppConfig',
     'tr_ara_arax.arax_app.AppConfig',
     'tr_ara_bte.bte_app.AppConfig',
-    'tr_ara_explanatory.explanatory_app.AppConfig',
+    'tr_ara_explanatory.explanatory_app.AppConfig'
+    'tr_ara_explanatory_exp.explanatory_exp_app.AppConfig',
     'tr_ara_improving.improving_app.AppConfig',
     'tr_ara_ncats.ncats_app.AppConfig',
     'tr_ara_robokop.robokop_app.AppConfig',
