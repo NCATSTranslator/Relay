@@ -13,8 +13,8 @@ infores:aragorn-ranker-exp: https://aragorn.renci.org
 infores:arax: https://arax.ncats.io/api/arax/v1.2
 infores:biothings-explorer: https://api.bte.ncats.io/v1
 infores:explanatory-agent: https://explanatory-agent.azurewebsites.net/v1.2
-infores:explanatory-agent-creative-mode: https://explanatory-agent.azurewebsites.net/v1.3
-infores:improving-agent: https://ia.healthdatascience.cloud/api/v1.2
+infores:explanatory-agent-creative-mode: https://explanatory-agent-creative.azurewebsites.net/ARA/v1.3
+infores:improving-agent: https://ia.ci.transltr.io/api/v1.3
 infores:example: http://transltr.io:7073
 infores:robokop: https://robokop.renci.org/ara
 infores:unsecret-agent: https://medikanren-trapi.ci.transltr.io
