@@ -8,7 +8,7 @@ class AppConfig(ARSAppConfig):
                'runquery', ['general'],
                'query')] # tuple of remote, name, channel
     app_path = 'ara-robokop'
-    regex_path = '^' + app_path + '/'
+    regex_path = '' + app_path + '/'
 
 ### code below this line is required, but doesn't require updating in most cases
 
