@@ -228,17 +228,17 @@ def get_report(req,inforesid):
         report={}
         now =timezone.now()
         if req.method == 'GET':
-            if req.GET.get('name', True):
-                time_threshold = now - timezone.timedelta(hours=24)
-                messages = Message.objects.filter(timestamp__gt=time_threshold,actor__inforesid__iendswith=inforesid)
-                for msg in messages:
-                    code = msg.code
-                    mid = msg.id
-                    time_start = msg.timestamp
-                    time_end = msg.updated_at
-                    time_elapsed = time_end - time_start
-                    result_count = msg.result_count
-                    report[str(mid)]= [code, str(time_elapsed), result_count]
+
+            time_threshold = now - timezone.timedelta(hours=24)
+            messages = Message.objects.filter(timestamp__gt=time_threshold,actor__inforesid__iendswith=inforesid)
+            for msg in messages:
+                code = msg.code
+                mid = msg.id
+                time_start = msg.timestamp
+                time_end = msg.updated_at
+                time_elapsed = time_end - time_start
+                result_count = msg.result_count
+                report[str(mid)]= [code, str(time_elapsed), result_count]
 
             return HttpResponse(json.dumps(report, indent=2), content_type='text/plain',
                                 status=200)
