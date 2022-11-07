@@ -238,8 +238,8 @@ def get_report(req,inforesid):
                 time_end = msg.updated_at
                 time_elapsed = time_end - time_start
                 result_count = msg.result_count
-                report[str(mid)]= [code, str(time_elapsed), result_count]
-
+                report[str(mid)]= {"status_code":code, "time_elapsed":str(time_elapsed), "result_count":result_count}
+          
             return HttpResponse(json.dumps(report, indent=2), content_type='text/plain',
                                 status=200)
     except Exception as e:
