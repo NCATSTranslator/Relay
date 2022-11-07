@@ -73,6 +73,11 @@ def send_message(actor_dict, mesg_dict, timeout=300):
         # ('W', 'Waiting'),
         # ('U', 'Unknown')
         if r.status_code == 200:
+            rdata = dict()
+            try:
+                rdata = r.json()
+            except json.decoder.JSONDecodeError:
+                status = 'E'
             # now create a new message here
             if(endpoint)=="asyncquery":
 
@@ -92,14 +97,11 @@ def send_message(actor_dict, mesg_dict, timeout=300):
                 logger.debug("Not async? "+query_endpoint)
                 status = 'D'
                 status_code = 200
+                mesg.result_count = len(rdata["message"]["results"])
 
             if 'tr_ars.message.status' in r.headers:
                 status = r.headers['tr_ars.message.status']
-            rdata = dict()
-            try:
-                rdata = r.json()
-            except json.decoder.JSONDecodeError:
-                status = 'E'
+
         else:
             if r.status_code == 202:
                 status = 'W'
