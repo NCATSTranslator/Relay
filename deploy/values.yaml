@@ -35,7 +35,7 @@ redis:
   containerPort: 6379
 
 service:
-  type: NodePort
+  type: ClusterIP
   port: 80
 
 ingress:
@@ -48,5 +48,6 @@ ingress:
     alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS":443}]'
     alb.ingress.kubernetes.io/actions.ssl-redirect: '{"Type": "redirect", "RedirectConfig": { "Protocol": "HTTPS", "Port": "443", "StatusCode": "HTTP_301"}}'
     alb.ingress.kubernetes.io/success-codes: '200'  
+    alb.ingress.kubernetes.io/target-type: ip
   host: ARS_HOSTNAME_VALUE    
 
