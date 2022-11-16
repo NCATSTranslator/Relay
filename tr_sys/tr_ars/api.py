@@ -278,9 +278,11 @@ def message(req, key):
             if 'tr_ars.message.status' in req.headers:
                 status = req.headers['tr_ars.message.status']
 
-            res=utils.get_safe(data,"fields","data","message","results")
+            res=utils.get_safe(data,"message","results")
             if res is not None:
-                mesg.result_count = len(data["fields"]["data"]["message"]["results"])
+                mesg.result_count = len(res)
+            else:
+                logger.debug("Message returned in unexpected format\n"+data)
 
 
             # create child message if this one already has results
