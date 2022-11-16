@@ -4,6 +4,7 @@ from django.core import serializers
 from django.shortcuts import redirect
 from django.urls import path, re_path, include, reverse
 from django.utils import timezone
+from utils import get_safe
 
 from utils2 import urlRemoteFromInforesid
 from .models import Agent, Message, Channel, Actor
@@ -277,7 +278,10 @@ def message(req, key):
             if 'tr_ars.message.status' in req.headers:
                 status = req.headers['tr_ars.message.status']
 
-            mesg.result_count = len(data["fields"]["data"]["message"]["results"])
+            res=get_safe(data,["fields","data","message","results"])
+            if res is not None:
+                mesg.result_count = len(data["fields"]["data"]["message"]["results"])
+            
 
             # create child message if this one already has results
             if mesg.data and 'results' in mesg.data and mesg.data['results'] != None and len(mesg.data['results']) > 0:
