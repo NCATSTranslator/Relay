@@ -170,6 +170,8 @@ def trace_message_deepfirst(node):
         n = {
             'message': str(child.id),
             'status': dict(Message.STATUS)[child.status],
+            #This cast to Int shouldn't be necessary, but it is coming through as Str in the CI environment despite
+            #having the same code base deployed there as in environments where it is working correctly
             'code': int(child.code),
             'actor': {
                 'pk': child.actor.pk,
