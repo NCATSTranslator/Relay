@@ -262,6 +262,10 @@ def message(req, key):
             actor = Actor.objects.get(pk=mesg.actor_id)
             mesg.name = actor.agent.name
             mesg_dict = mesg.to_dict()
+            code=utils.get_safe(mesg_dict,"fields","code")
+            if code is not None:
+                mesg_dict['fields']['code']=int(code)
+
             return HttpResponse(json.dumps(mesg_dict, indent=2),
                                 status=200)
 
