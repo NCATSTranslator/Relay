@@ -1,9 +1,13 @@
 import copy
 import json
+import logging
 import traceback
 import requests
 import urllib
 import sys
+from .models import Agent, Message, Channel, Actor
+from scipy.stats import rankdata
+
 NORMALIZER_URL='https://nodenormalization-sri.renci.org/1.2/get_normalized_nodes?'
 class QueryGraph():
     pass
@@ -348,3 +352,24 @@ def findSharedResults(sharedResults,messageList):
     for message in messageList:
         results = canonizeResults(message.getResults())
         canonicalResults.append(results)
+
+
+def normalizeScores(results):
+    if results is not None and len(results)>0:
+        scoreList = [d['score'] for d in results if 'score' in d]
+        ranked = list(rankdata(scoreList)*100/len(scoreList))
+        if(len(ranked)!=len(scoreList)):
+            logging.debug("Score normalization aborted.  Score list lengths not equal")
+            return results
+        for result in results:
+            result["normalized_score"]=ranked.pop(0)
+    return results
+
+def getMessagesForTesting(pk):
+    children = Message.objects.filter(ref__pk=pk)
+    messageList=[]
+    if children is not None:
+        for child in children:
+            childPk=child.id
+            messageList.append(Message.objects.get(pk=childPk))
+    return messageList
