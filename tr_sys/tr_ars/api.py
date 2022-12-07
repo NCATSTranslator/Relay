@@ -561,7 +561,8 @@ def timeoutTest(req,time=300):
     if req.method == 'POST':
         time.sleep(time)
     else:
-        utils.normalizeScores()
+        pass
+        #utils.normalizeScores()
 
 
 apipatterns = [
