@@ -3,6 +3,7 @@ from __future__ import absolute_import, unicode_literals
 import logging, requests, sys, json
 from celery import shared_task
 from tr_ars.models import Message, Actor
+from tr_ars import utils
 from celery.utils.log import get_task_logger
 from django.conf import settings
 from django.urls import reverse
@@ -10,6 +11,7 @@ import html
 from celery.decorators import task
 from tr_smartapi_client.smart_api_discover import SmartApiDiscover
 import traceback
+
 
 logger = get_task_logger(__name__)
 #logger.propagate = True
@@ -98,6 +100,11 @@ def send_message(actor_dict, mesg_dict, timeout=300):
                 status = 'D'
                 status_code = 200
                 mesg.result_count = len(rdata["message"]["results"])
+                results = utils.get_safe(rdata,"message","results")
+                if(results is not None):
+                    results = utils.normalizeScores(results)
+                    rdata["message"]["results"]=results
+
 
             if 'tr_ars.message.status' in r.headers:
                 status = r.headers['tr_ars.message.status']

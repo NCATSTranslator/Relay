@@ -287,6 +287,7 @@ def message(req, key):
             res=utils.get_safe(data,"message","results")
             if res is not None:
                 mesg.result_count = len(res)
+                data["message"]["results"] = utils.normalizeScores(res)
             else:
                 logger.debug("Message returned in unexpected format\n"+data)
 
@@ -565,6 +566,9 @@ def status(req):
 def timeoutTest(req,time=300):
     if req.method == 'POST':
         time.sleep(time)
+    else:
+        pass
+        #utils.normalizeScores()
 
 
 apipatterns = [
@@ -579,7 +583,7 @@ apipatterns = [
     re_path(r'^status/?$', status, name='ars-status'),
     re_path(r'^reports/?$', reports, name='ars-reports'),
     path('reports/<inforesid>',get_report,name='ars-report'),
-    re_path(r'^timeoutTst/?$', status, name='ars-timeout')
+    re_path(r'^timeoutTest/?$', timeoutTest, name='ars-timeout')
 
 ]
 
