@@ -14,3 +14,4 @@ factory-boy
 selenium
 pytest-factoryboy
 pytest
+scipy
