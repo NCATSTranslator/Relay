@@ -1,0 +1,35 @@
+{
+  "message": {
+    "query_graph": {
+      "edges": {
+        "e01": {
+          "object": "n1",
+          "predicates": [
+            "biolink:treats"
+          ],
+          "subject": "n0"
+        }
+      },
+      "nodes": {
+        "n0": {
+          "categories": [
+            "biolink:Drug",
+            "biolink:ChemicalEntity"
+          ],
+          "ids": [
+            "DRUGBANK:DB00394",
+            "CHEBI:75725"
+          ]
+        },
+        "n1": {
+          "categories": [
+            "biolink:Disease"
+          ]
+        }
+      }
+    }
+  },
+  "query_options": {
+    "n_results": 2
+  }
+}
