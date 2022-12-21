@@ -1,6 +1,6 @@
 # Create your celery tasks here
 from __future__ import absolute_import, unicode_literals
-import logging, requests, sys, json
+import logging, requests, sys, json, queue, time
 from celery import shared_task
 from tr_ars.models import Message, Actor
 from tr_ars import utils
@@ -11,6 +11,7 @@ import html
 from celery.decorators import task
 from tr_smartapi_client.smart_api_discover import SmartApiDiscover
 import traceback
+import tr_ars.pubsub as pubsub
 
 
 logger = get_task_logger(__name__)
@@ -95,6 +96,14 @@ def send_message(actor_dict, mesg_dict, timeout=300):
                         logger.debug("data field contains "+ arj["fields"]["data"]["message"])
                         status = 'D'
                         status_code = 200
+                timeoutQ = pubsub.TimeoutQueue()
+                record = {
+                    'pk': mesg.id,
+                    'timestamp': mesg.timestamp,
+                    'actor': inforesid
+                }
+                timeoutQ.Add(record)
+                
             else:
                 logger.debug("Not async? "+query_endpoint)
                 status = 'D'
@@ -134,3 +143,8 @@ def send_message(actor_dict, mesg_dict, timeout=300):
     mesg.url = url
     mesg.save()
     logger.debug('+++ message saved: %s' % (mesg.pk))
+
+@shared_task(name="checking_timeout_async_tools")
+def catch_timeout_messages():
+    timeoutQ = pubsub.TimeoutQueue()
+    timeoutQ.Check(time=120)

@@ -64,7 +64,7 @@ def my_signal_handler(*args):
         logger.debug('STOPPED')
     if len(sys.argv) > 1 and sys.argv[1] == 'runserver':
         from . import pubsub    
-        pubsub.queue.put((None, None))
+        pubsub.queue1.put((None, None))
     sys.exit(0)
         
 class ARSConfig(AppConfig):
