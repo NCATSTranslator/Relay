@@ -57,24 +57,34 @@ pipeline {
         stage('Build Docker') {
            when { expression { return env.BUILD == 'true' }}
             steps {
-                script {
-                    docker.build(env.DOCKER_REPO_NAME, "--build-arg SOURCE_FOLDER=./${BUILD_VERSION} --no-cache ./")
-                    docker.withRegistry('https://853771734544.dkr.ecr.us-east-1.amazonaws.com', 'ecr:us-east-1:aws-ifx-deploy') {
-                        docker.image(env.DOCKER_REPO_NAME).push("${BUILD_VERSION}")
+                withEnv([
+                    "IMAGE_NAME=853771734544.dkr.ecr.us-east-1.amazonaws.com/translator-ars",
+                    "BUILD_VERSION=" + (params.BUILD_VERSION ?: env.BUILD_VERSION)
+                ]) {
+                    script {
+                        docker.build("${env.IMAGE_NAME}", "--build-arg SOURCE_FOLDER=./${BUILD_VERSION} --no-cache ./")
+                        sh '''
+                        docker login -u AWS -p $(aws ecr get-login-password --region us-east-1) 853771734544.dkr.ecr.us-east-1.amazonaws.com
+                        '''
+                        docker.image("${env.IMAGE_NAME}").push("${BUILD_VERSION}")
                     }
                 }
-            }
+            }    
         }
         stage('Deploy to AWS EKS Blue') {
+            agent { label 'translator && ci && deploy'}
             steps {
                 configFileProvider([
-                    configFile(fileId: 'values-ci.yaml', targetLocation: 'deploy/values-ncats.yaml'),
-                    configFile(fileId: 'ars-settings.py', targetLocation: 'deploy/configs/settings.py')
+                    configFile(fileId: 'values-ci.yaml', targetLocation: 'values-ncats.yaml'),
                 ]){
-                    withAWS(credentials:'aws-ifx-deploy') {
+                    script {
                         sh '''
                         aws --region ${AWS_REGION} eks update-kubeconfig --name ${KUBERNETES_BLUE_CLUSTER_NAME}
-                        cd deploy && /bin/bash deploy.sh
+                        settings.py=$(aws --region us-east-1 secretsmanager get-secret-value --secret-id TranslatorCIARSAppSettingspySecret)
+                        git clone git@github.com:NCATSTranslator/Relay.git
+                        cp $settings.py Relay/deploy/configs/settings.py
+                        cp values-ncats.yaml Relay/deploy/ 
+                        cd Relay/deploy && /bin/bash deploy.sh
                         '''
                     }
                 }
