@@ -76,6 +76,7 @@ pipeline {
                     script {
                         sh '''
                         aws --region ${AWS_REGION} eks update-kubeconfig --name ${KUBERNETES_BLUE_CLUSTER_NAME}
+                        ls deploy/configs
                         cd deploy && /bin/bash arscidb.sh && /bin/bash deploy.sh 
                         '''
                     }
