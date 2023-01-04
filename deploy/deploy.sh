@@ -10,6 +10,7 @@ sed -i.bak \
     -e "s/ENGINE_VALUE/$ENGINE/g;s/DBNAME_VALUE/$DBNAME/g" \
     -e "s/USERNAME_VALUE/$USERNAME/g;s/PASSWORD_VALUE/$PASSWORD/g" \
     -e "s/HOST_VALUE/$HOST/g;s/PORT_VALUE/$PORT/g" \
+    -e "s/DEFAULT_HOST_VALUE/$DEFAULT_HOST/g" \
     configs/settings.py
 rm configs/settings.py.bak    
 
