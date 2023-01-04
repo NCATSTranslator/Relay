@@ -91,14 +91,6 @@ pipeline {
                 }
             }
         }
-        stage('Clean up workspace in deploy node') {
-            agent {
-                label 'translator && ci && deploy'
-            }
-            steps {
-                cleanWs()
-            }
-        }
         stage("Pytest Integration Testing") {
             steps {
                 withEnv([
@@ -164,6 +156,14 @@ pipeline {
                         echo err
                     }
                 }
+            }
+        }
+        stage('Clean up workspace in deploy node') {
+            agent {
+                label 'translator && ci && deploy'
+            }
+            steps {
+                cleanWs()
             }
         }
     }
