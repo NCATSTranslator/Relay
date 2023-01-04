@@ -5,6 +5,7 @@ import os
 from celery import Celery
 from celery.schedules import crontab
 
+
 # set the default Django settings module for the 'celery' program.
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'tr_sys.settings')
 
@@ -27,8 +28,8 @@ def debug_task(self):
 
 app.conf.beat_schedule = {
  #Excute the timeout fucntion every 5 min
-    'catch_timeout_message':{
-        'task': 'catch_timeout_messages',
+    'checking_timeout_5min':{
+        'task': 'catch_timeout',
         'schedule': crontab(minute='*/5'),
     },
 }

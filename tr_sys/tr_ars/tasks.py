@@ -144,7 +144,7 @@ def send_message(actor_dict, mesg_dict, timeout=300):
     mesg.save()
     logger.debug('+++ message saved: %s' % (mesg.pk))
 
-@shared_task(name="checking_timeout_async_tools")
-def catch_timeout_messages():
+@shared_task(name="catch_timeout")
+def catch_timeout_async():
     timeoutQ = pubsub.TimeoutQueue()
-    timeoutQ.Check(time=120)
+    timeoutQ.Check(time=600)

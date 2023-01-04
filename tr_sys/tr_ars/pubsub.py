@@ -53,6 +53,7 @@ class TimeoutQueue(metaclass=Singleton):
         super()
 
     def Add(self, record):
+        logger.info(f'adding the following record to the queue: {record}')
         self.q.put(record)
 
     def getQ(self):
@@ -60,18 +61,22 @@ class TimeoutQueue(metaclass=Singleton):
 
     def Check(self, time):
         timeq = self.q
-        first = timeq.queue[0]
-        now = timezone.now()
-        time_diff = now - first["timestamp"]
-        if time_diff.total_seconds() > time:
-            mesg = Message.objects.get(pk=first["pk"])
-            if mesg.status == 'R':
-                logger.info('the ARA tool has not sent their resposne back after 15min, setting status to 598')
-                mesg.code = 598
-                mesg.status = 'E'
-                mesg.save()
-            timeq.queue.popleft()
-            self.Check(time)
+        if not timeq.empty():
+            logger.info(f'the length of the queue before {len(timeq.queue)} and the content of it is: {timeq.queue}')
+            item = timeq.queue[0]
+            logger.info(f'the length of the queue after {len(timeq.queue)} and the content of it is: {timeq.queue}')
+            now = timezone.now()
+            time_diff = now - item["timestamp"]
+            if time_diff.total_seconds() > time:
+                mesg = Message.objects.get(pk=item["pk"])
+                if mesg.status == 'R':
+                    logger.info(f'for actor: {mesg.actor}, the status is {mesg.status}')
+                    logger.info('the ARA tool has not sent their resposne back after 15min, setting status to 598')
+                    mesg.code = 598
+                    mesg.status = 'E'
+                    mesg.save()
+                timeq.queue.popleft()
+                self.Check(time)
 
 if len(sys.argv) > 1 and sys.argv[1] == 'runserver':
     BackgroundWorker().start()
