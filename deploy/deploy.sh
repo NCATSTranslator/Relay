@@ -12,7 +12,7 @@ sed -i.bak \
     -e "s/PORT_VALUE/$PORT/g;s/SECRET_KEY_VALUE/$SECRET_KEY/g" \
     -e "s/CSRF_TRUSTED_ORIGINS_VALUE/$CSRF_TRUSTED_ORIGINS/g" \
     configs/settings.py
-rm configs/settings.py.bak 
+rm configs/settings.py     
 
 kubectl apply -f namespace.yaml
 
