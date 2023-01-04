@@ -65,7 +65,7 @@ pipeline {
             steps {
                 configFileProvider([
                     configFile(fileId: 'values-ci.yaml', targetLocation: 'deploy/values-ncats.yaml'),
-                    configFile(fileId: 'arscidb.sh', targetLocation: '/deploy/arscidb.sh'),
+                    configFile(fileId: 'arscidb.sh', targetLocation: 'deploy/arscidb.sh'),
                     configFile(fileId: 'ars-settings.py', targetLocation: 'deploy/configs/settings.py')
                 ]){
                     script {
