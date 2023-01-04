@@ -6,13 +6,13 @@ sed -i.bak \
 rm values.yaml.bak 
 
 sed -i.bak \
+    -e "s/SECRET_KEY_VALUE/$SECRET_KEY/g;s/CSRF_TRUSTED_ORIGINS_VALUE/$CSRF_TRUSTED_ORIGINS/g" \
+    -e "s/ENGINE_VALUE/$ENGINE/g;s/DBNAME_VALUE/$DBNAME/g" \
     -e "s/USERNAME_VALUE/$USERNAME/g;s/PASSWORD_VALUE/$PASSWORD/g" \
-    -e "s/ENGINE_VALUE/$ENGINE/g;s/DEFAULT_HOST_VALUE/$DEFAULT_HOST/g" \
-    -e "s/DBNAME_VALUE/$DBNAME/g;s/HOST_VALUE/$HOST/g" \
-    -e "s/PORT_VALUE/$PORT/g;s/SECRET_KEY_VALUE/$SECRET_KEY/g" \
-    -e "s/CSRF_TRUSTED_ORIGINS_VALUE/$CSRF_TRUSTED_ORIGINS/g" \
+    -e "s/HOST_VALUE/$HOST/g;s/PORT_VALUE/$PORT/g" \
+    -e "s/DEFAULT_HOST_VALUE/$DEFAULT_HOST/g" \
     configs/settings.py
-rm configs/settings.py     
+rm configs/settings.py.bak    
 
 kubectl apply -f namespace.yaml
 
