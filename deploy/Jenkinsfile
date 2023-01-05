@@ -39,6 +39,20 @@ pipeline {
                 cleanWs()
                 checkout scm
             }
+        }
+        stage("Pytest Unit Testing") {
+            steps {
+                script {
+                    withPythonEnv('python3.9') {
+                        sh 'python --version'
+                        sh 'pip install -r requirements.txt'
+                        def statusCode = sh(script: "pytest tr_sys/tr_ars/tests/unit/test_unit.py", returnStatus:true)
+                        if (statusCode != 0) {
+                            error 'unit test failed, exiting ....'
+                        }
+                    }
+                }
+            }
         }       
         stage('Build Docker') {
            when { expression { return env.BUILD == 'true' }}
