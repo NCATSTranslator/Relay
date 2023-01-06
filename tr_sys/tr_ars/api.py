@@ -569,8 +569,6 @@ def timeoutTest(req,time=300):
     if req.method == 'POST':
         time.sleep(time)
     else:
-        #timeoutQ = pubsub.TimeoutQueue()
-        #timeoutQ.Check(time=180)
         pass
 
 apipatterns = [
