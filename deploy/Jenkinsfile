@@ -154,10 +154,6 @@ pipeline {
                         echo err
                     }
                 }
-            }
-        }
-        stage('Clean up workspace') {
-            steps {
                 cleanWs()
             }
         }
