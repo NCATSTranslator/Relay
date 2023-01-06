@@ -77,7 +77,7 @@ pipeline {
                 checkout scm
                 configFileProvider([
                     configFile(fileId: 'values-ci.yaml', targetLocation: 'deploy/values-ncats.yaml'),
-                    configFile(fileId: 'arscidb.sh', targetLocation: 'deploy/arscidb.sh'),
+                    configFile(fileId: 'prepare.sh', targetLocation: 'deploy/prepare.sh'),
                     configFile(fileId: 'ars-settings.py', targetLocation: 'deploy/configs/settings.py')
                 ]){
                     script {
@@ -154,7 +154,12 @@ pipeline {
                         echo err
                     }
                 }
-                cleanWs()
+            }
+            post {
+                always {
+                    echo " Clean up the workspace in deploy node!"
+                    cleanWs()
+                }
             }
         }
     }
