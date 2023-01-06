@@ -83,9 +83,15 @@ pipeline {
                     script {
                         sh '''
                         aws --region ${AWS_REGION} eks update-kubeconfig --name ${KUBERNETES_BLUE_CLUSTER_NAME}
-                        cd deploy && /bin/bash arscidb.sh && /bin/bash deploy.sh 
+                        cd deploy && /bin/bash prepare.sh && /bin/bash deploy.sh 
                         '''
                     }
+                }
+            }
+            post {
+                always {
+                    echo " Clean up the workspace in deploy node!"
+                    cleanWs()
                 }
             }
         }
@@ -153,12 +159,6 @@ pipeline {
                     catch (err){
                         echo err
                     }
-                }
-            }
-            post {
-                always {
-                    echo " Clean up the workspace in deploy node!"
-                    cleanWs()
                 }
             }
         }
