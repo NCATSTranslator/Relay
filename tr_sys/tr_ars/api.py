@@ -235,16 +235,16 @@ def get_report(req,inforesid):
         if req.method == 'GET':
 
             time_threshold = now - timezone.timedelta(hours=24)
-            messages = Message.objects.filter(timestamp__gt=time_threshold,actor__inforesid__iendswith=inforesid)
+            messages = Message.objects.filter(timestamp__gt=time_threshold,actor__inforesid__iendswith=inforesid).values_list('code','id','timestamp','updated_at','result_count')
             for msg in messages:
-                code = msg.code
-                mid = msg.id
-                time_start = msg.timestamp
-                time_end = msg.updated_at
+                code = msg[0]
+                mid = msg[1]
+                time_start = msg[2]
+                time_end = msg[3]
                 time_elapsed = time_end - time_start
-                result_count = msg.result_count
+                result_count = msg[4]
                 report[str(mid)]= {"status_code":code, "time_elapsed":str(time_elapsed), "result_count":result_count}
-          
+
             return HttpResponse(json.dumps(report, indent=2), content_type='text/plain',
                                 status=200)
     except Exception as e:
