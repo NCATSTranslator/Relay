@@ -5,7 +5,6 @@ from django.shortcuts import redirect
 from django.urls import path, re_path, include, reverse
 from django.utils import timezone
 from tr_ars import utils
-import tr_ars.pubsub as pubsub
 from utils2 import urlRemoteFromInforesid
 from .models import Agent, Message, Channel, Actor
 import json, sys, logging

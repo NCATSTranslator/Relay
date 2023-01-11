@@ -1,6 +1,6 @@
 # Create your celery tasks here
 from __future__ import absolute_import, unicode_literals
-import logging, requests, sys, json, queue, time
+import logging, requests, sys, json
 from celery import shared_task
 from tr_ars.models import Message, Actor
 from tr_ars import utils
@@ -150,7 +150,7 @@ def catch_timeout_async():
             status = mesg.status
             if status == 'R':
                 logger.info(f'for actor: {mesg.actor}, the status is {mesg.status}')
-                logger.info('the ARA tool has not sent their resposne back after 10min, setting status to 598')
+                logger.info('the ARA tool has not sent their response back after 10min, setting status to 598')
                 mesg.code = 598
                 mesg.status = 'E'
                 mesg.save()
