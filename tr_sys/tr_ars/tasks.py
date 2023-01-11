@@ -11,6 +11,8 @@ import html
 from celery.decorators import task
 from tr_smartapi_client.smart_api_discover import SmartApiDiscover
 import traceback
+from django.utils import timezone
+
 
 
 logger = get_task_logger(__name__)
@@ -134,3 +136,23 @@ def send_message(actor_dict, mesg_dict, timeout=300):
     mesg.url = url
     mesg.save()
     logger.debug('+++ message saved: %s' % (mesg.pk))
+
+@shared_task(name="catch_timeout")
+def catch_timeout_async():
+    now =timezone.now()
+    time_threshold = now - timezone.timedelta(minutes=10)
+    messages = Message.objects.filter(timestamp__lt=time_threshold, status__in='R')
+    for mesg in messages:
+        agent = str(mesg.actor.agent.name)
+        if agent == 'ars-default-agent':
+            continue
+        else:
+            status = mesg.status
+            if status == 'R':
+                logger.info(f'for actor: {mesg.actor}, the status is {mesg.status}')
+                logger.info('the ARA tool has not sent their response back after 10min, setting status to 598')
+                mesg.code = 598
+                mesg.status = 'E'
+                mesg.save()
+            else:
+                logger.error('ARS encountered unrecognizable status')

@@ -5,7 +5,6 @@ from django.shortcuts import redirect
 from django.urls import path, re_path, include, reverse
 from django.utils import timezone
 from tr_ars import utils
-
 from utils2 import urlRemoteFromInforesid
 from .models import Agent, Message, Channel, Actor
 import json, sys, logging
@@ -170,6 +169,8 @@ def trace_message_deepfirst(node):
         n = {
             'message': str(child.id),
             'status': dict(Message.STATUS)[child.status],
+            'parent' : str(node['message']),
+            'result_count' : str(child.result_count),
             #This cast to Int shouldn't be necessary, but it is coming through as Str in the CI environment despite
             #having the same code base deployed there as in environments where it is working correctly
             'code': int(child.code),
@@ -204,8 +205,8 @@ def trace_message(req, key):
                 'channel':channel_names,
                 'agent': mesg.actor.agent.name,
                 'path': mesg.actor.path
-
             },
+            'query_graph': dict(mesg.data['message']['query_graph']),
             'children': []
         }
         trace_message_deepfirst(tree)
@@ -568,8 +569,6 @@ def timeoutTest(req,time=300):
         time.sleep(time)
     else:
         pass
-        #utils.normalizeScores()
-
 
 apipatterns = [
     path('', index, name='ars-api'),
