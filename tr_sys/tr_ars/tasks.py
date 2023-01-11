@@ -8,7 +8,6 @@ from celery.utils.log import get_task_logger
 from django.conf import settings
 from django.urls import reverse
 import html
-from celery.decorators import task
 from tr_smartapi_client.smart_api_discover import SmartApiDiscover
 import traceback
 from django.utils import timezone
