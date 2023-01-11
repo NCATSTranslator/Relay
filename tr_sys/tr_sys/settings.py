@@ -64,6 +64,7 @@ INSTALLED_APPS = [
     'tr_kp_icees_pcd.icees_pcd_app.AppConfig',
     'django_celery_results',
     'markdownify',
+    'django_celery_beat',
 ]
 
 MIDDLEWARE = [
@@ -216,7 +217,9 @@ STATICFILES_DIRS = (
 CELERY_RESULT_BACKEND = 'django-db'
 CELERY_CACHE_BACKEND = 'django-cache'
 CELERY_BROKER_URL = 'amqp://localhost'
-
+CELERY_IMPORTS = [
+    'tr_ars.tasks',
+]
 # Other important shared settings
 DATA_UPLOAD_MAX_MEMORY_SIZE=1073741824
 
