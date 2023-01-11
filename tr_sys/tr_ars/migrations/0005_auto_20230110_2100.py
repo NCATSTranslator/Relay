@@ -10,19 +10,4 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.AddField(
-            model_name='message',
-            name='result_count',
-            field=models.IntegerField(default=None, null=True),
-        ),
-        migrations.AddField(
-            model_name='message',
-            name='updated_at',
-            field=models.DateTimeField(auto_now=True),
-        ),
-        migrations.AlterField(
-            model_name='message',
-            name='timestamp',
-            field=models.DateTimeField(auto_now_add=True),
-        ),
     ]
