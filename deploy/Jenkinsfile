@@ -100,7 +100,8 @@ pipeline {
                 withEnv([
                     "TARGET_HOST=ars.ci.transltr.io"
                 ]) {
-                   script {
+                    script {
+                        sleep(time:2, unit:"MINUTES")
                         withPythonEnv('python3.9') {
                             def statusCode = sh(script: "pytest tr_sys/tr_ars/tests/integration/test_integration.py", returnStatus:true)
                             print(statusCode)
@@ -108,7 +109,7 @@ pipeline {
                                 error 'integration test failed, exiting ....'
                             }
                         }
-                   }
+                    }
                 }
             }
         }
