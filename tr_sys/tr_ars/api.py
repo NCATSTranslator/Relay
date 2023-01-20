@@ -5,7 +5,7 @@ from django.shortcuts import redirect
 from django.urls import path, re_path, include, reverse
 from django.utils import timezone
 from tr_ars import utils
-
+from tr_smartapi_client.smart_api_discover import SmartApiDiscover
 from utils2 import urlRemoteFromInforesid
 from .models import Agent, Message, Channel, Actor
 import json, sys, logging
@@ -57,6 +57,15 @@ WORKFLOW_ACTOR = {
     'path': '',
     'inforesid': ''
 }
+ARS_ACTOR = {
+    'channel': ['general'],
+    'agent': {
+        'name': 'ars-ars-agent',
+        'uri': ''
+    },
+    'path': '',
+    'inforesid': 'ARS'
+}
 
 def get_default_actor():
     # default actor is the first actor initialized in the database per
@@ -67,6 +76,8 @@ def get_workflow_actor():
     # apps.setup_schema()
     print("boop")
     return get_or_create_actor(WORKFLOW_ACTOR)[0]
+def get_ars_actor():
+    return get_or_create_actor(ARS_ACTOR)[0]
 
 @csrf_exempt
 def submit(req):
@@ -181,6 +192,7 @@ def trace_message_deepfirst(node):
                 'agent': child.actor.agent.name,
                 'path': child.actor.path
             },
+            'result_count': child.result_count,
             'children': []
         }
         trace_message_deepfirst(n)
@@ -204,8 +216,8 @@ def trace_message(req, key):
                 'channel':channel_names,
                 'agent': mesg.actor.agent.name,
                 'path': mesg.actor.path
-
             },
+            'result_count': mesg.result_count,
             'children': []
         }
         trace_message_deepfirst(tree)
@@ -248,7 +260,73 @@ def get_report(req,inforesid):
     except Exception as e:
         print(e.__traceback__)
         print(inforesid)
+def filter_message_deepfirst(child_dict, filter, arg):
 
+    rdata = child_dict['fields']['data']
+    results = rdata['message']['results']
+    kg_nodes = rdata['message']['knowledge_graph']['nodes']
+    
+    if filter == 'hop':
+        filter_response = utils.hop_level_filter(results, arg)
+    elif filter == 'confidence':
+        filter_response = utils.confidence_level_filter(results, arg)
+    elif filter == 'node_type':
+        filter_response = utils.node_type_filter(kg_nodes, results, arg)
+    elif filter == 'spec_node':
+        filter_response = utils.specific_node_filter(results, arg)
+
+    rdata['message']['results'] = filter_response
+    final_result_count = len(filter_response)
+    return rdata, final_result_count
+
+def filter_message(key, filter, arg):
+    mesg = Message.objects.get(pk=key)
+    if str(mesg.actor.agent.name) == 'ars-default-agent':
+        new_mesg = Message.create(actor=get_default_actor(), code=200, status='Done')
+        new_mesg.save()
+        children = Message.objects.filter(ref__pk=str(mesg.pk))
+        for child in children:
+            if child.status == "D" and child.result_count != 0:
+                inforesid = str(child.actor.inforesid)
+                child_dict = child.to_dict()
+                rdata_filtered, final_result_count = filter_message_deepfirst(child_dict, filter, arg)
+                child_mesg = Message.create(actor=Actor.objects.get(pk=int(child.actor_id)), ref=Message.objects.get(pk=new_mesg.pk), code=200, status='Done')
+                child_mesg.result_count = final_result_count
+                child_mesg.data= rdata_filtered
+                child_mesg.save()
+        return HttpResponse('your new parent pk is %s' % new_mesg.pk, status=200)
+    else:
+        if mesg.status == "D" and mesg.result_count != 0:
+            inforesid = str(mesg.actor.inforesid)
+            mesg_dict = mesg.to_dict()
+            rdata_filtered, final_result_count = filter_message_deepfirst(mesg_dict, filter, arg)
+            child_mesg = Message.create(actor=Actor.objects.get(pk=int(mesg.actor_id)), code=200, status='Done')
+            child_mesg.result_count = final_result_count
+            child_mesg.data = rdata_filtered
+            child_mesg.save()
+        else:
+            return HttpResponse('message doesnt have results or marked as "Done"', status=400)
+
+        return HttpResponse('your new child pk is %s' % child_mesg.pk, status=200)
+
+@csrf_exempt
+def filter(req, key):
+    logger.debug("entering filter endpoint %s " % key)
+    try:
+        if req.method == 'GET':
+            if req.GET.get('hop', False):
+                return filter_message(key, 'hop', 4)
+            elif req.GET.get('confidence', False):
+                return filter_message(key, 'confidence', (0.2, 40.2))
+            elif req.GET.get('node_type', False):
+                return filter_message(key, 'node_type', ['ChemicalEntity'])
+            elif req.GET.get('spec_node', False):
+                return filter_message(key, 'spec_node', ['NCBIGene:2064', 'MONDO:0005147'])
+            else:
+                return HttpResponse('unknown filter')
+            
+    except Exception as e:
+       print(e.__traceback__)
 
 @csrf_exempt
 def message(req, key):
@@ -580,6 +658,7 @@ apipatterns = [
     re_path(r'^channels/?$', channels, name='ars-channels'),
     path('agents/<name>', get_agent, name='ars-agent'),
     path('messages/<uuid:key>', message, name='ars-message'),
+    path('filter/<uuid:key>', filter, name='ars-filter'),
     re_path(r'^status/?$', status, name='ars-status'),
     re_path(r'^reports/?$', reports, name='ars-reports'),
     path('reports/<inforesid>',get_report,name='ars-report'),

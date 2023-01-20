@@ -13,6 +13,7 @@ apipatterns = [
     re_path(r'^channels/?$', api.channels, name='ars-channels'),
     path('agents/<name>', api.get_agent, name='ars-agent'),
     path('messages/<uuid:key>', api.message, name='ars-message'),
+    path('filter/<uuid:key>', api.filter, name='ars-filter'),
     re_path(r'^reports/?$', api.reports, name='ars-reports'),
     path('reports/<inforesid>',api.get_report,name='ars-report'),
     re_path(r'^status/?$', api.status, name='ars-status'),
