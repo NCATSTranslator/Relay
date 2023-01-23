@@ -14,6 +14,7 @@ from inspect import currentframe, getframeinfo
 from tr_ars import status_report
 from datetime import datetime, timedelta
 from tr_ars.tasks import send_message
+import ast
 
 #from reasoner_validator import validate_Message, ValidationError, validate_Query
 
@@ -260,6 +261,7 @@ def get_report(req,inforesid):
     except Exception as e:
         print(e.__traceback__)
         print(inforesid)
+
 def filter_message_deepfirst(child_dict, filter, arg):
 
     rdata = child_dict['fields']['data']
@@ -312,21 +314,13 @@ def filter_message(key, filter, arg):
 @csrf_exempt
 def filter(req, key):
     logger.debug("entering filter endpoint %s " % key)
-    try:
-        if req.method == 'GET':
-            if req.GET.get('hop', False):
-                return filter_message(key, 'hop', 4)
-            elif req.GET.get('confidence', False):
-                return filter_message(key, 'confidence', (0.2, 40.2))
-            elif req.GET.get('node_type', False):
-                return filter_message(key, 'node_type', ['ChemicalEntity'])
-            elif req.GET.get('spec_node', False):
-                return filter_message(key, 'spec_node', ['NCBIGene:2064', 'MONDO:0005147'])
-            else:
-                return HttpResponse('unknown filter')
-            
-    except Exception as e:
-       print(e.__traceback__)
+    accepted_filters = ['hop', 'confidence', 'node_type', 'spec_node']
+    if req.method == 'GET':
+        for filter in accepted_filters:
+            if filter in req.GET:
+                arg = ast.literal_eval((req.GET.get(filter)))
+                return filter_message(key, filter, arg)
+    return HttpResponse('Only GET is permitted!', status=405)
 
 @csrf_exempt
 def message(req, key):

@@ -400,7 +400,6 @@ def node_type_filter(kg_nodes, results, forbidden_category):
             for val in res_value:
                 ids.append(str(val['id']))
         if any(item in ids for item in forbidden_nodes):
-
             results.remove(result)
     return results
 
