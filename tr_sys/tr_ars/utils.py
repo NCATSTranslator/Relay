@@ -379,7 +379,7 @@ def hop_level_filter(results, hop_limit):
     filtered_result = list(filter(lambda result: (len(result['node_bindings'].keys())) < hop_limit, results))
     return filtered_result
 
-def confidence_level_filter(results, range):
+def score_filter(results, range):
 
     filtered_result = list(filter(lambda result: range[0] < result["normalized_score"] < range[1], results))
     return filtered_result

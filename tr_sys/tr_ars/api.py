@@ -270,8 +270,8 @@ def filter_message_deepfirst(child_dict, filter, arg):
     
     if filter == 'hop':
         filter_response = utils.hop_level_filter(results, arg)
-    elif filter == 'confidence':
-        filter_response = utils.confidence_level_filter(results, arg)
+    elif filter == 'score':
+        filter_response = utils.score_filter(results, arg)
     elif filter == 'node_type':
         filter_response = utils.node_type_filter(kg_nodes, results, arg)
     elif filter == 'spec_node':
@@ -289,7 +289,6 @@ def filter_message(key, filter, arg):
         children = Message.objects.filter(ref__pk=str(mesg.pk))
         for child in children:
             if child.status == "D" and child.result_count != 0:
-                inforesid = str(child.actor.inforesid)
                 child_dict = child.to_dict()
                 rdata_filtered, final_result_count = filter_message_deepfirst(child_dict, filter, arg)
                 child_mesg = Message.create(actor=Actor.objects.get(pk=int(child.actor_id)), ref=Message.objects.get(pk=new_mesg.pk), code=200, status='Done')
@@ -299,7 +298,6 @@ def filter_message(key, filter, arg):
         return HttpResponse('your new parent pk is %s' % new_mesg.pk, status=200)
     else:
         if mesg.status == "D" and mesg.result_count != 0:
-            inforesid = str(mesg.actor.inforesid)
             mesg_dict = mesg.to_dict()
             rdata_filtered, final_result_count = filter_message_deepfirst(mesg_dict, filter, arg)
             child_mesg = Message.create(actor=Actor.objects.get(pk=int(mesg.actor_id)), code=200, status='Done')
@@ -314,7 +312,7 @@ def filter_message(key, filter, arg):
 @csrf_exempt
 def filter(req, key):
     logger.debug("entering filter endpoint %s " % key)
-    accepted_filters = ['hop', 'confidence', 'node_type', 'spec_node']
+    accepted_filters = ['hop', 'score', 'node_type', 'spec_node']
     if req.method == 'GET':
         for filter in accepted_filters:
             if filter in req.GET:
