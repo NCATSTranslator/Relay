@@ -355,9 +355,11 @@ def findSharedResults(sharedResults,messageList):
         canonicalResults.append(results)
 
 def ScoreStatCalc(results):
+    stat={}
     if results is not None and len(results)>0:
-        stat={}
         scoreList = [d['score'] for d in results if 'score' in d]
+        if len(scoreList) == 0:
+            return stat
         stat['median'] = statistics.median(scoreList)
         stat['mean'] = statistics.mean(scoreList)
         stat['stdev'] = statistics.stdev(scoreList)
@@ -373,8 +375,9 @@ def normalizeScores(results):
         if(len(ranked)!=len(scoreList)):
             logging.debug("Score normalization aborted.  Score list lengths not equal")
             return results
-        for result in results:
-            result["normalized_score"]=ranked.pop(0)
+        if ranked:
+            for result in results:
+                result["normalized_score"]=ranked.pop(0)
     return results
 
 def getMessagesForTesting(pk):

@@ -16,3 +16,4 @@ pytest-factoryboy
 pytest
 scipy
 django-celery-beat
+statistics

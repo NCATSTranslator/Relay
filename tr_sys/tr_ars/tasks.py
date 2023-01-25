@@ -100,14 +100,13 @@ def send_message(actor_dict, mesg_dict, timeout=300):
                 logger.debug("Not async? "+query_endpoint)
                 status = 'D'
                 status_code = 200
-                mesg.result_count = len(rdata["message"]["results"])
                 results = utils.get_safe(rdata,"message","results")
-                if(results is not None):
-                    results = utils.normalizeScores(results)
-                    ScoreStat = utils.ScoreStatCalc(results)
-                    rdata["message"]["results"]=results
-                    rdata["message"]["stat"]=ScoreStat
-
+                if results is not None:
+                    mesg.result_count = len(rdata["message"]["results"])
+                    if len(results)>0:
+                        rdata["message"]["results"] = utils.normalizeScores(results)
+                        scorestat = utils.ScoreStatCalc(results)
+                        mesg.result_stat = scorestat
             if 'tr_ars.message.status' in r.headers:
                 status = r.headers['tr_ars.message.status']
 
