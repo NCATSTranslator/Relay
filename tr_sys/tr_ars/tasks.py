@@ -104,8 +104,9 @@ def send_message(actor_dict, mesg_dict, timeout=300):
                 results = utils.get_safe(rdata,"message","results")
                 if(results is not None):
                     results = utils.normalizeScores(results)
+                    ScoreStat = utils.ScoreStatCalc(results)
                     rdata["message"]["results"]=results
-
+                    rdata["message"]["stat"]=ScoreStat
 
             if 'tr_ars.message.status' in r.headers:
                 status = r.headers['tr_ars.message.status']
