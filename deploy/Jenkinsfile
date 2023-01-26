@@ -158,7 +158,7 @@ pipeline {
                         }
                     }
                     catch (err){
-                        echo err
+                        print err
                     }
                 }
             }
