@@ -171,6 +171,7 @@ def trace_message_deepfirst(node):
             'status': dict(Message.STATUS)[child.status],
             'parent' : str(node['message']),
             'result_count' : str(child.result_count),
+            'result_stat' : child.result_stat,
             #This cast to Int shouldn't be necessary, but it is coming through as Str in the CI environment despite
             #having the same code base deployed there as in environments where it is working correctly
             'code': int(child.code),
@@ -288,11 +289,12 @@ def message(req, key):
             res=utils.get_safe(data,"message","results")
             if res is not None:
                 mesg.result_count = len(res)
-                data["message"]["results"] = utils.normalizeScores(res)
+                if len(res)>0:
+                    data["message"]["results"] = utils.normalizeScores(res)
+                    scorestat = utils.ScoreStatCalc(res)
+                    mesg.stat_result = scorestat
             else:
                 logger.debug("Message returned in unexpected format\n"+data)
-
-
             # create child message if this one already has results
             if mesg.data and 'results' in mesg.data and mesg.data['results'] != None and len(mesg.data['results']) > 0:
                 mesg = Message.create(name=mesg.name, status=status,
