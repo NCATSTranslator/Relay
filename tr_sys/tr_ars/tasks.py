@@ -140,7 +140,8 @@ def send_message(actor_dict, mesg_dict, timeout=300):
 def catch_timeout_async():
     now =timezone.now()
     time_threshold = now - timezone.timedelta(minutes=60)
-    messages = Message.objects.filter(timestamp__lt=time_threshold, status__in='R')
+    max_time = now - timezone.timedelta(days=1)
+    messages = Message.objects.filter(timestamp__gt=max_time,timestamp__lt=time_threshold,status__in='R')
     for mesg in messages:
         agent = str(mesg.actor.agent.name)
         if agent == 'ars-default-agent':
