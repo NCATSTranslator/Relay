@@ -71,19 +71,20 @@ class Message(ARSModel):
         ('U', 'Unknown')
     )
     
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False, db_index=True)
     name = models.SlugField('Message name', null=False)
     code = models.PositiveSmallIntegerField('HTTP status code',
                                             null=False, default=200)
-    status = models.CharField(max_length=2, choices=STATUS)
+    status = models.CharField(max_length=2, choices=STATUS, db_index=True)
     actor = models.ForeignKey(Actor, null=False, on_delete=models.CASCADE)
-    timestamp = models.DateTimeField(auto_now_add=True)
+    timestamp = models.DateTimeField(auto_now_add=True,db_index=True)
     updated_at = models.DateTimeField(auto_now=True)
     data = models.JSONField('data payload', null=True)
     url = models.URLField('location of data', max_length=256, null=True)
     ref = models.ForeignKey('self', null=True, blank=True,
                             on_delete=models.CASCADE)
     result_count = models.IntegerField(null=True, default=None)
+    result_stat = models.JSONField(null=True)
 
     def __str__(self):
         return "message[%s]{name:%s, status:%s}" % (self.id,

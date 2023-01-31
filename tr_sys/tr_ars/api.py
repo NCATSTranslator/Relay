@@ -5,7 +5,6 @@ from django.shortcuts import redirect
 from django.urls import path, re_path, include, reverse
 from django.utils import timezone
 from tr_ars import utils
-from tr_smartapi_client.smart_api_discover import SmartApiDiscover
 from utils2 import urlRemoteFromInforesid
 from .models import Agent, Message, Channel, Actor
 import json, sys, logging
@@ -171,6 +170,9 @@ def trace_message_deepfirst(node):
         n = {
             'message': str(child.id),
             'status': dict(Message.STATUS)[child.status],
+            'parent' : str(node['message']),
+            'result_count' : str(child.result_count),
+            'result_stat' : child.result_stat,
             #This cast to Int shouldn't be necessary, but it is coming through as Str in the CI environment despite
             #having the same code base deployed there as in environments where it is working correctly
             'code': int(child.code),
@@ -208,6 +210,7 @@ def trace_message(req, key):
                 'path': mesg.actor.path
             },
             'result_count': mesg.result_count,
+            'query_graph': dict(mesg.data['message']['query_graph']),
             'children': []
         }
         trace_message_deepfirst(tree)
@@ -235,14 +238,14 @@ def get_report(req,inforesid):
         if req.method == 'GET':
 
             time_threshold = now - timezone.timedelta(hours=24)
-            messages = Message.objects.filter(timestamp__gt=time_threshold,actor__inforesid__iendswith=inforesid)
+            messages = Message.objects.filter(timestamp__gt=time_threshold,actor__inforesid__iendswith=inforesid).values_list('code','id','timestamp','updated_at','result_count')
             for msg in messages:
-                code = msg.code
-                mid = msg.id
-                time_start = msg.timestamp
-                time_end = msg.updated_at
+                code = msg[0]
+                mid = msg[1]
+                time_start = msg[2]
+                time_end = msg[3]
                 time_elapsed = time_end - time_start
-                result_count = msg.result_count
+                result_count = msg[4]
                 report[str(mid)]= {"status_code":code, "time_elapsed":str(time_elapsed), "result_count":result_count}
           
             return HttpResponse(json.dumps(report, indent=2), content_type='text/plain',
@@ -362,11 +365,12 @@ def message(req, key):
             res=utils.get_safe(data,"message","results")
             if res is not None:
                 mesg.result_count = len(res)
-                data["message"]["results"] = utils.normalizeScores(res)
+                if len(res)>0:
+                    data["message"]["results"] = utils.normalizeScores(res)
+                    scorestat = utils.ScoreStatCalc(res)
+                    mesg.stat_result = scorestat
             else:
                 logger.debug("Message returned in unexpected format\n"+data)
-
-
             # create child message if this one already has results
             if mesg.data and 'results' in mesg.data and mesg.data['results'] != None and len(mesg.data['results']) > 0:
                 mesg = Message.create(name=mesg.name, status=status,
@@ -643,8 +647,6 @@ def timeoutTest(req,time=300):
         time.sleep(time)
     else:
         pass
-        #utils.normalizeScores()
-
 
 apipatterns = [
     path('', index, name='ars-api'),

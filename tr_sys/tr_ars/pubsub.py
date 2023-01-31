@@ -2,7 +2,9 @@ from django.core import serializers
 import sys, logging, json, threading, queue, requests
 from .models import Message
 from tr_ars.tasks import send_message
+from django.utils import timezone
 from django.conf import settings
+
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +26,7 @@ def send_messages(actors, messages):
                 #logger.debug('>>>> task future: %s' % result)
                 result.forget()
             else:
-                queue.put((actor, mesg))
+                queue1.put((actor, mesg))
 
 class BackgroundWorker(threading.Thread):
     def __init__(self, **kwargs):
@@ -33,15 +35,17 @@ class BackgroundWorker(threading.Thread):
     def run(self):
         logger.debug('%s: BackgroundWorker started!' % __name__)
         while True:
-            actor, mesg = queue.get()
+            actor, mesg = queue1.get()
             if actor is None:
                 break
             else:
                 send_message(actor.to_dict(), mesg.to_dict())
-            queue.task_done()
+            queue1.task_done()
         logger.debug('%s: BackgroundWorker stopped!' % __name__)
 
-queue = queue.Queue()
+queue1 = queue.Queue()
 # FIXME: handle properly for deployment
+
 if len(sys.argv) > 1 and sys.argv[1] == 'runserver':
     BackgroundWorker().start()
+
