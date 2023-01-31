@@ -58,15 +58,6 @@ WORKFLOW_ACTOR = {
     'path': '',
     'inforesid': ''
 }
-ARS_ACTOR = {
-    'channel': ['general'],
-    'agent': {
-        'name': 'ars-ars-agent',
-        'uri': ''
-    },
-    'path': '',
-    'inforesid': 'ARS'
-}
 
 def get_default_actor():
     # default actor is the first actor initialized in the database per
@@ -77,8 +68,6 @@ def get_workflow_actor():
     # apps.setup_schema()
     print("boop")
     return get_or_create_actor(WORKFLOW_ACTOR)[0]
-def get_ars_actor():
-    return get_or_create_actor(ARS_ACTOR)[0]
 
 @csrf_exempt
 def submit(req):
