@@ -321,6 +321,22 @@ def filter(req, key):
     return HttpResponse('Only GET is permitted!', status=405)
 
 @csrf_exempt
+def filters(req):
+    if req.method == 'GET':
+        filters={
+            'hop_level': {'default': int(3), 'description': 'Returns a new message pk with results that contain N nodes or less. Takes one Int parameter, the number of nodes desired',
+                            'example_url': 'https://ars-prod.transltr.io/ars/api/filter/{pk}?hop=3'},
+            'score_level': {'default': [20, 80], 'description': 'Returns a new message pk with results that have normalized scores between a desired range. Takes a list of min and max values to filter on',
+                            'example_url': 'https://ars-prod.transltr.io/ars/api/filter/{pk}?score=[20,80]'},
+            'node_type': {'default': ['ChemicalEntity', 'BiologicalEntity'], 'description': 'Returns a new message pk with results that dont hold the given node category. Takes a list of node categories to be eliminated',
+                          'example_url': 'https://ars-prod.transltr.io/ars/api/filter/{pk}?node_type=["ChemicalEntity","BiologicalEntity"]'},
+            'spec_node': {'default': ['NCBIGene:2064', 'MONDO:0005147'], 'description': 'Returns a new message pk with results that dont hold the given node Curie. Takes a list of node Curies to be eliminated',
+                          'example_url': 'https://ars-prod.transltr.io/ars/api/filter/{pk}?spec_node=["NCBIGene:2064","MONDO:0005147"]'}
+        }
+    return HttpResponse(json.dumps(filters, indent=2),
+                            content_type='application/json', status=200)
+
+@csrf_exempt
 def message(req, key):
     logger.debug("entering message endpoint %s " % key)
 
@@ -650,6 +666,7 @@ apipatterns = [
     re_path(r'^channels/?$', channels, name='ars-channels'),
     path('agents/<name>', get_agent, name='ars-agent'),
     path('messages/<uuid:key>', message, name='ars-message'),
+    re_path(r'^filters/?$', filters, name='ars-filters'),
     path('filter/<uuid:key>', filter, name='ars-filter'),
     re_path(r'^status/?$', status, name='ars-status'),
     re_path(r'^reports/?$', reports, name='ars-reports'),
