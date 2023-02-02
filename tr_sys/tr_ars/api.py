@@ -9,6 +9,7 @@ from utils2 import urlRemoteFromInforesid
 from .models import Agent, Message, Channel, Actor
 import json, sys, logging
 import traceback
+
 from inspect import currentframe, getframeinfo
 from tr_ars import status_report
 from datetime import datetime, timedelta
@@ -57,6 +58,15 @@ WORKFLOW_ACTOR = {
     'path': '',
     'inforesid': ''
 }
+ARS_ACTOR = {
+    'channel': [],
+    'agent': {
+        'name': 'ars-ars-agent',
+        'uri': ''
+    },
+    'path': '',
+    'inforesid': 'ARS'
+}
 
 def get_default_actor():
     # default actor is the first actor initialized in the database per
@@ -65,9 +75,9 @@ def get_default_actor():
 def get_workflow_actor():
     # default actor is the first actor initialized in the database per
     # apps.setup_schema()
-    print("boop")
     return get_or_create_actor(WORKFLOW_ACTOR)[0]
-
+def get_ars_actor():
+    return get_or_create_actor(ARS_ACTOR)[0]
 @csrf_exempt
 def submit(req):
     logger.debug("submit")
@@ -362,7 +372,15 @@ def message(req, key):
             if 'tr_ars.message.status' in req.headers:
                 status = req.headers['tr_ars.message.status']
 
+            agent = str(mesg.actor.agent.name)
             res=utils.get_safe(data,"message","results")
+            kg = utils.get_safe(data,"message", "knowledge_graph")
+            if kg is not None:
+                if res is not None:
+                    kg, res = utils.canonizeMessageTest(kg, res)
+                else:
+                    logger.error('the %s hasnt given any result back' % (agent))
+
             if res is not None:
                 mesg.result_count = len(res)
                 if len(res)>0:
@@ -646,7 +664,14 @@ def timeoutTest(req,time=300):
     if req.method == 'POST':
         time.sleep(time)
     else:
-        pass
+        merged_dict = utils.merger()
+        message=utils.createMessage(get_ars_actor())
+        message.data=merged_dict
+        message.save()
+        print(message.id)
+        return HttpResponse(json.dumps(message.to_dict(), indent=2),
+                        content_type='application/json', status=200)
+
 
 apipatterns = [
     path('', index, name='ars-api'),

@@ -9,9 +9,11 @@ import sys
 from .models import Agent, Message, Channel, Actor
 from scipy.stats import rankdata
 
-NORMALIZER_URL='https://nodenormalization-sri.renci.org/1.2/get_normalized_nodes?'
+
+#NORMALIZER_URL='https://nodenormalization-sri.renci.org/1.2/get_normalized_nodes?'
+NORMALIZER_URL='https://nodenormalization-sri.renci.org/1.3/get_normalized_nodes'
+
 class QueryGraph():
-    pass
     def __init__(self,qg):
         if qg==None:
             return None
@@ -45,22 +47,20 @@ class KnowledgeGraph():
         nodes=self.getNodes()
         ids = []
         for node in nodes:
-            if  isinstance(node['id'],list):
-                print()
-            ids.append(node['id'])
+           ids.append(node)
         return ids
     def getNodeById(self,id):
         nodes = self.getNodes()
-        for node in nodes:
-            if node['id']==id:
-                return node
-        return None
+        node = nodes.get(id)
+        return node
+    def getRaw(self):
+        return self.rawGraph
+
     def getEdgeById(self,id):
-        edges = self.getEdges()
-        for edge in edges:
-            if edge['id']==id:
-                return edge
-        return None
+        edges=self.getEdges()
+        edge = edges.get(id)
+        return edge
+
 
 #TODO make this a proper object, list of Result objects
 class Results():
@@ -127,14 +127,15 @@ class TranslatorMessage():
         resultTuples=set()
         for eb in results.getEdgeBindings():
             tuples=set()
-            for binding in eb:
-                id = binding['kg_id']
-                edge = kg.getEdgeById(id)
-                source = edge['source_id']
-                type = edge['type']
-                target = edge['target_id']
-                tuple = (source,type,target)
-                tuples.add(tuple)
+            for bindings in eb.values():
+                for binding in bindings:
+                    #id = binding['kg_id']
+                    edge = kg.getEdgeById(binding["id"])
+                    source = edge['subject']
+                    type = edge['predicate']
+                    target = edge['object']
+                    tuple = (source,type,target)
+                    tuples.add(tuple)
             resultTuples.add(frozenset(tuples))
         return resultTuples
 
@@ -146,6 +147,22 @@ class TranslatorMessage():
         self.__results=results
     def setSharedResults(self,sharedResults):
         self.__sharedResults=sharedResults
+    def to_dict(self):
+        d={}
+        if self.getQueryGraph() is not None:
+            d['query_graph']=self.getQueryGraph().rawGraph
+        else:
+            d['query_graph']={}
+        if self.getKnowledgeGraph() is not None:
+            d['knowledge_graph']=self.getKnowledgeGraph().rawGraph
+        else:
+            d['knowledge_graph']={}
+        if self.getResults() is not None:
+            d['results']=self.getResults().getRaw()
+        else:
+            d['results']={}
+
+        return d
 
 
 def getCommonNodeIds(messageList):
@@ -181,7 +198,7 @@ def getCommonNodes(messageList):
 def mergeMessages(originalQuery,messageList):
     messageListCopy = copy.deepcopy(messageList)
     message = messageListCopy.pop()
-    message.setQueryGraph(originalQuery)
+    message.setQueryGraph(originalQuery) #whats the point of this line? we already have qg filled in
     merged = mergeMessagesRecursive(message,messageListCopy)
     print()
     return merged
@@ -192,7 +209,7 @@ def mergeMessagesRecursive(mergedMessage,messageList):
     else:
         currentMessage = messageList.pop()
         #merge Knowledge Graphs
-        mergedKnowledgeGraph = mergeKnowledgeGraphs(currentMessage.getKnowledgeGraph(),mergedMessage.getKnowledgeGraph())
+        mergedKnowledgeGraph = mergeKnowledgeGraphs(currentMessage.getKnowledgeGraph(),mergedMessage.getKnowledgeGraph()) #so we are comparing each current message to the first mssage
 
         #merge Results
         currentResultTuples = currentMessage.getResultTuples()
@@ -235,7 +252,7 @@ def mergeKnowledgeGraphs(kg1, kg2):
     firstOnly = firstIds.difference(secondIds)
     secondOnly = secondIds.difference(firstIds)
     for id in firstOnly:
-        mergedNodes.append(kg1.getNodeById(id))
+        mergedNodes.append(kg1.getNodeById(id)) #from kg we get each node value and save them in mergeNodes
     for id in secondOnly:
         mergedNodes.append(kg2.getNodeById(id))
     for id in intersection:
@@ -259,8 +276,9 @@ def mergeKnowledgeGraphs(kg1, kg2):
             mergedNodes.append(mergedNode)
 
     #Since edges don't have the same guarantee of identifiers matching as nodes, we'll just combine them naively and
-    #eat the redundancy if we have two functionally identical edges for now
-    mergedEdges=kg1.getEdges()+kg2.getEdges()
+    #eat the redundancy if we have two functionally identical edges for now]
+    test =kg1.getEdges()
+    mergedEdges=kg1.getEdges()|kg2.getEdges()
     mergedKg={
         "nodes":mergedNodes,
         "edges":mergedEdges
@@ -326,15 +344,21 @@ def get_safe(element,*keys):
 '''
 Takes a CURIE and returns the canonical CURIE from the node normalizer or returns the original CURIE if none is found
 '''
-def canonize(curie):
-    url_curie = urllib.parse.quote_plus(curie)
-    r = requests.get(NORMALIZER_URL+"curie="+url_curie)
-    response = r.json()
-    canonical_curie = get_safe(response,curie,"id","identifier")
-    if canonical_curie is not None:
-        return canonical_curie
-    else:
-        return curie
+def canonize(curies):
+
+    # urllib.urlencode([('var', 'earth'), ('var', 'wind')])
+    # 'var=earth&var=wind'
+    if not isinstance(curies,list):
+        curies = [curies]
+    tuple_list=[]
+    j ={
+        "curies":curies,
+        "conflate":True
+    }
+    r = requests.post(NORMALIZER_URL,json.dumps(j))
+    rj=r.json()
+    return rj
+
 
 def canonizeResults(results):
     canonical_results=[]
@@ -347,6 +371,72 @@ def canonizeResults(results):
             canonical_result.append(canonical)
         canonical_results.append(frozenset(canonical_result))
     return canonical_results
+
+def canonizeKnowledgeGraph(kg):
+    nodes = kg.getNodes()
+    ids = list(nodes.keys())
+    if len(ids)>0:
+        canonical = canonize(ids)
+
+    # for node in nodes:
+    #     canonical = canonize(node)
+    #     if canonical != node:
+    #         print(node+ " has been replaced with "+canonical)
+    #     else:
+    #         print (node+" is already the canonical term")
+def canonizeMessageTest(kg,results):
+    original_nodes={}
+    nodes = kg['nodes']
+    ids=list(nodes.keys())
+    if len(ids)>0:
+        canonical = canonize(ids)
+        changes = {}
+        for key,value in canonical.items():
+            if value is not None and key != value["id"]["identifier"]:
+                changes[key]=value
+        bindings=[res['node_bindings'] for res in results]
+        for binding in bindings:
+            for key in binding.keys():
+                id_list = binding[key]
+                for id_dict in id_list:
+                    if id_dict['id'] in changes:
+                        id_dict['id']=changes[id_dict['id']]['id']['identifier']
+        for change in changes:
+            if change in nodes:
+                new_id = changes[change]['id']['identifier']
+                print("Changing "+(str(change))+" to "+str(new_id))
+                nodes[new_id]=nodes.pop(change)
+                original_nodes[change]=nodes[new_id]
+
+        kg['original_nodes']=original_nodes
+    return kg, results
+
+def canonizeMessage(msg):
+    #kg = msg.getKnowledgeGraph()
+    nodes = msg.getKnowledgeGraph().getNodes()
+    ids=list(nodes.keys())
+    if len(ids)>0:
+        canonical = canonize(ids)
+        #changes= copy.deepcopy(canonical)'
+        changes = {}
+        for key,value in canonical.items():
+            if value is not None and key != value["id"]["identifier"]:
+                changes[key]=value
+        results = msg.getResults()
+        bindings = results.getNodeBindings()
+        for binding in bindings:
+            for key in binding.keys():
+                id_list = binding[key]
+                for id_dict in id_list:
+                    if id_dict['id'] in changes:
+                        #print("Changing "+str(id_dict['id'])+" to "+ str(changes[id_dict['id']]['id']['identifier'])+" at "+str(bindings.index(binding)))
+                        id_dict['id']=changes[id_dict['id']]['id']['identifier']
+        for change in changes:
+            if change in nodes:
+                new_id = changes[change]['id']['identifier']
+                print("Changing "+(str(change))+" to "+str(new_id))
+                nodes[new_id]=nodes.pop(change)
+        print()
 
 def findSharedResults(sharedResults,messageList):
     canonicalResults=[]
@@ -388,6 +478,28 @@ def getMessagesForTesting(pk):
             childPk=child.id
             messageList.append(Message.objects.get(pk=childPk))
     return messageList
+
+def createMessage(actor):
+    message = Message.create(code=202, status='Running', data={},
+                             actor=actor)
+    message.save()
+    return message
+
+def merger():
+    messageList= getMessagesForTesting("3e5ea1b5-fdef-4a79-8d14-f9f1b67e559b")
+    print()
+    first = messageList[0].to_dict()
+    originalQuery = get_safe(messageList[0].to_dict(),"fields","data","message","query_graph")
+    originalQuery=QueryGraph(originalQuery)
+    newList =[]
+    for message in messageList:
+        t_mesg=TranslatorMessage(message.to_dict()["fields"]["data"]["message"])
+        #print(t_mesg.to_dict())
+        if t_mesg.getKnowledgeGraph() is not None:
+            canonizeMessage(t_mesg)
+            newList.append(t_mesg)
+    merged = mergeMessages(originalQuery,newList)
+    return (merged.to_dict())
 
 def hop_level_filter(results, hop_limit):
 
