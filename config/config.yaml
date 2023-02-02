@@ -58,13 +58,7 @@ httpclients:
   infores:genetics-data-provider:
     endpoint: query 
     params:
-  infores:icees-asthma:
-    endpoint: query 
-    params: reasoner=true&verbose=false
-  infores:icees-dili:
-    endpoint: query 
-    params: reasoner=true&verbose=false
-  infores:icees-pcd:
+  infores:icees-kg:
     endpoint: query
     params: reasoner=true&verbose=false
   infores:molepro:
