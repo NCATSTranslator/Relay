@@ -58,9 +58,7 @@ INSTALLED_APPS = [
     'tr_kp_openpredict.openpredict_app.AppConfig',
     'tr_ara_aragorn_exp.aragorn_exp_app.AppConfig',
     'tr_kp_chp.chp_app.AppConfig',
-    'tr_kp_icees.icees_app.AppConfig',
-    'tr_kp_icees_dili.icees_dili_app.AppConfig',
-    'tr_kp_icees_pcd.icees_pcd_app.AppConfig',
+    'tr_kp_icees_kg.icees_kg_app.AppConfig',
     'django_celery_results',
     'markdownify',
 ]
