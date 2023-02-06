@@ -14,6 +14,7 @@ from inspect import currentframe, getframeinfo
 from tr_ars import status_report
 from datetime import datetime, timedelta
 from tr_ars.tasks import send_message
+import ast
 
 #from reasoner_validator import validate_Message, ValidationError, validate_Query
 
@@ -193,6 +194,7 @@ def trace_message_deepfirst(node):
                 'agent': child.actor.agent.name,
                 'path': child.actor.path
             },
+            'result_count': child.result_count,
             'children': []
         }
         trace_message_deepfirst(n)
@@ -217,6 +219,7 @@ def trace_message(req, key):
                 'agent': mesg.actor.agent.name,
                 'path': mesg.actor.path
             },
+            'result_count': mesg.result_count,
             'query_graph': dict(mesg.data['message']['query_graph']),
             'children': []
         }
@@ -261,6 +264,79 @@ def get_report(req,inforesid):
         print(e.__traceback__)
         print(inforesid)
 
+def filter_message_deepfirst(child_dict, filter, arg):
+
+    rdata = child_dict['fields']['data']
+    results = rdata['message']['results']
+    kg_nodes = rdata['message']['knowledge_graph']['nodes']
+    
+    if filter == 'hop':
+        filter_response = utils.hop_level_filter(results, arg)
+    elif filter == 'score':
+        filter_response = utils.score_filter(results, arg)
+    elif filter == 'node_type':
+        filter_response = utils.node_type_filter(kg_nodes, results, arg)
+    elif filter == 'spec_node':
+        filter_response = utils.specific_node_filter(results, arg)
+
+    rdata['message']['results'] = filter_response
+    final_result_count = len(filter_response)
+    return rdata, final_result_count
+
+def filter_message(key, filter, arg):
+    mesg = Message.objects.get(pk=key)
+    if str(mesg.actor.agent.name) == 'ars-default-agent':
+        new_mesg = Message.create(actor=get_default_actor(), code=200, status='Done')
+        new_mesg.save()
+        children = Message.objects.filter(ref__pk=str(mesg.pk))
+        for child in children:
+            if child.status == "D" and child.result_count != 0:
+                child_dict = child.to_dict()
+                rdata_filtered, final_result_count = filter_message_deepfirst(child_dict, filter, arg)
+                child_mesg = Message.create(actor=Actor.objects.get(pk=int(child.actor_id)), ref=Message.objects.get(pk=new_mesg.pk), code=200, status='Done')
+                child_mesg.result_count = final_result_count
+                child_mesg.data= rdata_filtered
+                child_mesg.save()
+        return HttpResponse('your new parent pk is %s' % new_mesg.pk, status=200)
+    else:
+        if mesg.status == "D" and mesg.result_count != 0:
+            mesg_dict = mesg.to_dict()
+            rdata_filtered, final_result_count = filter_message_deepfirst(mesg_dict, filter, arg)
+            child_mesg = Message.create(actor=Actor.objects.get(pk=int(mesg.actor_id)), code=200, status='Done')
+            child_mesg.result_count = final_result_count
+            child_mesg.data = rdata_filtered
+            child_mesg.save()
+        else:
+            return HttpResponse('message doesnt have results or marked as "Done"', status=400)
+
+        return HttpResponse('your new child pk is %s' % child_mesg.pk, status=200)
+
+@csrf_exempt
+def filter(req, key):
+    logger.debug("entering filter endpoint %s " % key)
+    accepted_filters = ['hop', 'score', 'node_type', 'spec_node']
+    if req.method == 'GET':
+        for filter in accepted_filters:
+            if filter in req.GET:
+                arg = ast.literal_eval((req.GET.get(filter)))
+                return filter_message(key, filter, arg)
+    return HttpResponse('Only GET is permitted!', status=405)
+
+@csrf_exempt
+def filters(req):
+    if req.method == 'GET':
+        filters={
+            'hop_level': {'default': int(3), 'description': 'Returns a new message pk with results that contain N nodes or less. Takes one Int parameter, the number of nodes desired',
+                            'example_url': 'https://ars-prod.transltr.io/ars/api/filter/{pk}?hop=3'},
+            'score_level': {'default': [20, 80], 'description': 'Returns a new message pk with results that have normalized scores between a desired range. Takes a list of min and max values to filter on',
+                            'example_url': 'https://ars-prod.transltr.io/ars/api/filter/{pk}?score=[20,80]'},
+            'node_type': {'default': ['ChemicalEntity', 'BiologicalEntity'], 'description': 'Returns a new message pk with results that dont hold the given node category. Takes a list of node categories to be eliminated',
+                          'example_url': 'https://ars-prod.transltr.io/ars/api/filter/{pk}?node_type=["ChemicalEntity","BiologicalEntity"]'},
+            'spec_node': {'default': ['NCBIGene:2064', 'MONDO:0005147'], 'description': 'Returns a new message pk with results that dont hold the given node Curie. Takes a list of node Curies to be eliminated',
+                          'example_url': 'https://ars-prod.transltr.io/ars/api/filter/{pk}?spec_node=["NCBIGene:2064","MONDO:0005147"]'}
+        }
+    return HttpResponse(json.dumps(filters, indent=2),
+                            content_type='application/json', status=200)
 
 @csrf_exempt
 def message(req, key):
@@ -599,6 +675,8 @@ apipatterns = [
     re_path(r'^channels/?$', channels, name='ars-channels'),
     path('agents/<name>', get_agent, name='ars-agent'),
     path('messages/<uuid:key>', message, name='ars-message'),
+    re_path(r'^filters/?$', filters, name='ars-filters'),
+    path('filter/<uuid:key>', filter, name='ars-filter'),
     re_path(r'^status/?$', status, name='ars-status'),
     re_path(r'^reports/?$', reports, name='ars-reports'),
     path('reports/<inforesid>',get_report,name='ars-report'),
