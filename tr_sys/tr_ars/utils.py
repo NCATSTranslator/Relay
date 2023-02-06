@@ -4,6 +4,7 @@ import logging
 import traceback
 import requests
 import urllib
+import statistics
 import sys
 from .models import Agent, Message, Channel, Actor
 from scipy.stats import rankdata
@@ -423,6 +424,19 @@ def findSharedResults(sharedResults,messageList):
         results = canonizeResults(message.getResults())
         canonicalResults.append(results)
 
+def ScoreStatCalc(results):
+    stat={}
+    if results is not None and len(results)>0:
+        scoreList = [d['score'] for d in results if 'score' in d]
+        if len(scoreList) == 0:
+            return stat
+        stat['median'] = statistics.median(scoreList)
+        stat['mean'] = statistics.mean(scoreList)
+        stat['stdev'] = statistics.stdev(scoreList)
+        stat['minimum'] = min(scoreList)
+        stat['maximum'] = max(scoreList)
+
+    return stat
 
 def normalizeScores(results):
     if results is not None and len(results)>0:
@@ -431,8 +445,9 @@ def normalizeScores(results):
         if(len(ranked)!=len(scoreList)):
             logging.debug("Score normalization aborted.  Score list lengths not equal")
             return results
-        for result in results:
-            result["normalized_score"]=ranked.pop(0)
+        if ranked:
+            for result in results:
+                result["normalized_score"]=ranked.pop(0)
     return results
 
 def getMessagesForTesting(pk):
