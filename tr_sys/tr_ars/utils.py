@@ -47,12 +47,9 @@ class KnowledgeGraph():
         return self.__nodes
     def getAllIds(self):
         nodes=self.getNodes()
-        if type(nodes) is not dict:
-            logging.debug(str(self)+" does not have nodes of type dict")
-            return []
         ids = []
-        for node in nodes.keys():
-           ids.append(node)
+        for node in nodes:
+            ids.append(node)
         return ids
     def getNodeById(self,id):
         nodes = self.getNodes()
@@ -246,7 +243,8 @@ def mergeMessagesRecursive(mergedMessage,messageList):
 def mergeResults(r1, r2):
     return Results(r1.getRaw()+r2.getRaw())
 def mergeKnowledgeGraphs(kg1, kg2):
-    mergedNodes =[]
+    #mergedNodes = []
+    mergedNodes ={}
     firstIds = set(kg1.getAllIds())
     try:
         idTest = kg2.getAllIds()
@@ -258,9 +256,9 @@ def mergeKnowledgeGraphs(kg1, kg2):
     firstOnly = firstIds.difference(secondIds)
     secondOnly = secondIds.difference(firstIds)
     for id in firstOnly:
-        mergedNodes.append(kg1.getNodeById(id))
+        mergedNodes[id]=kg1.getNodeById(id)
     for id in secondOnly:
-        mergedNodes.append(kg2.getNodeById(id))
+        mergedNodes[id]=kg2.getNodeById(id)
     for id in intersection:
         mergedNode = {}
         firstNode = kg1.getNodeById(id)
@@ -279,7 +277,7 @@ def mergeKnowledgeGraphs(kg1, kg2):
                 mergedNode[key]=[firstNode.get(key),secondNode.get(key)]
             else:
                 mergedNode[key]=firstNode.get(key)
-            mergedNodes.append(mergedNode)
+            mergedNodes[id]=mergedNode
 
     #Since edges don't have the same guarantee of identifiers matching as nodes, we'll just combine them naively and
     #eat the redundancy if we have two functionally identical edges for now]
@@ -467,32 +465,27 @@ def createMessage(actor):
     return message
 
 def merger():
-    pk = "2502bfcf-f9a1-4afa-b606-c6805c934dc4"
+    pk = "43ff3930-7bc4-4f5f-a069-e1a2a4ec8dd5"
     messageList= getMessagesForTesting(pk)
     parent = Message.objects.get(pk=pk)
-    #messageList= getMessagesForTesting("43ff3930-7bc4-4f5f-a069-e1a2a4ec8dd5")
-    print()
-    first = messageList[0].to_dict()
     if(get_safe(parent.to_dict(),"fields","data","message","query_graph") is not None):
         originalQuery= QueryGraph(get_safe(parent.to_dict(),"fields","data","message","query_graph"))
     else:
-        originalQuery=None
+        #This shouldn't happen, but will save us some errors if it does
+        originalQuery=QueryGraph({})
+        logging.debug("Message to be merged does not have a query_graph attached to the parent PK")
     newList =[]
     for message in messageList:
-        if originalQuery is None and get_safe(message.to_dict(),"fields","data","message","query_graph") is not None:
-            originalQuery=QueryGraph(get_safe(message.to_dict(),"fields","data","message","query_graph"))
         mesg=get_safe(message.to_dict(),"fields","data","message")
         if mesg is not None:
             t_mesg=TranslatorMessage(message.to_dict()["fields"]["data"]["message"])
         else:
             continue
-        #print(t_mesg.to_dict())
         if t_mesg.getKnowledgeGraph() is not None:
             canonizeMessage(t_mesg)
             newList.append(t_mesg)
     merged = mergeMessages(originalQuery,newList)
     print()
-    dicty=merged.to_dict()
     return (merged.to_dict())
 
 def hop_level_filter(results, hop_limit):
