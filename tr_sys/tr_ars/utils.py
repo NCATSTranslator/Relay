@@ -16,7 +16,7 @@ class QueryGraph():
     def __init__(self,qg):
         if qg==None:
             return None
-        self.rawGraph = qg
+        self.__rawGraph = qg
         self.__nodes =  qg['nodes']
         self.__edges = qg['edges']
     def getEdges(self):
@@ -30,6 +30,8 @@ class QueryGraph():
             if("curie") in node:
                 curies.append(node['curie'])
         return curies
+    def getRawGraph(self):
+        return self.__rawGraph
 
 class KnowledgeGraph():
     def __init__(self,kg):
@@ -44,8 +46,11 @@ class KnowledgeGraph():
         return self.__nodes
     def getAllIds(self):
         nodes=self.getNodes()
+        if type(nodes) is not dict:
+            logging.debug(str(self)+" does not have nodes of type dict")
+            return []
         ids = []
-        for node in nodes:
+        for node in nodes.keys():
            ids.append(node)
         return ids
     def getNodeById(self,id):
@@ -74,7 +79,7 @@ class Results():
                 bindings = result['edge_bindings']
                 edgeBindings.append(bindings)
             except Exception as e:
-                logger.error("Unexpected error 3: {}".format(traceback.format_exception(type(e), e, e.__traceback__)))
+                logging.error("Unexpected error 3: {}".format(traceback.format_exception(type(e), e, e.__traceback__)))
                 print()
         return edgeBindings
     def getNodeBindings(self):
@@ -149,7 +154,8 @@ class TranslatorMessage():
     def to_dict(self):
         d={}
         if self.getQueryGraph() is not None:
-            d['query_graph']=self.getQueryGraph().rawGraph
+            qg= self.getQueryGraph()
+            d['query_graph']=self.getQueryGraph().getRawGraph()
         else:
             d['query_graph']={}
         if self.getKnowledgeGraph() is not None:
@@ -449,10 +455,12 @@ def merger():
     messageList= getMessagesForTesting("43ff3930-7bc4-4f5f-a069-e1a2a4ec8dd5")
     print()
     first = messageList[0].to_dict()
-    originalQuery = get_safe(messageList[0].to_dict(),"fields","data","message","query_graph")
-    originalQuery=QueryGraph(originalQuery)
+
+    originalQuery=None
     newList =[]
     for message in messageList:
+        if originalQuery is None and get_safe(message.to_dict(),"fields","data","message","query_graph") is not None:
+            originalQuery=QueryGraph(get_safe(message.to_dict(),"fields","data","message","query_graph"))
         mesg=get_safe(message.to_dict(),"fields","data","message")
         if mesg is not None:
             t_mesg=TranslatorMessage(message.to_dict()["fields"]["data"]["message"])
@@ -463,4 +471,6 @@ def merger():
             canonizeMessage(t_mesg)
             newList.append(t_mesg)
     merged = mergeMessages(originalQuery,newList)
+    print()
+    dicty=merged.to_dict()
     return (merged.to_dict())
