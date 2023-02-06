@@ -466,12 +466,16 @@ def createMessage(actor):
     return message
 
 def merger():
-    messageList= getMessagesForTesting("2502bfcf-f9a1-4afa-b606-c6805c934dc4")
+    pk = "2502bfcf-f9a1-4afa-b606-c6805c934dc4"
+    messageList= getMessagesForTesting(pk)
+    parent = Message.objects.get(pk=pk)
     #messageList= getMessagesForTesting("43ff3930-7bc4-4f5f-a069-e1a2a4ec8dd5")
     print()
     first = messageList[0].to_dict()
-
-    originalQuery=None
+    if(get_safe(parent.to_dict(),"fields","data","message","query_graph") is not None):
+        originalQuery= QueryGraph(get_safe(parent.to_dict(),"fields","data","message","query_graph"))
+    else:
+        originalQuery=None
     newList =[]
     for message in messageList:
         if originalQuery is None and get_safe(message.to_dict(),"fields","data","message","query_graph") is not None:
