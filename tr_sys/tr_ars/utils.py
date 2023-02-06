@@ -451,8 +451,8 @@ def createMessage(actor):
     return message
 
 def merger():
-    #messageList= getMessagesForTesting("2502bfcf-f9a1-4afa-b606-c6805c934dc4")
-    messageList= getMessagesForTesting("43ff3930-7bc4-4f5f-a069-e1a2a4ec8dd5")
+    messageList= getMessagesForTesting("2502bfcf-f9a1-4afa-b606-c6805c934dc4")
+    #messageList= getMessagesForTesting("43ff3930-7bc4-4f5f-a069-e1a2a4ec8dd5")
     print()
     first = messageList[0].to_dict()
 
