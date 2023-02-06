@@ -22,7 +22,7 @@ class QueryGraph():
     def getEdges(self):
         return self.__edges
     def getNodes(self):
-        return self.__edges
+        return self.__nodes
     def getAllCuries(self):
         nodes = self.getNodes()
         curies =[]
@@ -245,7 +245,7 @@ def mergeKnowledgeGraphs(kg1, kg2):
         idTest = kg2.getAllIds()
         secondIds = set(idTest)
     except Exception as e:
-        logger.error("Unexpected error 4: {}".format(traceback.format_exception(type(e), e, e.__traceback__)))
+        logging.error("Unexpected error 4: {}".format(traceback.format_exception(type(e), e, e.__traceback__)))
         print()
     intersection = firstIds.intersection(secondIds)
     firstOnly = firstIds.difference(secondIds)
@@ -445,14 +445,19 @@ def createMessage(actor):
     return message
 
 def merger():
-    messageList= getMessagesForTesting("2502bfcf-f9a1-4afa-b606-c6805c934dc4")
+    #messageList= getMessagesForTesting("2502bfcf-f9a1-4afa-b606-c6805c934dc4")
+    messageList= getMessagesForTesting("43ff3930-7bc4-4f5f-a069-e1a2a4ec8dd5")
     print()
     first = messageList[0].to_dict()
     originalQuery = get_safe(messageList[0].to_dict(),"fields","data","message","query_graph")
     originalQuery=QueryGraph(originalQuery)
     newList =[]
     for message in messageList:
-        t_mesg=TranslatorMessage(message.to_dict()["fields"]["data"]["message"])
+        mesg=get_safe(message.to_dict(),"fields","data","message")
+        if mesg is not None:
+            t_mesg=TranslatorMessage(message.to_dict()["fields"]["data"]["message"])
+        else:
+            continue
         #print(t_mesg.to_dict())
         if t_mesg.getKnowledgeGraph() is not None:
             canonizeMessage(t_mesg)
