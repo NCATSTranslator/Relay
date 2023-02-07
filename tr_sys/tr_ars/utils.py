@@ -140,6 +140,44 @@ class TranslatorMessage():
                     tuples.add(tuple)
             resultTuples.add(frozenset(tuples))
         return resultTuples
+    def getResultNodeSets(self):
+        results = self.getResults()
+        nodeSets=[]
+        if results is None:
+            return None
+        nodeb = results.getNodeBindings()
+        kg = self.getKnowledgeGraph()
+        for bindings in nodeb:
+            nodes = set()
+            for nodeid in bindings.keys():
+                binding=bindings.get(nodeid)
+                if len(binding)>1:
+                    logging.debug("Multiple bindings found for a single node")
+                else:
+                    binding=binding[0]
+                #node = kg.getNodeById(binding["id"]) can we just add the binding id and count on it to be the CURIE?
+                nodes.add(binding["id"])
+            nodeSets.append(frozenset(nodes)) #this needs to be a frozen set so it's hashable later
+        return nodeSets
+    def getResultMap(self):
+        map = {}
+        results=self.getResults()
+        if results is not None:
+            results = results.getRaw()
+        else:
+            return None
+        for result in results:
+            nodes = set()
+            nb = result["node_bindings"]
+            for nodeid in nb.keys():
+                binding=nb.get(nodeid)
+                if len(binding)>1:
+                    logging.debug("Multiple bindings found for a single node")
+                else:
+                    binding=binding[0]
+                    nodes.add(binding["id"])
+            map[frozenset(nodes)]=result
+        return map
 
     def setQueryGraph(self,qg):
         self.__qg=qg
@@ -215,27 +253,61 @@ def mergeMessagesRecursive(mergedMessage,messageList):
         mergedKnowledgeGraph = mergeKnowledgeGraphs(currentMessage.getKnowledgeGraph(),mergedMessage.getKnowledgeGraph())
 
         #merge Results
-        currentResultTuples = currentMessage.getResultTuples()
-        mergedResultTuples = mergedMessage.getResultTuples()
-        sharedResultTuples=set()
-        for cts in currentResultTuples:
-            if cts in mergedResultTuples:
-                sharedResultTuples.add(cts)
-        if len(sharedResultTuples)>0:
-            if mergedMessage.getSharedResults() is not None:
-                currentSharedMap = mergedMessage.getSharedResults()
-                intersectingResults = set(currentSharedMap.keys()).intersection(sharedResultTuples)
-                for key in currentSharedMap.keys():
-                    if key in intersectingResults:
-                        currentSharedMap[key]=currentSharedMap[key]+1
+        # currentResultTuples = currentMessage.getResultTuples()
+        # mergedResultTuples = mergedMessage.getResultTuples()
+        currentResultMap= currentMessage.getResultMap()
+        mergedResultMap=mergedMessage.getResultMap()
+        sharedResultMap={}
+
+        for key in currentResultMap.keys():
+            if key in mergedResultMap.keys():
+                currentResult = currentResultMap[key]
+                mergedResult = mergedResultMap[key]
+                for k2 in currentResult.keys():
+                    if k2 in mergedResult.keys():
+                        #if we already have this let's keep both values
+                        logging.debug("conflicting values")
+                        logging.debug(currentResult[k2])
+                        logging.debug(mergedResultMap[key][k2])
+                        #for dictionaries, we need to preserve type
+                        try:
+                            t1 = type(mergedResult[k2])
+                            t2=type(currentResult[k2])
+                            if (isinstance(mergedResult[k2],dict) and isinstance(currentResult[k2],dict)):
+                                mergedResultMap[key][k2]={**mergedResult[k2],**currentResult[k2]}
+                            #for other additional fields, we can just make a list of all values.
+                            else:
+                                mergedResultMap[key][k2]=[mergedResultMap[key][k2],currentResult[k2]]
+                        except Exception as e:
+
+                            print(e)
+                        logging.debug("current values")
+                        logging.debug(mergedResultMap[key])
+                        logging.debug(mergedResultMap[key][k2])
+
                     else:
-                        currentSharedMap[key]=2
-                mergedMessage.setSharedResults(currentSharedMap)
-            else:
-                resultMap={k:2 for k in sharedResultTuples}
-                mergedMessage.setSharedResults(resultMap)
-        mergedResults=mergeResults(currentMessage.getResults(),mergedMessage.getResults())
-        mergedMessage.setResults(mergedResults)
+                        #If it's not already in the merged results, we just take what is in the current one
+                        mergedResultMap[key][k2]=currentResult[k2]
+            print()
+
+        # if len(sharedResultMap)>0:
+        #     if mergedMessage.getSharedResults() is not None:
+        #         currentSharedMap = mergedMessage.getSharedResults()
+        #         intersectingResults = set(currentSharedMap.keys()).intersection(sharedResultTuples)
+        #         for key in currentSharedMap.keys():
+        #             if key in intersectingResults:
+        #                 currentSharedMap[key]=currentSharedMap[key]+1
+        #             else:
+        #                 currentSharedMap[key]=2
+        #         mergedMessage.setSharedResults(currentSharedMap)
+        #     else:
+        #         resultMap={k:2 for k in sharedResultTuples}
+        #         mergedMessage.setSharedResults(resultMap)
+        # mergedResults=mergeResults(currentMessage.getResults(),mergedMessage.getResults())
+        values = mergedResultMap.values()
+        newResults= Results(list(values))
+        print()
+        mergedMessage.setResults(newResults)
         mergedMessage.setKnowledgeGraph(mergedKnowledgeGraph)
         return mergeMessagesRecursive(mergedMessage,messageList)
 
@@ -465,7 +537,8 @@ def createMessage(actor):
     return message
 
 def merger():
-    pk = "43ff3930-7bc4-4f5f-a069-e1a2a4ec8dd5"
+    #pk = "43ff3930-7bc4-4f5f-a069-e1a2a4ec8dd5"
+    pk = "b4f4e046-db06-4f6b-b4ae-b153e79fb18b"
     messageList= getMessagesForTesting(pk)
     parent = Message.objects.get(pk=pk)
     if(get_safe(parent.to_dict(),"fields","data","message","query_graph") is not None):
@@ -481,6 +554,7 @@ def merger():
             t_mesg=TranslatorMessage(message.to_dict()["fields"]["data"]["message"])
         else:
             continue
+
         if t_mesg.getKnowledgeGraph() is not None:
             canonizeMessage(t_mesg)
             newList.append(t_mesg)
