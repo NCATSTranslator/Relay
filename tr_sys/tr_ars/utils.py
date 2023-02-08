@@ -8,6 +8,9 @@ import statistics
 import sys
 from .models import Agent, Message, Channel, Actor
 from scipy.stats import rankdata
+from celery import shared_task
+from celery import task
+from tr_sys.celery import app
 
 
 #NORMALIZER_URL='https://nodenormalization-sri.renci.org/1.2/get_normalized_nodes?'
@@ -33,6 +36,8 @@ class QueryGraph():
         return curies
     def getRawGraph(self):
         return self.__rawGraph
+    def __json__(self):
+        return json.dumps(self.getRawGraph())
 
 class KnowledgeGraph():
     def __init__(self,kg):
@@ -62,6 +67,8 @@ class KnowledgeGraph():
         edges=self.getEdges()
         edge = edges.get(id)
         return edge
+    def __json__(self):
+        return json.dumps(self.getRaw())
 
 
 #TODO make this a proper object, list of Result objects
@@ -78,7 +85,7 @@ class Results():
                 edgeBindings.append(bindings)
             except Exception as e:
                 logging.error("Unexpected error 3: {}".format(traceback.format_exception(type(e), e, e.__traceback__)))
-                print()
+
         return edgeBindings
     def getNodeBindings(self):
         nodeBindings=[]
@@ -204,6 +211,10 @@ class TranslatorMessage():
             d['results']={}
 
         return d
+    def __json__(self):
+        return self.to_dict()
+
+
 
 
 def getCommonNodeIds(messageList):
@@ -216,7 +227,7 @@ def getCommonNodeIds(messageList):
         inter = currentSet.intersection(idSet)
         commonSet.update(inter)
         idSet.update(currentSet)
-    print()
+
     return commonSet
 
 def getCommonNodes(messageList):
@@ -236,16 +247,31 @@ def getCommonNodes(messageList):
 
 
 
-def mergeMessages(originalQuery,messageList):
+def mergeMessages(messageList):
     messageListCopy = copy.deepcopy(messageList)
     message = messageListCopy.pop()
-    message.setQueryGraph(originalQuery)
     merged = mergeMessagesRecursive(message,messageListCopy)
-    print()
+
     return merged
 
 def mergeMessagesRecursive(mergedMessage,messageList):
+    #need to clean things up and average our normalized scores now that they're all in
+
     if len(messageList)==0:
+        try:
+            results = mergedMessage.getResults()
+            if results is not None:
+                results = results.getRaw()
+                for result in results:
+                    if "normalized_score" in result.keys():
+                        ns = result["normalized_score"]
+                        if isinstance(ns,list) and len(ns)>0:
+                            result["normalized_score"]= sum(ns) / len(ns)
+        except Exception as e:
+            logging.debug(e.__traceback__)
+
+        mergedMessage.status='Done'
+        mergedMessage.code = 200
         return mergedMessage
     else:
         currentMessage = messageList.pop()
@@ -266,29 +292,28 @@ def mergeMessagesRecursive(mergedMessage,messageList):
                 for k2 in currentResult.keys():
                     if k2 in mergedResult.keys():
                         #if we already have this let's keep both values
-                        logging.debug("conflicting values")
-                        logging.debug(currentResult[k2])
-                        logging.debug(mergedResultMap[key][k2])
+                        # logging.debug("conflicting values")
+                        # logging.debug(currentResult[k2])
+                        # logging.debug(mergedResultMap[key][k2])
                         #for dictionaries, we need to preserve type
                         try:
-                            t1 = type(mergedResult[k2])
-                            t2=type(currentResult[k2])
                             if (isinstance(mergedResult[k2],dict) and isinstance(currentResult[k2],dict)):
                                 mergedResultMap[key][k2]={**mergedResult[k2],**currentResult[k2]}
                             #for other additional fields, we can just make a list of all values.
+                            elif isinstance(mergedResult[k2],list):
+                                mergedResultMap[key][k2]=mergedResultMap[key][k2].append(currentResult[k2])
                             else:
                                 mergedResultMap[key][k2]=[mergedResultMap[key][k2],currentResult[k2]]
                         except Exception as e:
-
-                            print(e)
-                        logging.debug("current values")
-                        logging.debug(mergedResultMap[key])
-                        logging.debug(mergedResultMap[key][k2])
+                            logging.debug("Unexpected error in result merging")
+                            logging.debug(e.__traceback__)
+                        # logging.debug("current values")
+                        # logging.debug(mergedResultMap[key])
+                        # logging.debug(mergedResultMap[key][k2])
 
                     else:
                         #If it's not already in the merged results, we just take what is in the current one
                         mergedResultMap[key][k2]=currentResult[k2]
-            print()
 
         # if len(sharedResultMap)>0:
         #     if mergedMessage.getSharedResults() is not None:
@@ -306,7 +331,6 @@ def mergeMessagesRecursive(mergedMessage,messageList):
         # mergedResults=mergeResults(currentMessage.getResults(),mergedMessage.getResults())
         values = mergedResultMap.values()
         newResults= Results(list(values))
-        print()
         mergedMessage.setResults(newResults)
         mergedMessage.setKnowledgeGraph(mergedKnowledgeGraph)
         return mergeMessagesRecursive(mergedMessage,messageList)
@@ -323,7 +347,6 @@ def mergeKnowledgeGraphs(kg1, kg2):
         secondIds = set(idTest)
     except Exception as e:
         logging.error("Unexpected error 4: {}".format(traceback.format_exception(type(e), e, e.__traceback__)))
-        print()
     intersection = firstIds.intersection(secondIds)
     firstOnly = firstIds.difference(secondIds)
     secondOnly = secondIds.difference(firstIds)
@@ -484,9 +507,9 @@ def canonizeMessage(msg):
         for change in changes:
             if change in nodes:
                 new_id = changes[change]['id']['identifier']
-                print("Changing "+(str(change))+" to "+str(new_id))
+                #print("Changing "+(str(change))+" to "+str(new_id))
                 nodes[new_id]=nodes.pop(change)
-        print()
+
 
 def findSharedResults(sharedResults,messageList):
     canonicalResults=[]
@@ -520,7 +543,7 @@ def normalizeScores(results):
                 result["normalized_score"]=ranked.pop(0)
     return results
 
-def getMessagesForTesting(pk):
+def getChildrenFromParent(pk):
     children = Message.objects.filter(ref__pk=pk)
     messageList=[]
     if children is not None:
@@ -539,7 +562,7 @@ def createMessage(actor):
 def merger():
     #pk = "43ff3930-7bc4-4f5f-a069-e1a2a4ec8dd5"
     pk = "b4f4e046-db06-4f6b-b4ae-b153e79fb18b"
-    messageList= getMessagesForTesting(pk)
+    messageList= getChildrenFromParent(pk)
     parent = Message.objects.get(pk=pk)
     if(get_safe(parent.to_dict(),"fields","data","message","query_graph") is not None):
         originalQuery= QueryGraph(get_safe(parent.to_dict(),"fields","data","message","query_graph"))
@@ -558,9 +581,31 @@ def merger():
         if t_mesg.getKnowledgeGraph() is not None:
             canonizeMessage(t_mesg)
             newList.append(t_mesg)
-    merged = mergeMessages(originalQuery,newList)
-    print()
+    merged = mergeMessages(newList)
     return (merged.to_dict())
+
+#@app.task(bind=True)
+#@shared_task(name="merge")
+@app.task(name="merge")
+def merge(pk,merged_pk):
+    messageList= getChildrenFromParent(pk)
+    mergedComplete = Message.objects.get(pk=merged_pk)
+
+    newList =[]
+    for message in messageList:
+        mesg=get_safe(message.to_dict(),"fields","data","message")
+        if mesg is not None:
+            t_mesg=TranslatorMessage(message.to_dict()["fields"]["data"]["message"])
+        else:
+            continue
+        if t_mesg.getKnowledgeGraph() is not None:
+            canonizeMessage(t_mesg)
+            newList.append(t_mesg)
+    merged = mergeMessages(newList)
+    mergedComplete.data=merged.to_dict()
+    mergedComplete.code = 200
+    mergedComplete.status = 'D'
+    mergedComplete.save()
 
 def hop_level_filter(results, hop_limit):
 

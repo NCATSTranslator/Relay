@@ -221,6 +221,7 @@ def trace_message(req, key):
             },
             'result_count': mesg.result_count,
             'query_graph': dict(mesg.data['message']['query_graph']),
+            #'query_graph':mesg.data.query_graph,
             'children': []
         }
         trace_message_deepfirst(tree)
@@ -641,8 +642,7 @@ def answers(req, key):
         #     html += "<a href="+str(req.META['HTTP_HOST'])+"/ars/api/messages/"+childId+" target=\"_blank\">"+str(child['actor']['agent'])+"</a>"
         #     html += "<br>"
         # html+="</body></html>"mesg
-        pass
-        print()
+
         return HttpResponse(json.loads(jsonRes),status=200)
     except Message.DoesNotExist:
         return HttpResponse('Unknown message: %s' % key, status=404)
@@ -656,14 +656,35 @@ def timeoutTest(req,time=300):
     if req.method == 'POST':
         time.sleep(time)
     else:
-        merged_dict = utils.merger()
-        message=utils.createMessage(get_ars_actor())
-        message.data=merged_dict
-        message.save()
-        print(message.id)
-        return HttpResponse(json.dumps(message.to_dict(), indent=2),
-                        content_type='application/json', status=200)
+        key = "b4f4e046-db06-4f6b-b4ae-b153e79fb18b"
+        logger.debug("Beginning merge for %s " % key)
+        parent=Message.objects.get(pk=key)
+        merged_message=utils.createMessage(get_ars_actor())
+        merged_message.data=parent.data
+        merged_message.save()
+        #utils.merge.apply_async((key,merged_message.id))
+        return trace_message(req,merged_message.id)
+        # merged_dict = utils.merger()
+        # message=utils.createMessage(get_ars_actor())
+        # message.data=merged_dict
+        # message.save()
+        # print(message.id)
+        # return HttpResponse(json.dumps(merged_json, indent=2),
+        #                     content_type='application/json', status=200)
 
+
+def merge(req, key):
+    logger.debug("Beginning merge for %s " % key)
+    if req.method == 'GET':
+        logger.debug("Beginning merge for %s " % key)
+        parent=Message.objects.get(pk=key)
+        merged_message=utils.createMessage(get_ars_actor())
+        mid=merged_message.id
+        merged_message.data=parent.data
+        merged_message.save()
+        utils.merge.apply_async((key,mid))
+        return redirect('/ars/api/messages/'+str(mid))
+        #return trace_message(req,merged_message.id)
 
 
 apipatterns = [
@@ -680,7 +701,9 @@ apipatterns = [
     re_path(r'^status/?$', status, name='ars-status'),
     re_path(r'^reports/?$', reports, name='ars-reports'),
     path('reports/<inforesid>',get_report,name='ars-report'),
-    re_path(r'^timeoutTest/?$', timeoutTest, name='ars-timeout')
+    re_path(r'^timeoutTest/?$', timeoutTest, name='ars-timeout'),
+    path('merge/<uuid:key>', merge, name='ars-merge')
+
 
 ]
 
