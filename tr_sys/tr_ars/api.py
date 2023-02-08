@@ -656,21 +656,7 @@ def timeoutTest(req,time=300):
     if req.method == 'POST':
         time.sleep(time)
     else:
-        key = "b4f4e046-db06-4f6b-b4ae-b153e79fb18b"
-        logger.debug("Beginning merge for %s " % key)
-        parent=Message.objects.get(pk=key)
-        merged_message=utils.createMessage(get_ars_actor())
-        merged_message.data=parent.data
-        merged_message.save()
-        #utils.merge.apply_async((key,merged_message.id))
-        return trace_message(req,merged_message.id)
-        # merged_dict = utils.merger()
-        # message=utils.createMessage(get_ars_actor())
-        # message.data=merged_dict
-        # message.save()
-        # print(message.id)
-        # return HttpResponse(json.dumps(merged_json, indent=2),
-        #                     content_type='application/json', status=200)
+        pass
 
 
 def merge(req, key):
