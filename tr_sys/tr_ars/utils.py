@@ -286,8 +286,8 @@ def mergeMessagesRecursive(mergedMessage,messageList):
         sharedResultMap={}
 
         for key in currentResultMap.keys():
+            currentResult = currentResultMap[key]
             if key in mergedResultMap.keys():
-                currentResult = currentResultMap[key]
                 mergedResult = mergedResultMap[key]
                 for k2 in currentResult.keys():
                     if k2 in mergedResult.keys():
@@ -303,18 +303,21 @@ def mergeMessagesRecursive(mergedMessage,messageList):
                             elif isinstance(mergedResult[k2],list):
                                 mergedResultMap[key][k2]=mergedResultMap[key][k2].append(currentResult[k2])
                             else:
-                                mergedResultMap[key][k2]=[mergedResultMap[key][k2],currentResult[k2]]
+                                if isinstance(mergedResultMap[key][k2], list):
+                                    mergedResultMap[key][k2].append(currentResult[k2])
+                                else:
+                                    mergedResultMap[key][k2]=[mergedResultMap[key][k2],currentResult[k2]]
                         except Exception as e:
                             logging.debug("Unexpected error in result merging")
                             logging.debug(e.__traceback__)
                         # logging.debug("current values")
                         # logging.debug(mergedResultMap[key])
                         # logging.debug(mergedResultMap[key][k2])
-
                     else:
                         #If it's not already in the merged results, we just take what is in the current one
                         mergedResultMap[key][k2]=currentResult[k2]
-
+            else:
+                mergedResultMap[key][k2]=currentResult[k2]
         # if len(sharedResultMap)>0:
         #     if mergedMessage.getSharedResults() is not None:
         #         currentSharedMap = mergedMessage.getSharedResults()
