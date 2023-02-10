@@ -301,13 +301,12 @@ def mergeMessagesRecursive(mergedMessage,messageList):
                                 mergedResultMap[key][k2]={**mergedResult[k2],**currentResult[k2]}
                             #for other additional fields, we can just make a list of all values.
                             elif isinstance(mergedResult[k2],list):
-                                mergedResultMap[key][k2]=mergedResultMap[key][k2].append(currentResult[k2])
+                                mergedResultMap[key][k2].append(currentResult[k2])
+                                #mergedResultMap[key][k2]=mergedResult[k2].append([currentResult[k2]])
                             else:
-                                if isinstance(mergedResultMap[key][k2], list):
-                                    mergedResultMap[key][k2].append(currentResult[k2])
-                                else:
-                                    mergedResultMap[key][k2]=[mergedResultMap[key][k2],currentResult[k2]]
+                                mergedResultMap[key][k2]=[mergedResultMap[key][k2],currentResult[k2]]
                         except Exception as e:
+                            logging.error("Unexpected error 2: {}".format(traceback.format_exception(type(e), e, e.__traceback__)))
                             logging.debug("Unexpected error in result merging")
                             logging.debug(e.__traceback__)
                         # logging.debug("current values")
@@ -317,7 +316,7 @@ def mergeMessagesRecursive(mergedMessage,messageList):
                         #If it's not already in the merged results, we just take what is in the current one
                         mergedResultMap[key][k2]=currentResult[k2]
             else:
-                mergedResultMap[key][k2]=currentResult[k2]
+                mergedResultMap[key]=currentResult
         # if len(sharedResultMap)>0:
         #     if mergedMessage.getSharedResults() is not None:
         #         currentSharedMap = mergedMessage.getSharedResults()
