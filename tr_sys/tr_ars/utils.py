@@ -345,31 +345,29 @@ def mergeDicts(dcurrent,dmerged):
             elif isinstance(mv,list) and isinstance(cv,list):
                 try:
                     #if they're both lists, we have to shuffle
-                    print("shuffling")
+                    #print("shuffling")
                     #let's check for the special case of lists of dicts with ids (e.g. 'gene' for a node binding)
                     if (all(isinstance(x, dict) for x in mv)
                         and all(isinstance(y, dict) for y in cv)):
                         cmap={}
                         mmap={}
-                        noId = []
                         for cd in cv:
                             if "id" in cd.keys():
                                 cmap[cd["id"]]=cd
                             else:
                                 logging.debug("list item lacking id? "+str(cd))
-                                noId.append(cd)
                         for md in mv:
                             if "id" in md.keys():
                                 mmap[md["id"]]=md
                             else:
                                 logging.debug("list item lacking id? "+str(cd))
-                                noId.append(md)
+
                         for ck in cmap.keys():
                             if ck in mmap.keys():
                                 mmap[ck]=mergeDicts(cmap[ck],mmap[ck])
                             else:
                                 mmap[ck]=cmap[ck]
-                        dmerged[key]=list(mmap.values())+noId
+                        dmerged[key]=list(mmap.values())
                             
 
 
@@ -653,7 +651,7 @@ def merge(pk,merged_pk):
             #temporarily removing canonization for testing as I pre-normalized for performance
             #b4f4e046-db06-4f6b-b4ae-b153e79fb18b
             #TODO uncomment before committing!
-            #canonizeMessage(t_mesg)
+            canonizeMessage(t_mesg)
             newList.append(t_mesg)
 
     merged = mergeMessages(newList)
