@@ -11,6 +11,7 @@ from scipy.stats import rankdata
 from celery import shared_task
 from celery import task
 from tr_sys.celery import app
+import typing
 
 
 #NORMALIZER_URL='https://nodenormalization-sri.renci.org/1.2/get_normalized_nodes?'
@@ -279,63 +280,137 @@ def mergeMessagesRecursive(mergedMessage,messageList):
         mergedKnowledgeGraph = mergeKnowledgeGraphs(currentMessage.getKnowledgeGraph(),mergedMessage.getKnowledgeGraph())
 
         #merge Results
-        # currentResultTuples = currentMessage.getResultTuples()
-        # mergedResultTuples = mergedMessage.getResultTuples()
         currentResultMap= currentMessage.getResultMap()
         mergedResultMap=mergedMessage.getResultMap()
-        sharedResultMap={}
+        mergedResults=mergeDicts(currentResultMap,mergedResultMap)
 
-        for key in currentResultMap.keys():
-            currentResult = currentResultMap[key]
-            if key in mergedResultMap.keys():
-                mergedResult = mergedResultMap[key]
-                for k2 in currentResult.keys():
-                    if k2 in mergedResult.keys():
-                        #if we already have this let's keep both values
-                        # logging.debug("conflicting values")
-                        # logging.debug(currentResult[k2])
-                        # logging.debug(mergedResultMap[key][k2])
-                        #for dictionaries, we need to preserve type
-                        try:
-                            if (isinstance(mergedResult[k2],dict) and isinstance(currentResult[k2],dict)):
-                                mergedResultMap[key][k2]={**mergedResult[k2],**currentResult[k2]}
-                            #for other additional fields, we can just make a list of all values.
-                            elif isinstance(mergedResult[k2],list):
-                                mergedResultMap[key][k2].append(currentResult[k2])
-                                #mergedResultMap[key][k2]=mergedResult[k2].append([currentResult[k2]])
-                            else:
-                                mergedResultMap[key][k2]=[mergedResultMap[key][k2],currentResult[k2]]
-                        except Exception as e:
-                            logging.error("Unexpected error 2: {}".format(traceback.format_exception(type(e), e, e.__traceback__)))
-                            logging.debug("Unexpected error in result merging")
-                            logging.debug(e.__traceback__)
-                        # logging.debug("current values")
-                        # logging.debug(mergedResultMap[key])
-                        # logging.debug(mergedResultMap[key][k2])
-                    else:
-                        #If it's not already in the merged results, we just take what is in the current one
-                        mergedResultMap[key][k2]=currentResult[k2]
-            else:
-                mergedResultMap[key]=currentResult
-        # if len(sharedResultMap)>0:
-        #     if mergedMessage.getSharedResults() is not None:
-        #         currentSharedMap = mergedMessage.getSharedResults()
-        #         intersectingResults = set(currentSharedMap.keys()).intersection(sharedResultTuples)
-        #         for key in currentSharedMap.keys():
-        #             if key in intersectingResults:
-        #                 currentSharedMap[key]=currentSharedMap[key]+1
-        #             else:
-        #                 currentSharedMap[key]=2
-        #         mergedMessage.setSharedResults(currentSharedMap)
-        #     else:
-        #         resultMap={k:2 for k in sharedResultTuples}
-        #         mergedMessage.setSharedResults(resultMap)
-        # mergedResults=mergeResults(currentMessage.getResults(),mergedMessage.getResults())
+        #for key in currentResultMap.keys():
+            #currentResult = currentResultMap[key]
+            # if key in mergedResultMap.keys():
+            #     mergedResult = mergedResultMap[key]
+            #     for k2 in currentResult.keys():
+            #         print("k2 "+k2)
+            #         if k2 in mergedResult.keys():
+            #             print("c "+str(currentResult))
+            #             print("m "+str(mergedResult))
+            #             #if we already have this let's keep both values
+            #             try:
+            #
+            #                 #for dictionaries, we need to preserve type
+            #                 if (isinstance(mergedResult[k2],dict) and isinstance(currentResult[k2],dict)):
+            #                     print("merging dicts")
+            #                     #{**mergedResultMap[key][k2],**currentResult[k2]}
+            #                     for ck in currentResult[k2]:
+            #                         if ck in mergedResult[k2].keys():
+            #                             pass
+            #                         #if we don't already have it, easy.  We take it.
+            #                         else:
+            #                             pass
+            #
+            #                 #for other additional fields, we can just make a list of all values.
+            #                 elif isinstance(mergedResult[k2],list):
+            #                     mergedResultMap[key][k2].append(currentResult[k2])
+            #                 else:
+            #                     mergedResultMap[key][k2]=[mergedResultMap[key][k2],currentResult[k2]]
+            #             except Exception as e:
+            #                 logging.error("Unexpected error 2: {}".format(traceback.format_exception(type(e), e, e.__traceback__)))
+            #                 logging.debug(e)
+            #         else:
+            #             #If it's not already in the merged results, we just take what is in the current one
+            #             print("taking the current")
+            #             mergedResultMap[key][k2]=currentResult
+            #         print(str(mergedResultMap[key][k2]))
+            # else:
+            #     print("Adding field to merged")
+            #     mergedResultMap[key]=currentResult
+
         values = mergedResultMap.values()
         newResults= Results(list(values))
         mergedMessage.setResults(newResults)
         mergedMessage.setKnowledgeGraph(mergedKnowledgeGraph)
         return mergeMessagesRecursive(mergedMessage,messageList)
+
+
+def mergeDicts(dcurrent,dmerged):
+    for key in dcurrent.keys():
+        cv=dcurrent[key]
+        #print("key is "+str(key))
+        if key in dmerged.keys():
+            mv=dmerged[key]
+            if (isinstance(cv,dict) and isinstance(mv,dict)):
+                #print("merging dicts")
+                dmerged[key]=mergeDicts(cv,mv)
+            elif isinstance(mv,list) and not isinstance(cv,list):
+                mv.append(cv)
+            elif isinstance(mv,list) and isinstance(cv,list):
+                try:
+                    #if they're both lists, we have to shuffle
+                    print("shuffling")
+                    #let's check for the special case of lists of dicts with ids (e.g. 'gene' for a node binding)
+                    if (all(isinstance(x, dict) for x in mv)
+                        and all(isinstance(y, dict) for y in cv)):
+                        cmap={}
+                        mmap={}
+                        noId = []
+                        for cd in cv:
+                            if "id" in cd.keys():
+                                cmap[cd["id"]]=cd
+                            else:
+                                logging.debug("list item lacking id? "+str(cd))
+                                noId.append(cd)
+                        for md in mv:
+                            if "id" in md.keys():
+                                mmap[md["id"]]=md
+                            else:
+                                logging.debug("list item lacking id? "+str(cd))
+                                noId.append(md)
+                        for ck in cmap.keys():
+                            if ck in mmap.keys():
+                                mmap[ck]=mergeDicts(cmap[ck],mmap[ck])
+                            else:
+                                mmap[ck]=cmap[ck]
+                        dmerged[key]=list(mmap.values())+noId
+                            
+
+
+
+                        # ms=set()
+                        # cs=set()
+                        # for dm in mv:
+                        #     for k,v in dm.items():
+                        #         ms.add((k,v))
+                        # for dc in cv:
+                        #     for k,v in dc.items():
+                        #         cs.add((k,v))
+                        # dmerged[key]=mv+list(cs-ms)
+                        # print()
+                    #if they're at least hashable, we combine without duplicates
+                    elif(all(isinstance(x, typing.Hashable) for x in mv)
+                         and all(isinstance(y, typing.Hashable) for y in cv)):
+
+                        dmerged[key]=mv+list(set(cv)-set(mv))
+                    #if they're not even hashable, we just combine them like when you make scrambled eggs because you messed up an omlette
+                    else:
+                        dmerged[key]=mv+cv
+
+                except Exception as e:
+                    print(e)
+            else:
+                #print("newly listing")
+                try:
+                    if ((isinstance(mv, typing.Hashable)
+                    and isinstance(cv, typing.Hashable)
+                    and mv==cv) or cv is None):
+                        continue
+                    else:
+                        dmerged[key]=[mv,cv]
+                except Exception as e:
+                    print(e)
+        else:
+            #print("adding new")
+            dmerged[key]=cv
+        #print("value is now "+str(dmerged[key]))
+    return dmerged
 
 
 def mergeResults(r1, r2):
@@ -561,33 +636,7 @@ def createMessage(actor):
     message.save()
     return message
 
-def merger():
-    #pk = "43ff3930-7bc4-4f5f-a069-e1a2a4ec8dd5"
-    pk = "b4f4e046-db06-4f6b-b4ae-b153e79fb18b"
-    messageList= getChildrenFromParent(pk)
-    parent = Message.objects.get(pk=pk)
-    if(get_safe(parent.to_dict(),"fields","data","message","query_graph") is not None):
-        originalQuery= QueryGraph(get_safe(parent.to_dict(),"fields","data","message","query_graph"))
-    else:
-        #This shouldn't happen, but will save us some errors if it does
-        originalQuery=QueryGraph({})
-        logging.debug("Message to be merged does not have a query_graph attached to the parent PK")
-    newList =[]
-    for message in messageList:
-        mesg=get_safe(message.to_dict(),"fields","data","message")
-        if mesg is not None:
-            t_mesg=TranslatorMessage(message.to_dict()["fields"]["data"]["message"])
-        else:
-            continue
 
-        if t_mesg.getKnowledgeGraph() is not None:
-            canonizeMessage(t_mesg)
-            newList.append(t_mesg)
-    merged = mergeMessages(newList)
-    return (merged.to_dict())
-
-#@app.task(bind=True)
-#@shared_task(name="merge")
 @app.task(name="merge")
 def merge(pk,merged_pk):
     messageList= getChildrenFromParent(pk)
@@ -601,8 +650,12 @@ def merge(pk,merged_pk):
         else:
             continue
         if t_mesg.getKnowledgeGraph() is not None:
-            canonizeMessage(t_mesg)
+            #temporarily removing canonization for testing as I pre-normalized for performance
+            #b4f4e046-db06-4f6b-b4ae-b153e79fb18b
+            #TODO uncomment before committing!
+            #canonizeMessage(t_mesg)
             newList.append(t_mesg)
+
     merged = mergeMessages(newList)
     mergedComplete.data=merged.to_dict()
     mergedComplete.code = 200
