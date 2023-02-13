@@ -277,6 +277,8 @@ def filter_message(key, filter, arg):
     mesg = Message.objects.get(pk=key)
     if str(mesg.actor.agent.name) == 'ars-default-agent':
         new_mesg = Message.create(actor=get_default_actor(), code=200, status='Done')
+        new_id=new_mesg.pk
+        new_mesg.data=mesg.data
         new_mesg.save()
         children = Message.objects.filter(ref__pk=str(mesg.pk))
         for child in children:
@@ -287,7 +289,7 @@ def filter_message(key, filter, arg):
                 child_mesg.result_count = final_result_count
                 child_mesg.data= rdata_filtered
                 child_mesg.save()
-        return HttpResponse('your new parent pk is %s' % new_mesg.pk, status=200)
+        return redirect('/ars/api/messages/'+str(new_id)+'?trace=y')
     else:
         if mesg.status == "D" and mesg.result_count != 0:
             mesg_dict = mesg.to_dict()
@@ -296,10 +298,11 @@ def filter_message(key, filter, arg):
             child_mesg.result_count = final_result_count
             child_mesg.data = rdata_filtered
             child_mesg.save()
+            new_id=child_mesg.id
         else:
             return HttpResponse('message doesnt have results or marked as "Done"', status=400)
 
-        return HttpResponse('your new child pk is %s' % child_mesg.pk, status=200)
+        return redirect('/ars/api/messages/'+str(new_id)+'?trace=y')
 
 @csrf_exempt
 def filter(req, key):
