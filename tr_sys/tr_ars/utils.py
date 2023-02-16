@@ -406,7 +406,20 @@ def canonizeMessageTest(kg,results):
                 new_id = changes[change]['id']['identifier']
                 print("Changing "+(str(change))+" to "+str(new_id))
                 nodes[new_id]=nodes.pop(change)
-                original_nodes[change]=nodes[new_id]
+                original_node={
+                            "attribute_type_id": "biolink:xref",
+                            "original_attribute_name": "original_id",
+                            "value": change,
+                            "value_type_id": "metatype:String",
+                            "attribute_source": None,
+                            "value_url": None,
+                            "description": None,
+                }
+                attributes = nodes[new_id]['attributes']
+                if isinstance(attributes, list):
+                    attributes.append(original_node)
+                else:
+                    nodes[new_id]['attributes'] = [original_node]
 
         kg['original_nodes']=original_nodes
     return kg, results
