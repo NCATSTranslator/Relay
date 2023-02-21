@@ -218,6 +218,7 @@ CELERY_BROKER_URL = 'amqp://localhost'
 CELERY_IMPORTS = [
     'tr_ars.tasks',
 ]
+CELERY_TASK_ALWAYS_EAGER=True
 # Other important shared settings
 DATA_UPLOAD_MAX_MEMORY_SIZE=1073741824
 
