@@ -9,6 +9,7 @@ from utils2 import urlRemoteFromInforesid
 from .models import Agent, Message, Channel, Actor
 import json, sys, logging
 import traceback
+
 from inspect import currentframe, getframeinfo
 from tr_ars import status_report
 from datetime import datetime, timedelta
@@ -57,6 +58,15 @@ WORKFLOW_ACTOR = {
     'path': '',
     'inforesid': ''
 }
+ARS_ACTOR = {
+    'channel': [],
+    'agent': {
+        'name': 'ars-ars-agent',
+        'uri': ''
+    },
+    'path': '',
+    'inforesid': 'ARS'
+}
 
 def get_default_actor():
     # default actor is the first actor initialized in the database per
@@ -65,9 +75,9 @@ def get_default_actor():
 def get_workflow_actor():
     # default actor is the first actor initialized in the database per
     # apps.setup_schema()
-    print("boop")
     return get_or_create_actor(WORKFLOW_ACTOR)[0]
-
+def get_ars_actor():
+    return get_or_create_actor(ARS_ACTOR)[0]
 @csrf_exempt
 def submit(req):
     logger.debug("submit")
@@ -211,6 +221,7 @@ def trace_message(req, key):
             },
             'result_count': mesg.result_count,
             'query_graph': dict(mesg.data['message']['query_graph']),
+            #'query_graph':mesg.data.query_graph,
             'children': []
         }
         trace_message_deepfirst(tree)
@@ -634,8 +645,7 @@ def answers(req, key):
         #     html += "<a href="+str(req.META['HTTP_HOST'])+"/ars/api/messages/"+childId+" target=\"_blank\">"+str(child['actor']['agent'])+"</a>"
         #     html += "<br>"
         # html+="</body></html>"mesg
-        pass
-        print()
+
         return HttpResponse(json.loads(jsonRes),status=200)
     except Message.DoesNotExist:
         return HttpResponse('Unknown message: %s' % key, status=404)
@@ -651,6 +661,20 @@ def timeoutTest(req,time=300):
     else:
         pass
 
+
+def merge(req, key):
+    logger.debug("Beginning merge for %s " % key)
+    if req.method == 'GET':
+        logger.debug("Beginning merge for %s " % key)
+        parent=Message.objects.get(pk=key)
+        merged_message=utils.createMessage(get_ars_actor())
+        mid=merged_message.id
+        merged_message.data=parent.data
+        merged_message.save()
+        utils.merge.apply_async((key,mid))
+        return redirect('/ars/api/messages/'+str(mid))
+
+
 apipatterns = [
     path('', index, name='ars-api'),
     re_path(r'^submit/?$', submit, name='ars-submit'),
@@ -665,7 +689,9 @@ apipatterns = [
     re_path(r'^status/?$', status, name='ars-status'),
     re_path(r'^reports/?$', reports, name='ars-reports'),
     path('reports/<inforesid>',get_report,name='ars-report'),
-    re_path(r'^timeoutTest/?$', timeoutTest, name='ars-timeout')
+    re_path(r'^timeoutTest/?$', timeoutTest, name='ars-timeout'),
+    path('merge/<uuid:key>', merge, name='ars-merge')
+
 
 ]
 
