@@ -8,7 +8,10 @@ import statistics
 import sys
 from .models import Agent, Message, Channel, Actor
 from scipy.stats import rankdata
-
+from celery import shared_task
+from celery import task
+from tr_sys.celery import app
+import typing
 
 #NORMALIZER_URL='https://nodenormalization-sri.renci.org/1.2/get_normalized_nodes?'
 NORMALIZER_URL='https://nodenormalization-sri.renci.org/1.3/get_normalized_nodes'
@@ -17,13 +20,13 @@ class QueryGraph():
     def __init__(self,qg):
         if qg==None:
             return None
-        self.rawGraph = qg
+        self.__rawGraph = qg
         self.__nodes =  qg['nodes']
         self.__edges = qg['edges']
     def getEdges(self):
         return self.__edges
     def getNodes(self):
-        return self.__edges
+        return self.__nodes
     def getAllCuries(self):
         nodes = self.getNodes()
         curies =[]
@@ -31,6 +34,10 @@ class QueryGraph():
             if("curie") in node:
                 curies.append(node['curie'])
         return curies
+    def getRawGraph(self):
+        return self.__rawGraph
+    def __json__(self):
+        return json.dumps(self.getRawGraph())
 
 class KnowledgeGraph():
     def __init__(self,kg):
@@ -47,7 +54,7 @@ class KnowledgeGraph():
         nodes=self.getNodes()
         ids = []
         for node in nodes:
-           ids.append(node)
+            ids.append(node)
         return ids
     def getNodeById(self,id):
         nodes = self.getNodes()
@@ -60,7 +67,8 @@ class KnowledgeGraph():
         edges=self.getEdges()
         edge = edges.get(id)
         return edge
-
+    def __json__(self):
+        return json.dumps(self.getRaw())
 
 #TODO make this a proper object, list of Result objects
 class Results():
@@ -75,8 +83,8 @@ class Results():
                 bindings = result['edge_bindings']
                 edgeBindings.append(bindings)
             except Exception as e:
-                logger.error("Unexpected error 3: {}".format(traceback.format_exception(type(e), e, e.__traceback__)))
-                print()
+                logging.error("Unexpected error 3: {}".format(traceback.format_exception(type(e), e, e.__traceback__)))
+
         return edgeBindings
     def getNodeBindings(self):
         nodeBindings=[]
@@ -138,6 +146,44 @@ class TranslatorMessage():
                     tuples.add(tuple)
             resultTuples.add(frozenset(tuples))
         return resultTuples
+    def getResultNodeSets(self):
+        results = self.getResults()
+        nodeSets=[]
+        if results is None:
+            return None
+        nodeb = results.getNodeBindings()
+        kg = self.getKnowledgeGraph()
+        for bindings in nodeb:
+            nodes = set()
+            for nodeid in bindings.keys():
+                binding=bindings.get(nodeid)
+                if len(binding)>1:
+                    logging.debug("Multiple bindings found for a single node")
+                else:
+                    binding=binding[0]
+                #node = kg.getNodeById(binding["id"]) can we just add the binding id and count on it to be the CURIE?
+                nodes.add(binding["id"])
+            nodeSets.append(frozenset(nodes)) #this needs to be a frozen set so it's hashable later
+        return nodeSets
+    def getResultMap(self):
+        map = {}
+        results=self.getResults()
+        if results is not None:
+            results = results.getRaw()
+        else:
+            return None
+        for result in results:
+            nodes = set()
+            nb = result["node_bindings"]
+            for nodeid in nb.keys():
+                binding=nb.get(nodeid)
+                if len(binding)>1:
+                    logging.debug("Multiple bindings found for a single node")
+                else:
+                    binding=binding[0]
+                    nodes.add(binding["id"])
+            map[frozenset(nodes)]=result
+        return map
 
     def setQueryGraph(self,qg):
         self.__qg=qg
@@ -150,7 +196,8 @@ class TranslatorMessage():
     def to_dict(self):
         d={}
         if self.getQueryGraph() is not None:
-            d['query_graph']=self.getQueryGraph().rawGraph
+            qg= self.getQueryGraph()
+            d['query_graph']=self.getQueryGraph().getRawGraph()
         else:
             d['query_graph']={}
         if self.getKnowledgeGraph() is not None:
@@ -163,7 +210,8 @@ class TranslatorMessage():
             d['results']={}
 
         return d
-
+    def __json__(self):
+        return self.to_dict()
 
 def getCommonNodeIds(messageList):
     if len(messageList)==0:
@@ -175,7 +223,7 @@ def getCommonNodeIds(messageList):
         inter = currentSet.intersection(idSet)
         commonSet.update(inter)
         idSet.update(currentSet)
-    print()
+
     return commonSet
 
 def getCommonNodes(messageList):
@@ -195,65 +243,186 @@ def getCommonNodes(messageList):
 
 
 
-def mergeMessages(originalQuery,messageList):
+def mergeMessages(messageList):
     messageListCopy = copy.deepcopy(messageList)
     message = messageListCopy.pop()
-    message.setQueryGraph(originalQuery) #whats the point of this line? we already have qg filled in
     merged = mergeMessagesRecursive(message,messageListCopy)
-    print()
+
     return merged
 
 def mergeMessagesRecursive(mergedMessage,messageList):
+    #need to clean things up and average our normalized scores now that they're all in
+
     if len(messageList)==0:
+        try:
+            results = mergedMessage.getResults()
+            if results is not None:
+                results = results.getRaw()
+                for result in results:
+                    if "normalized_score" in result.keys():
+                        ns = result["normalized_score"]
+                        if isinstance(ns,list) and len(ns)>0:
+                            result["normalized_score"]= sum(ns) / len(ns)
+        except Exception as e:
+            logging.debug(e.__traceback__)
+
+        mergedMessage.status='Done'
+        mergedMessage.code = 200
         return mergedMessage
     else:
         currentMessage = messageList.pop()
         #merge Knowledge Graphs
         mergedKnowledgeGraph = mergeKnowledgeGraphs(currentMessage.getKnowledgeGraph(),mergedMessage.getKnowledgeGraph())
         #merge Results
-        currentResultTuples = currentMessage.getResultTuples()
-        mergedResultTuples = mergedMessage.getResultTuples()
-        sharedResultTuples=set()
-        for cts in currentResultTuples:
-            if cts in mergedResultTuples:
-                sharedResultTuples.add(cts)
-        if len(sharedResultTuples)>0:
-            if mergedMessage.getSharedResults() is not None:
-                currentSharedMap = mergedMessage.getSharedResults()
-                intersectingResults = set(currentSharedMap.keys()).intersection(sharedResultTuples)
-                for key in currentSharedMap.keys():
-                    if key in intersectingResults:
-                        currentSharedMap[key]=currentSharedMap[key]+1
-                    else:
-                        currentSharedMap[key]=2
-                mergedMessage.setSharedResults(currentSharedMap)
-            else:
-                resultMap={k:2 for k in sharedResultTuples}
-                mergedMessage.setSharedResults(resultMap)
-        mergedResults=mergeResults(currentMessage.getResults(),mergedMessage.getResults())
-        mergedMessage.setResults(mergedResults)
+        currentResultMap= currentMessage.getResultMap()
+        mergedResultMap=mergedMessage.getResultMap()
+        mergedResults=mergeDicts(currentResultMap,mergedResultMap)
+
+        #for key in currentResultMap.keys():
+            #currentResult = currentResultMap[key]
+            # if key in mergedResultMap.keys():
+            #     mergedResult = mergedResultMap[key]
+            #     for k2 in currentResult.keys():
+            #         print("k2 "+k2)
+            #         if k2 in mergedResult.keys():
+            #             print("c "+str(currentResult))
+            #             print("m "+str(mergedResult))
+            #             #if we already have this let's keep both values
+            #             try:
+            #
+            #                 #for dictionaries, we need to preserve type
+            #                 if (isinstance(mergedResult[k2],dict) and isinstance(currentResult[k2],dict)):
+            #                     print("merging dicts")
+            #                     #{**mergedResultMap[key][k2],**currentResult[k2]}
+            #                     for ck in currentResult[k2]:
+            #                         if ck in mergedResult[k2].keys():
+            #                             pass
+            #                         #if we don't already have it, easy.  We take it.
+            #                         else:
+            #                             pass
+            #
+            #                 #for other additional fields, we can just make a list of all values.
+            #                 elif isinstance(mergedResult[k2],list):
+            #                     mergedResultMap[key][k2].append(currentResult[k2])
+            #                 else:
+            #                     mergedResultMap[key][k2]=[mergedResultMap[key][k2],currentResult[k2]]
+            #             except Exception as e:
+            #                 logging.error("Unexpected error 2: {}".format(traceback.format_exception(type(e), e, e.__traceback__)))
+            #                 logging.debug(e)
+            #         else:
+            #             #If it's not already in the merged results, we just take what is in the current one
+            #             print("taking the current")
+            #             mergedResultMap[key][k2]=currentResult
+            #         print(str(mergedResultMap[key][k2]))
+            # else:
+            #     print("Adding field to merged")
+            #     mergedResultMap[key]=currentResult
+
+        values = mergedResultMap.values()
+        newResults= Results(list(values))
+        mergedMessage.setResults(newResults)
         mergedMessage.setKnowledgeGraph(mergedKnowledgeGraph)
         return mergeMessagesRecursive(mergedMessage,messageList)
+
+
+def mergeDicts(dcurrent,dmerged):
+    for key in dcurrent.keys():
+        cv=dcurrent[key]
+        #print("key is "+str(key))
+        if key in dmerged.keys():
+            mv=dmerged[key]
+            if (isinstance(cv,dict) and isinstance(mv,dict)):
+                #print("merging dicts")
+                dmerged[key]=mergeDicts(cv,mv)
+            elif isinstance(mv,list) and not isinstance(cv,list):
+                mv.append(cv)
+            elif isinstance(mv,list) and isinstance(cv,list):
+                try:
+                    #if they're both lists, we have to shuffle
+                    #print("shuffling")
+                    #let's check for the special case of lists of dicts with ids (e.g. 'gene' for a node binding)
+                    if (all(isinstance(x, dict) for x in mv)
+                        and all(isinstance(y, dict) for y in cv)):
+                        cmap={}
+                        mmap={}
+                        for cd in cv:
+                            if "id" in cd.keys():
+                                cmap[cd["id"]]=cd
+                            else:
+                                logging.debug("list item lacking id? "+str(cd))
+                        for md in mv:
+                            if "id" in md.keys():
+                                mmap[md["id"]]=md
+                            else:
+                                logging.debug("list item lacking id? "+str(cd))
+
+                        for ck in cmap.keys():
+                            if ck in mmap.keys():
+                                mmap[ck]=mergeDicts(cmap[ck],mmap[ck])
+                            else:
+                                mmap[ck]=cmap[ck]
+                        dmerged[key]=list(mmap.values())
+                            
+
+
+
+                        # ms=set()
+                        # cs=set()
+                        # for dm in mv:
+                        #     for k,v in dm.items():
+                        #         ms.add((k,v))
+                        # for dc in cv:
+                        #     for k,v in dc.items():
+                        #         cs.add((k,v))
+                        # dmerged[key]=mv+list(cs-ms)
+                        # print()
+                    #if they're at least hashable, we combine without duplicates
+                    elif(all(isinstance(x, typing.Hashable) for x in mv)
+                         and all(isinstance(y, typing.Hashable) for y in cv)):
+
+                        dmerged[key]=mv+list(set(cv)-set(mv))
+                    #if they're not even hashable, we just combine them like when you make scrambled eggs because you messed up an omlette
+                    else:
+                        dmerged[key]=mv+cv
+
+                except Exception as e:
+                    print(e)
+            else:
+                #print("newly listing")
+                try:
+                    if ((isinstance(mv, typing.Hashable)
+                    and isinstance(cv, typing.Hashable)
+                    and mv==cv) or cv is None):
+                        continue
+                    else:
+                        dmerged[key]=[mv,cv]
+                except Exception as e:
+                    print(e)
+        else:
+            #print("adding new")
+            dmerged[key]=cv
+        #print("value is now "+str(dmerged[key]))
+    return dmerged
 
 
 def mergeResults(r1, r2):
     return Results(r1.getRaw()+r2.getRaw())
 def mergeKnowledgeGraphs(kg1, kg2):
-    mergedNodes =[]
+    #mergedNodes = []
+    mergedNodes ={}
     firstIds = set(kg1.getAllIds())
     try:
         idTest = kg2.getAllIds()
         secondIds = set(idTest)
     except Exception as e:
-        logger.error("Unexpected error 4: {}".format(traceback.format_exception(type(e), e, e.__traceback__)))
-        print()
+        logging.error("Unexpected error 4: {}".format(traceback.format_exception(type(e), e, e.__traceback__)))
     intersection = firstIds.intersection(secondIds)
     firstOnly = firstIds.difference(secondIds)
     secondOnly = secondIds.difference(firstIds)
     for id in firstOnly:
-        mergedNodes.append(kg1.getNodeById(id))
+        mergedNodes[id]=kg1.getNodeById(id)
     for id in secondOnly:
-        mergedNodes.append(kg2.getNodeById(id))
+        mergedNodes[id]=kg2.getNodeById(id)
     for id in intersection:
         mergedNode = {}
         firstNode = kg1.getNodeById(id)
@@ -272,7 +441,7 @@ def mergeKnowledgeGraphs(kg1, kg2):
                 mergedNode[key]=[firstNode.get(key),secondNode.get(key)]
             else:
                 mergedNode[key]=firstNode.get(key)
-            mergedNodes.append(mergedNode)
+            mergedNodes[id]=mergedNode
 
     #Since edges don't have the same guarantee of identifiers matching as nodes, we'll just combine them naively and
     #eat the redundancy if we have two functionally identical edges for now]
@@ -383,6 +552,7 @@ def canonizeKnowledgeGraph(kg):
     #         print(node+ " has been replaced with "+canonical)
     #     else:
     #         print (node+" is already the canonical term")
+
 def canonizeMessageTest(kg,results):
     original_nodes={}
     nodes = kg['nodes']
@@ -423,6 +593,7 @@ def canonizeMessageTest(kg,results):
         kg['original_nodes']=original_nodes
     return kg, results
 
+
 def canonizeMessage(msg):
     #kg = msg.getKnowledgeGraph()
     nodes = msg.getKnowledgeGraph().getNodes()
@@ -446,9 +617,8 @@ def canonizeMessage(msg):
         for change in changes:
             if change in nodes:
                 new_id = changes[change]['id']['identifier']
-                print("Changing "+(str(change))+" to "+str(new_id))
+                #print("Changing "+(str(change))+" to "+str(new_id))
                 nodes[new_id]=nodes.pop(change)
-        print()
 
 def findSharedResults(sharedResults,messageList):
     canonicalResults=[]
@@ -482,7 +652,7 @@ def normalizeScores(results):
                 result["normalized_score"]=ranked.pop(0)
     return results
 
-def getMessagesForTesting(pk):
+def getChildrenFromParent(pk):
     children = Message.objects.filter(ref__pk=pk)
     messageList=[]
     if children is not None:
@@ -497,21 +667,31 @@ def createMessage(actor):
     message.save()
     return message
 
-def merger():
-    messageList= getMessagesForTesting("3e5ea1b5-fdef-4a79-8d14-f9f1b67e559b")
-    print()
-    first = messageList[0].to_dict()
-    originalQuery = get_safe(messageList[0].to_dict(),"fields","data","message","query_graph")
-    originalQuery=QueryGraph(originalQuery)
+
+@app.task(name="merge")
+def merge(pk,merged_pk):
+    messageList= getChildrenFromParent(pk)
+    mergedComplete = Message.objects.get(pk=merged_pk)
+
     newList =[]
     for message in messageList:
-        t_mesg=TranslatorMessage(message.to_dict()["fields"]["data"]["message"])
-        #print(t_mesg.to_dict())
+        mesg=get_safe(message.to_dict(),"fields","data","message")
+        if mesg is not None:
+            t_mesg=TranslatorMessage(message.to_dict()["fields"]["data"]["message"])
+        else:
+            continue
         if t_mesg.getKnowledgeGraph() is not None:
+            #temporarily removing canonization for testing as I pre-normalized for performance
+            #b4f4e046-db06-4f6b-b4ae-b153e79fb18b
+            #TODO uncomment before committing!
             canonizeMessage(t_mesg)
             newList.append(t_mesg)
-    merged = mergeMessages(originalQuery,newList)
-    return (merged.to_dict())
+
+    merged = mergeMessages(newList)
+    mergedComplete.data=merged.to_dict()
+    mergedComplete.code = 200
+    mergedComplete.status = 'D'
+    mergedComplete.save()
 
 def hop_level_filter(results, hop_limit):
 
@@ -551,3 +731,4 @@ def specific_node_filter(results, forbbiden_node):
         if any(item in ids for item in forbbiden_node):
             results.remove(result)
     return results
+

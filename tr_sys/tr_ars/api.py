@@ -221,6 +221,7 @@ def trace_message(req, key):
             },
             'result_count': mesg.result_count,
             'query_graph': dict(mesg.data['message']['query_graph']),
+            #'query_graph':mesg.data.query_graph,
             'children': []
         }
         trace_message_deepfirst(tree)
@@ -287,6 +288,8 @@ def filter_message(key, filter, arg):
     mesg = Message.objects.get(pk=key)
     if str(mesg.actor.agent.name) == 'ars-default-agent':
         new_mesg = Message.create(actor=get_default_actor(), code=200, status='Done')
+        new_id=new_mesg.pk
+        new_mesg.data=mesg.data
         new_mesg.save()
         children = Message.objects.filter(ref__pk=str(mesg.pk))
         for child in children:
@@ -297,7 +300,7 @@ def filter_message(key, filter, arg):
                 child_mesg.result_count = final_result_count
                 child_mesg.data= rdata_filtered
                 child_mesg.save()
-        return HttpResponse('your new parent pk is %s' % new_mesg.pk, status=200)
+        return redirect('/ars/api/messages/'+str(new_id)+'?trace=y')
     else:
         if mesg.status == "D" and mesg.result_count != 0:
             mesg_dict = mesg.to_dict()
@@ -306,10 +309,11 @@ def filter_message(key, filter, arg):
             child_mesg.result_count = final_result_count
             child_mesg.data = rdata_filtered
             child_mesg.save()
+            new_id=child_mesg.id
         else:
             return HttpResponse('message doesnt have results or marked as "Done"', status=400)
 
-        return HttpResponse('your new child pk is %s' % child_mesg.pk, status=200)
+        return redirect('/ars/api/messages/'+str(new_id)+'?trace=y')
 
 @csrf_exempt
 def filter(req, key):
@@ -649,8 +653,7 @@ def answers(req, key):
         #     html += "<a href="+str(req.META['HTTP_HOST'])+"/ars/api/messages/"+childId+" target=\"_blank\">"+str(child['actor']['agent'])+"</a>"
         #     html += "<br>"
         # html+="</body></html>"mesg
-        pass
-        print()
+
         return HttpResponse(json.loads(jsonRes),status=200)
     except Message.DoesNotExist:
         return HttpResponse('Unknown message: %s' % key, status=404)
@@ -673,6 +676,20 @@ def timeoutTest(req,time=300):
                         content_type='application/json', status=200)
 
 
+
+def merge(req, key):
+    logger.debug("Beginning merge for %s " % key)
+    if req.method == 'GET':
+        logger.debug("Beginning merge for %s " % key)
+        parent=Message.objects.get(pk=key)
+        merged_message=utils.createMessage(get_ars_actor())
+        mid=merged_message.id
+        merged_message.data=parent.data
+        merged_message.save()
+        utils.merge.apply_async((key,mid))
+        return redirect('/ars/api/messages/'+str(mid))
+
+
 apipatterns = [
     path('', index, name='ars-api'),
     re_path(r'^submit/?$', submit, name='ars-submit'),
@@ -687,7 +704,9 @@ apipatterns = [
     re_path(r'^status/?$', status, name='ars-status'),
     re_path(r'^reports/?$', reports, name='ars-reports'),
     path('reports/<inforesid>',get_report,name='ars-report'),
-    re_path(r'^timeoutTest/?$', timeoutTest, name='ars-timeout')
+    re_path(r'^timeoutTest/?$', timeoutTest, name='ars-timeout'),
+    path('merge/<uuid:key>', merge, name='ars-merge')
+
 
 ]
 
