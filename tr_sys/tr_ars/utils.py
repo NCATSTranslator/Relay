@@ -209,8 +209,7 @@ def mergeMessagesRecursive(mergedMessage,messageList):
     else:
         currentMessage = messageList.pop()
         #merge Knowledge Graphs
-        mergedKnowledgeGraph = mergeKnowledgeGraphs(currentMessage.getKnowledgeGraph(),mergedMessage.getKnowledgeGraph()) #so we are comparing each current message to the first mssage
-
+        mergedKnowledgeGraph = mergeKnowledgeGraphs(currentMessage.getKnowledgeGraph(),mergedMessage.getKnowledgeGraph())
         #merge Results
         currentResultTuples = currentMessage.getResultTuples()
         mergedResultTuples = mergedMessage.getResultTuples()
@@ -252,7 +251,7 @@ def mergeKnowledgeGraphs(kg1, kg2):
     firstOnly = firstIds.difference(secondIds)
     secondOnly = secondIds.difference(firstIds)
     for id in firstOnly:
-        mergedNodes.append(kg1.getNodeById(id)) #from kg we get each node value and save them in mergeNodes
+        mergedNodes.append(kg1.getNodeById(id))
     for id in secondOnly:
         mergedNodes.append(kg2.getNodeById(id))
     for id in intersection:
