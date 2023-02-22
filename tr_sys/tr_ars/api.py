@@ -667,13 +667,7 @@ def timeoutTest(req,time=300):
     if req.method == 'POST':
         time.sleep(time)
     else:
-        merged_dict = utils.merger()
-        message=utils.createMessage(get_ars_actor())
-        message.data=merged_dict
-        message.save()
-        print(message.id)
-        return HttpResponse(json.dumps(message.to_dict(), indent=2),
-                        content_type='application/json', status=200)
+        pass
 
 
 
