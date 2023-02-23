@@ -376,7 +376,15 @@ def message(req, key):
             if 'tr_ars.message.status' in req.headers:
                 status = req.headers['tr_ars.message.status']
 
+            agent = str(mesg.actor.agent.name)
             res=utils.get_safe(data,"message","results")
+            kg = utils.get_safe(data,"message", "knowledge_graph")
+            if kg is not None:
+                if res is not None:
+                    kg, res = utils.canonizeMessageTest(kg, res)
+                else:
+                    logger.error('the %s hasnt given any result back' % (agent))
+
             if res is not None:
                 mesg.result_count = len(res)
                 if len(res)>0:
@@ -660,6 +668,7 @@ def timeoutTest(req,time=300):
         time.sleep(time)
     else:
         pass
+
 
 
 def merge(req, key):

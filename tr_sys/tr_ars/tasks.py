@@ -101,6 +101,13 @@ def send_message(actor_dict, mesg_dict, timeout=300):
                 status = 'D'
                 status_code = 200
                 results = utils.get_safe(rdata,"message","results")
+                kg = utils.get_safe(rdata,"message", "knowledge_graph")
+                if kg is not None:
+                    if results is not None:
+                        kg, results = utils.canonizeMessageTest(kg, results)
+                    else:
+                        logger.error('the %s hasnt given any result back' % (inforesid))
+
                 if results is not None:
                     mesg.result_count = len(rdata["message"]["results"])
                     if len(results)>0:
