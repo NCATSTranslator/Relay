@@ -153,7 +153,7 @@ paths:
           style: form
           allowReserved: true
         - name: node_type
-          description: specific node category filter i.e. ["ChemicalEntity", "BiologicalEntity"]
+          description: specific node category filter i.e. ['ChemicalEntity','BiologicalEntity']
           in: query
           required: false
           schema:
@@ -162,7 +162,7 @@ paths:
           style: form
           allowReserved: true
         - name: spec_node
-          description: specific node curie filter i.e. ["MONDO:0037747", "UMLS:C0037937"]
+          description: specific node curie filter i.e. ['MONDO:0037747','UMLS:C0037937']
           in: query
           required: false
           schema:
