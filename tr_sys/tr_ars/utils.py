@@ -700,7 +700,8 @@ def hop_level_filter(results, hop_limit):
 
 def score_filter(results, range):
 
-    filtered_result = list(filter(lambda result: range[0] < result["normalized_score"] < range[1], results))
+    norm_score_results = list(filter(lambda result: result.get('normalized_score') != None, results))
+    filtered_result = list(filter(lambda result: range[0] < result["normalized_score"] < range[1], norm_score_results))
     return filtered_result
 
 def node_type_filter(kg_nodes, results, forbidden_category):
