@@ -1,0 +1,191 @@
+openapi: 3.0.3
+info:
+  contact:
+    email: mark.williams5@nih.gov
+    name: Mark Williams, Shervin Abdollahi
+    url: https://github.com/NCATSTranslator/Relay
+  description: A TRAPI/Reasoner Standard API for Autonomous Relay System (ARS)
+  title: Autonomous Relay System (ARS) TRAPI
+  version: 2.0.0
+  x-trapi:
+    version: 1.3.0
+    asyncquery: false
+
+  x-translator:
+    infores: "infores:ars"
+    biolink-version: "3.1.1"
+    component: ARS
+    team:
+      - Link Brokers
+servers:
+  ## ITRB Production and Test are deployed manually, based on the staging instance
+  ## ITRB CI / staging is basically deployed manually, from main branches
+  ## - automatic for updates in ARS-trapi-workspace main branch, but those rarely happen
+  ## - we could technically control what branches are used (but right now we don't do this)
+  ## non-ITRB dev: total manual control on updates (what branches of modules are used for updates)
+  - url: https://ars-prod.transltr.io
+    description: ITRB Production server
+    x-maturity: production
+  - url: https://ars.test.transltr.io
+    description: ITRB Test server
+    x-maturity: testing
+  - url: https://ars.ci.transltr.io/
+    description: ITRB CI server
+    x-maturity: staging
+  - url: https://ars-dev.transltr.io
+    description: Non-ITRB dev (internal use)
+    x-maturity: development
+tags:
+  - name: 1.3.0
+  - name: translator
+  - name: trapi
+
+paths:
+  /ars/api/submit:
+    post:
+      tags:
+        - Submit
+      summary: Initiate a TRAPI-format query to ARS and wait to receive a Response
+      requestBody:
+        description: Query information to be submitted
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Query'
+            example:
+              message:
+                query_graph:
+                  nodes:
+                    n0:
+                      ids:
+                        - "MONDO:0021117"
+                      categories:
+                        - "biolink:Disease"
+                    n1:
+                      categories:
+                        - "biolink:NamedThing"
+                  edges:
+                    e1:
+                      subject: "n0"
+                      object: "n1"
+                      predictes: "biolink:risk_affected_by"
+      responses:
+        '200':
+          description: >-
+            OK. There will be a json response that contains : pk
+          content:
+            application/json:
+              schema:
+                type: string
+  ##
+  /ars/api/agents:
+    get:
+      tags:
+        - Agents
+      summary: list all the available agents
+      responses:
+        '200':
+          description: >-
+            Returns a list of all available agents with the following properties: name, uri, description, contact. registered, updated
+  ##
+  /ars/api/actors:
+    get:
+      tags:
+        - Actors
+      summary: list all the available actors
+      responses:
+        '200':
+          description: >-
+            Returns a list of all available actors with the following properties: name, channel, agent, urlRemote, path, active
+  ##
+  /ars/api/messages/{UUID}:
+    get:
+      tags:
+        - Messages
+      summary: This endpoint will show the response json from all individual ARAs
+      parameters:
+        - description: pk string value received from the initial query response
+          in: path
+          name: UUID
+          required: true
+          example: "7a0713fb-550b-462e-bde7-18a9de4ccfad"
+          schema:
+            type: string
+        - description: tracing children responses
+          in: query
+          name: trace
+          example: y
+          schema:
+            type: string
+      responses:
+        '200':
+          description: >-
+            Returns a TRAPI-compliant meta-knowledge-graph representation for one KP team's SmartAPI KP APIs (that have x-bte annotation
+  ##
+  /ars/api/filter/{UUID}:
+    get:
+      tags:
+        - Filters
+      summary: This endpoint will perform the following filtering on the returned results >- ['hop', 'score', 'node_type', 'spec_node']
+      parameters:
+        - description: pk string value to perform the filtering on
+          in: path
+          name: UUID
+          required: true
+          example: "df1869b5-1be2-49a7-9b5a-88166edfbb78"
+          schema:
+            type: string
+        - name: hop
+          description: hop level filter
+          in: query
+          required: false
+          example: 3
+          schema:
+            type: integer
+        - name: score
+          description: score filter i.e. [20,80]
+          in: query
+          required: false
+          schema:
+            type: string
+          explode: false
+          style: form
+          allowReserved: true
+        - name: node_type
+          description: specific node category filter i.e. ["ChemicalEntity", "BiologicalEntity"]
+          in: query
+          required: false
+          schema:
+            type: string
+          explode: false
+          style: form
+          allowReserved: true
+        - name: spec_node
+          description: specific node curie filter i.e. ["MONDO:0037747", "UMLS:C0037937"]
+          in: query
+          required: false
+          schema:
+            type: string
+          explode: false
+          style: form
+          allowReserved: true
+      responses:
+        '200':
+          description: >-
+            Returns a TRAPI-compliant meta-knowledge-graph representation for one KP team's SmartAPI KP APIs (that have x-bte annotation
+
+components:
+  schemas:
+    Query:
+      description: >-
+        The Query class is used to package a user request for information. A
+        Query object consists of a required Message object with optional
+        additional properties. Additional properties are intended to convey
+        implementation-specific or query-independent parameters. For example,
+        an additional property specifying a log level could allow a user to
+        override the default log level in order to receive more fine-grained
+        log information when debugging an issue.
+      x-body-name: request_body
+      type: object
+
