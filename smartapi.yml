@@ -4,6 +4,7 @@ info:
     email: mark.williams5@nih.gov
     name: Mark Williams, Shervin Abdollahi
     url: https://github.com/NCATSTranslator/Relay
+    x-role: responsible developer
   description: A TRAPI/Reasoner Standard API for Autonomous Relay System (ARS)
   termsOfService: "https://github.com/NCATSTranslator/Relay/blob/master/LICENSE"
   title: Autonomous Relay System (ARS) TRAPI
@@ -11,13 +12,15 @@ info:
   x-trapi:
     version: 1.3.0
     asyncquery: false
-
+    operations:
+      - lookup
   x-translator:
     infores: "infores:ars"
     biolink-version: "3.1.1"
     component: ARS
     team:
       - Link Brokers
+
 servers:
   ## ITRB Production and Test are deployed manually, based on the staging instance
   ## ITRB CI / staging is basically deployed manually, from main branches
@@ -42,6 +45,7 @@ tags:
   - name: trapi
 
 paths:
+  #submit endpoint
   /ars/api/submit:
     post:
       tags:
@@ -79,7 +83,7 @@ paths:
             application/json:
               schema:
                 type: string
-  ##
+  ## agents endpoint
   /ars/api/agents:
     get:
       tags:
@@ -89,7 +93,7 @@ paths:
         '200':
           description: >-
             Returns a list of all available agents with the following properties: name, uri, description, contact. registered, updated
-  ##
+  ## acotrs endpoint
   /ars/api/actors:
     get:
       tags:
@@ -99,7 +103,7 @@ paths:
         '200':
           description: >-
             Returns a list of all available actors with the following properties: name, channel, agent, urlRemote, path, active
-  ##
+  ## messages endpoint
   /ars/api/messages/{UUID}:
     get:
       tags:
@@ -123,7 +127,7 @@ paths:
         '200':
           description: >-
             Returns a TRAPI-compliant meta-knowledge-graph representation for one KP team's SmartAPI KP APIs (that have x-bte annotation
-  ##
+  ## filter endpoint
   /ars/api/filter/{UUID}:
     get:
       tags:
@@ -175,7 +179,6 @@ paths:
         '200':
           description: >-
             Returns a TRAPI-compliant meta-knowledge-graph representation for one KP team's SmartAPI KP APIs (that have x-bte annotation
-
 components:
   schemas:
     Query:
