@@ -76,9 +76,9 @@ paths:
                       object: "n1"
                       predictes: "biolink:risk_affected_by"
       responses:
-        '200':
+        '201':
           description: >-
-            OK. There will be a json response that contains : pk
+            The initial json response back from submitting the query.
           content:
             application/json:
               schema:
