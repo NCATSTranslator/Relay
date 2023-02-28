@@ -295,15 +295,18 @@ def mergeMessagesRecursive(mergedMessage,messageList):
 
 def mergeDicts(dcurrent,dmerged):
     for key in dcurrent.keys():
+
         cv=dcurrent[key]
         #print("key is "+str(key))
         if key in dmerged.keys():
+            if key == 'attributes':
+                print()
             mv=dmerged[key]
             if (isinstance(cv,dict) and isinstance(mv,dict)):
                 #print("merging dicts")
                 dmerged[key]=mergeDicts(cv,mv)
             elif isinstance(mv,list) and not isinstance(cv,list):
-                mv.append(cv)
+                    mv.append(cv)
             elif isinstance(mv,list) and isinstance(cv,list):
                 try:
                     #if they're both lists, we have to shuffle
@@ -345,12 +348,22 @@ def mergeDicts(dcurrent,dmerged):
             else:
                 #print("newly listing")
                 try:
+                    #instances in which we don't care
+                    #1) They're the same thing
+                    #2) Either one is None
                     if ((isinstance(mv, typing.Hashable)
                     and isinstance(cv, typing.Hashable)
-                    and mv==cv) or cv is None):
+                    and mv==cv) or cv is None
+                    or mv is None):
                         continue
                     else:
-                        dmerged[key]=[mv,cv]
+                        if key == 'score':
+                            del dmerged[key]
+                            dmerged['scores']=[mv,cv]
+                        elif key == 'query_ids':
+                            dmerged['query_ids']=[mv,cv]
+                        else:
+                            dmerged[key]=[mv,cv]
                 except Exception as e:
                     print(e)
         else:
