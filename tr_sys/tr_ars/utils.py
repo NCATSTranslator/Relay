@@ -211,7 +211,7 @@ class TranslatorMessage():
         else:
             d['results']={}
 
-        return d
+        return {"message":d} #need to wrap all this in "message:"
     def __json__(self):
         return self.to_dict()
 
@@ -284,45 +284,7 @@ def mergeMessagesRecursive(mergedMessage,messageList):
         mergedResultMap=mergedMessage.getResultMap()
         mergedResults=mergeDicts(currentResultMap,mergedResultMap)
 
-        #for key in currentResultMap.keys():
-            #currentResult = currentResultMap[key]
-            # if key in mergedResultMap.keys():
-            #     mergedResult = mergedResultMap[key]
-            #     for k2 in currentResult.keys():
-            #         print("k2 "+k2)
-            #         if k2 in mergedResult.keys():
-            #             print("c "+str(currentResult))
-            #             print("m "+str(mergedResult))
-            #             #if we already have this let's keep both values
-            #             try:
-            #
-            #                 #for dictionaries, we need to preserve type
-            #                 if (isinstance(mergedResult[k2],dict) and isinstance(currentResult[k2],dict)):
-            #                     print("merging dicts")
-            #                     #{**mergedResultMap[key][k2],**currentResult[k2]}
-            #                     for ck in currentResult[k2]:
-            #                         if ck in mergedResult[k2].keys():
-            #                             pass
-            #                         #if we don't already have it, easy.  We take it.
-            #                         else:
-            #                             pass
-            #
-            #                 #for other additional fields, we can just make a list of all values.
-            #                 elif isinstance(mergedResult[k2],list):
-            #                     mergedResultMap[key][k2].append(currentResult[k2])
-            #                 else:
-            #                     mergedResultMap[key][k2]=[mergedResultMap[key][k2],currentResult[k2]]
-            #             except Exception as e:
-            #                 logging.error("Unexpected error 2: {}".format(traceback.format_exception(type(e), e, e.__traceback__)))
-            #                 logging.debug(e)
-            #         else:
-            #             #If it's not already in the merged results, we just take what is in the current one
-            #             print("taking the current")
-            #             mergedResultMap[key][k2]=currentResult
-            #         print(str(mergedResultMap[key][k2]))
-            # else:
-            #     print("Adding field to merged")
-            #     mergedResultMap[key]=currentResult
+
 
         values = mergedResultMap.values()
         newResults= Results(list(values))
@@ -368,20 +330,7 @@ def mergeDicts(dcurrent,dmerged):
                             else:
                                 mmap[ck]=cmap[ck]
                         dmerged[key]=list(mmap.values())
-                            
 
-
-
-                        # ms=set()
-                        # cs=set()
-                        # for dm in mv:
-                        #     for k,v in dm.items():
-                        #         ms.add((k,v))
-                        # for dc in cv:
-                        #     for k,v in dc.items():
-                        #         cs.add((k,v))
-                        # dmerged[key]=mv+list(cs-ms)
-                        # print()
                     #if they're at least hashable, we combine without duplicates
                     elif(all(isinstance(x, typing.Hashable) for x in mv)
                          and all(isinstance(y, typing.Hashable) for y in cv)):
@@ -552,12 +501,6 @@ def canonizeKnowledgeGraph(kg):
     if len(ids)>0:
         canonical = canonize(ids)
 
-    # for node in nodes:
-    #     canonical = canonize(node)
-    #     if canonical != node:
-    #         print(node+ " has been replaced with "+canonical)
-    #     else:
-    #         print (node+" is already the canonical term")
 
 def canonizeMessage(msg):
     #kg = msg.getKnowledgeGraph()
