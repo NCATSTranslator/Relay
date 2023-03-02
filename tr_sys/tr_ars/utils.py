@@ -497,8 +497,9 @@ def canonizeKnowledgeGraph(kg):
 
 
 def canonizeMessageTest(kg,results):
-    original_nodes={}
+
     nodes = kg['nodes']
+    edges = kg['edges']
     ids=list(nodes.keys())
     if len(ids)>0:
         canonical = canonize(ids)
@@ -533,7 +534,13 @@ def canonizeMessageTest(kg,results):
                 else:
                     nodes[new_id]['attributes'] = [original_node]
 
-        kg['original_nodes']=original_nodes
+        for change in changes:
+            for edge_key,edge_value in edges.items():
+                for key,value in edge_value.items():
+                    if change == value:
+                        new_id = changes[change]['id']['identifier']
+                        edges[edge_key][key] = new_id
+
     return kg, results
 
 
