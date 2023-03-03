@@ -660,7 +660,10 @@ def node_type_filter(kg_nodes, results, forbidden_category):
     for node, value in kg_nodes.items():
         present_category=[]
         for entity in value['categories']:
-            present_category.append(entity.split(':')[1])
+            if 'biolink:' in entity:
+                present_category.append(entity.split(':')[1])
+            else:
+                present_category.append(entity)
         if any(item in forbidden_category for item in present_category):
             forbidden_nodes.append(node)
 
