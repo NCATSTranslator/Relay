@@ -13,7 +13,6 @@ from celery import task
 from tr_sys.celery import app
 import typing
 
-
 #NORMALIZER_URL='https://nodenormalization-sri.renci.org/1.2/get_normalized_nodes?'
 NORMALIZER_URL='https://nodenormalization-sri.renci.org/1.3/get_normalized_nodes'
 
@@ -70,7 +69,6 @@ class KnowledgeGraph():
         return edge
     def __json__(self):
         return json.dumps(self.getRaw())
-
 
 #TODO make this a proper object, list of Result objects
 class Results():
@@ -215,9 +213,6 @@ class TranslatorMessage():
     def __json__(self):
         return self.to_dict()
 
-
-
-
 def getCommonNodeIds(messageList):
     if len(messageList)==0:
         return set()
@@ -278,7 +273,6 @@ def mergeMessagesRecursive(mergedMessage,messageList):
         currentMessage = messageList.pop()
         #merge Knowledge Graphs
         mergedKnowledgeGraph = mergeKnowledgeGraphs(currentMessage.getKnowledgeGraph(),mergedMessage.getKnowledgeGraph())
-
         #merge Results
         currentResultMap= currentMessage.getResultMap()
         mergedResultMap=mergedMessage.getResultMap()
@@ -515,6 +509,54 @@ def canonizeKnowledgeGraph(kg):
         canonical = canonize(ids)
 
 
+def canonizeMessageTest(kg,results):
+
+    nodes = kg['nodes']
+    edges = kg['edges']
+    ids=list(nodes.keys())
+    if len(ids)>0:
+        canonical = canonize(ids)
+        changes = {}
+        for key,value in canonical.items():
+            if value is not None and key != value["id"]["identifier"]:
+                changes[key]=value
+        bindings=[res['node_bindings'] for res in results]
+        for binding in bindings:
+            for key in binding.keys():
+                id_list = binding[key]
+                for id_dict in id_list:
+                    if id_dict['id'] in changes:
+                        id_dict['id']=changes[id_dict['id']]['id']['identifier']
+        for change in changes:
+            if change in nodes:
+                new_id = changes[change]['id']['identifier']
+                print("Changing "+(str(change))+" to "+str(new_id))
+                nodes[new_id]=nodes.pop(change)
+                original_node={
+                            "attribute_type_id": "biolink:xref",
+                            "original_attribute_name": "original_id",
+                            "value": change,
+                            "value_type_id": "metatype:String",
+                            "attribute_source": None,
+                            "value_url": None,
+                            "description": None,
+                }
+                attributes = nodes[new_id]['attributes']
+                if isinstance(attributes, list):
+                    attributes.append(original_node)
+                else:
+                    nodes[new_id]['attributes'] = [original_node]
+
+        for change in changes:
+            for edge_key,edge_value in edges.items():
+                for key,value in edge_value.items():
+                    if change == value:
+                        new_id = changes[change]['id']['identifier']
+                        edges[edge_key][key] = new_id
+
+    return kg, results
+
+
 def canonizeMessage(msg):
     #kg = msg.getKnowledgeGraph()
     nodes = msg.getKnowledgeGraph().getNodes()
@@ -540,7 +582,6 @@ def canonizeMessage(msg):
                 new_id = changes[change]['id']['identifier']
                 #print("Changing "+(str(change))+" to "+str(new_id))
                 nodes[new_id]=nodes.pop(change)
-
 
 def findSharedResults(sharedResults,messageList):
     canonicalResults=[]
@@ -583,7 +624,6 @@ def getChildrenFromParent(pk):
             messageList.append(Message.objects.get(pk=childPk))
     return messageList
 
-
 def createMessage(actor):
     message = Message.create(code=202, status='Running', data={},
                              actor=actor)
@@ -623,7 +663,8 @@ def hop_level_filter(results, hop_limit):
 
 def score_filter(results, range):
 
-    filtered_result = list(filter(lambda result: range[0] < result["normalized_score"] < range[1], results))
+    norm_score_results = list(filter(lambda result: result.get('normalized_score') != None, results))
+    filtered_result = list(filter(lambda result: range[0] < result["normalized_score"] < range[1], norm_score_results))
     return filtered_result
 
 def node_type_filter(kg_nodes, results, forbidden_category):
@@ -632,7 +673,10 @@ def node_type_filter(kg_nodes, results, forbidden_category):
     for node, value in kg_nodes.items():
         present_category=[]
         for entity in value['categories']:
-            present_category.append(entity.split(':')[1])
+            if 'biolink:' in entity:
+                present_category.append(entity.split(':')[1])
+            else:
+                present_category.append(entity)
         if any(item in forbidden_category for item in present_category):
             forbidden_nodes.append(node)
 

@@ -265,9 +265,9 @@ def get_report(req,inforesid):
         print(e.__traceback__)
         print(inforesid)
 
-def filter_message_deepfirst(child_dict, filter, arg):
+def filter_message_deepfirst(rdata, filter, arg):
 
-    rdata = child_dict['fields']['data']
+    #rdata = child_dict['fields']['data']
     results = rdata['message']['results']
     kg_nodes = rdata['message']['knowledge_graph']['nodes']
     
@@ -284,7 +284,38 @@ def filter_message_deepfirst(child_dict, filter, arg):
     final_result_count = len(filter_response)
     return rdata, final_result_count
 
-def filter_message(key, filter, arg):
+# def filter_message(key, filter, arg):
+#     mesg = Message.objects.get(pk=key)
+#     if str(mesg.actor.agent.name) == 'ars-default-agent':
+#         new_mesg = Message.create(actor=get_default_actor(), code=200, status='Done')
+#         new_id=new_mesg.pk
+#         new_mesg.data=mesg.data
+#         new_mesg.save()
+#         children = Message.objects.filter(ref__pk=str(mesg.pk))
+#         for child in children:
+#             if child.status == "D" and child.result_count != 0:
+#                 child_dict = child.to_dict()
+#                 rdata_filtered, final_result_count = filter_message_deepfirst(child_dict, filter, arg)
+#                 child_mesg = Message.create(actor=Actor.objects.get(pk=int(child.actor_id)), ref=Message.objects.get(pk=new_mesg.pk), code=200, status='Done')
+#                 child_mesg.result_count = final_result_count
+#                 child_mesg.data= rdata_filtered
+#                 child_mesg.save()
+#         return new_id
+#
+#     else:
+#         if mesg.status == "D" and mesg.result_count != 0:
+#             mesg_dict = mesg.to_dict()
+#             rdata_filtered, final_result_count = filter_message_deepfirst(mesg_dict, filter, arg)
+#             child_mesg = Message.create(actor=Actor.objects.get(pk=int(mesg.actor_id)), code=200, status='Done')
+#             child_mesg.result_count = final_result_count
+#             child_mesg.data = rdata_filtered
+#             child_mesg.save()
+#             new_id=child_mesg.id
+#         else:
+#             return HttpResponse('message doesnt have results or marked as "Done"', status=400)
+#
+#         return new_id
+def filter_message(key, filter_arg_list):
     mesg = Message.objects.get(pk=key)
     if str(mesg.actor.agent.name) == 'ars-default-agent':
         new_mesg = Message.create(actor=get_default_actor(), code=200, status='Done')
@@ -293,21 +324,29 @@ def filter_message(key, filter, arg):
         new_mesg.save()
         children = Message.objects.filter(ref__pk=str(mesg.pk))
         for child in children:
-            if child.status == "D" and child.result_count != 0:
+            if child.status == "D" and child.result_count != 0 and child.result_count is not None:
                 child_dict = child.to_dict()
-                rdata_filtered, final_result_count = filter_message_deepfirst(child_dict, filter, arg)
+                rdata = child_dict['fields']['data']
+                for fil in filter_arg_list:
+                    filter_type = fil[0]
+                    filter_value = fil[1]
+                    rdata, final_result_count = filter_message_deepfirst(rdata, filter_type, filter_value)
                 child_mesg = Message.create(actor=Actor.objects.get(pk=int(child.actor_id)), ref=Message.objects.get(pk=new_mesg.pk), code=200, status='Done')
                 child_mesg.result_count = final_result_count
-                child_mesg.data= rdata_filtered
+                child_mesg.data= rdata
                 child_mesg.save()
         return redirect('/ars/api/messages/'+str(new_id)+'?trace=y')
     else:
         if mesg.status == "D" and mesg.result_count != 0:
             mesg_dict = mesg.to_dict()
-            rdata_filtered, final_result_count = filter_message_deepfirst(mesg_dict, filter, arg)
+            rdata = mesg_dict['fields']['data']
+            for fil in filter_arg_list:
+                filter_type = fil[0]
+                filter_value = fil[1]
+                rdata, final_result_count = filter_message_deepfirst(rdata, filter_type, filter_value)
             child_mesg = Message.create(actor=Actor.objects.get(pk=int(mesg.actor_id)), code=200, status='Done')
             child_mesg.result_count = final_result_count
-            child_mesg.data = rdata_filtered
+            child_mesg.data = rdata
             child_mesg.save()
             new_id=child_mesg.id
         else:
@@ -318,13 +357,16 @@ def filter_message(key, filter, arg):
 @csrf_exempt
 def filter(req, key):
     logger.debug("entering filter endpoint %s " % key)
-    accepted_filters = ['hop', 'score', 'node_type', 'spec_node']
     if req.method == 'GET':
-        for filter in accepted_filters:
-            if filter in req.GET:
-                arg = ast.literal_eval((req.GET.get(filter)))
-                return filter_message(key, filter, arg)
-    return HttpResponse('Only GET is permitted!', status=405)
+        filter_dict = dict(req.GET.lists())
+        filter_arg_list=[]
+        for filter_type, value in filter_dict.items():
+            filter_value = ast.literal_eval(value[0])
+            filter_arg_list.append([filter_type, filter_value])
+
+        return filter_message(key, filter_arg_list)
+
+    return HttpResponse('Only GET & POST are permitted!', status=405)
 
 @csrf_exempt
 def filters(req):
@@ -337,7 +379,10 @@ def filters(req):
             'node_type': {'default': ['ChemicalEntity', 'BiologicalEntity'], 'description': 'Returns a new message pk with results that dont hold the given node category. Takes a list of node categories to be eliminated',
                           'example_url': 'https://ars-prod.transltr.io/ars/api/filter/{pk}?node_type=["ChemicalEntity","BiologicalEntity"]'},
             'spec_node': {'default': ['NCBIGene:2064', 'MONDO:0005147'], 'description': 'Returns a new message pk with results that dont hold the given node Curie. Takes a list of node Curies to be eliminated',
-                          'example_url': 'https://ars-prod.transltr.io/ars/api/filter/{pk}?spec_node=["NCBIGene:2064","MONDO:0005147"]'}
+                          'example_url': 'https://ars-prod.transltr.io/ars/api/filter/{pk}?spec_node=["NCBIGene:2064","MONDO:0005147"]'},
+            'multi-filtering': {
+            'example_url':'https://ars-prod.transltr.io/ars/api/filter/{pk}?hop=3&score=[20,80]&node_type=["ChemicalEntity","BiologicalEntity"]&spec_node=["NCBIGene:2064","MONDO:0005147"]'
+            }
         }
     return HttpResponse(json.dumps(filters, indent=2),
                             content_type='application/json', status=200)
@@ -376,7 +421,15 @@ def message(req, key):
             if 'tr_ars.message.status' in req.headers:
                 status = req.headers['tr_ars.message.status']
 
+            agent = str(mesg.actor.agent.name)
             res=utils.get_safe(data,"message","results")
+            kg = utils.get_safe(data,"message", "knowledge_graph")
+            if kg is not None:
+                if res is not None:
+                    kg, res = utils.canonizeMessageTest(kg, res)
+                else:
+                    logger.error('the %s hasnt given any result back' % (agent))
+
             if res is not None:
                 mesg.result_count = len(res)
                 if len(res)>0:
@@ -660,6 +713,7 @@ def timeoutTest(req,time=300):
         time.sleep(time)
     else:
         pass
+
 
 
 def merge(req, key):
