@@ -272,7 +272,11 @@ def mergeMessagesRecursive(mergedMessage,messageList):
     else:
         currentMessage = messageList.pop()
         #merge Knowledge Graphs
-        mergedKnowledgeGraph = mergeKnowledgeGraphs(currentMessage.getKnowledgeGraph(),mergedMessage.getKnowledgeGraph())
+
+        #mergedKnowledgeGraph = mergeKnowledgeGraphs(currentMessage.getKnowledgeGraph(),mergedMessage.getKnowledgeGraph())
+        ckg = currentMessage.getKnowledgeGraph().getRaw()
+        mkg = mergedMessage.getKnowledgeGraph().getRaw()
+        mergedKnowledgeGraph = mergeDicts(ckg, mkg)
         #merge Results
         currentResultMap= currentMessage.getResultMap()
         mergedResultMap=mergedMessage.getResultMap()
@@ -283,7 +287,7 @@ def mergeMessagesRecursive(mergedMessage,messageList):
         values = mergedResultMap.values()
         newResults= Results(list(values))
         mergedMessage.setResults(newResults)
-        mergedMessage.setKnowledgeGraph(mergedKnowledgeGraph)
+        mergedMessage.setKnowledgeGraph(KnowledgeGraph(mergedKnowledgeGraph))
         return mergeMessagesRecursive(mergedMessage,messageList)
 
 
@@ -356,6 +360,9 @@ def mergeDicts(dcurrent,dmerged):
                             dmerged['scores']=[mv,cv]
                         elif key == 'query_ids':
                             dmerged['query_ids']=[mv,cv]
+                        elif key == 'name':
+                            #knowledge_graph->nodes->name can't be a list.  Fix this to add a new field later.
+                            continue
                         else:
                             dmerged[key]=[mv,cv]
                 except Exception as e:
