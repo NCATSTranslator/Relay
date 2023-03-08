@@ -74,7 +74,7 @@ paths:
                     e1:
                       subject: "n0"
                       object: "n1"
-                      predictes: "biolink:risk_affected_by"
+                      predicates: ["biolink:risk_affected_by"]
       responses:
         '201':
           description: >-
