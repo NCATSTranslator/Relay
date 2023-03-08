@@ -272,7 +272,11 @@ def mergeMessagesRecursive(mergedMessage,messageList):
     else:
         currentMessage = messageList.pop()
         #merge Knowledge Graphs
-        mergedKnowledgeGraph = mergeKnowledgeGraphs(currentMessage.getKnowledgeGraph(),mergedMessage.getKnowledgeGraph())
+
+        #mergedKnowledgeGraph = mergeKnowledgeGraphs(currentMessage.getKnowledgeGraph(),mergedMessage.getKnowledgeGraph())
+        ckg = currentMessage.getKnowledgeGraph().getRaw()
+        mkg = mergedMessage.getKnowledgeGraph().getRaw()
+        mergedKnowledgeGraph = mergeDicts(ckg, mkg)
         #merge Results
         currentResultMap= currentMessage.getResultMap()
         mergedResultMap=mergedMessage.getResultMap()
@@ -283,21 +287,24 @@ def mergeMessagesRecursive(mergedMessage,messageList):
         values = mergedResultMap.values()
         newResults= Results(list(values))
         mergedMessage.setResults(newResults)
-        mergedMessage.setKnowledgeGraph(mergedKnowledgeGraph)
+        mergedMessage.setKnowledgeGraph(KnowledgeGraph(mergedKnowledgeGraph))
         return mergeMessagesRecursive(mergedMessage,messageList)
 
 
 def mergeDicts(dcurrent,dmerged):
     for key in dcurrent.keys():
+
         cv=dcurrent[key]
         #print("key is "+str(key))
         if key in dmerged.keys():
+            if key == 'attributes':
+                print()
             mv=dmerged[key]
             if (isinstance(cv,dict) and isinstance(mv,dict)):
                 #print("merging dicts")
                 dmerged[key]=mergeDicts(cv,mv)
             elif isinstance(mv,list) and not isinstance(cv,list):
-                mv.append(cv)
+                    mv.append(cv)
             elif isinstance(mv,list) and isinstance(cv,list):
                 try:
                     #if they're both lists, we have to shuffle
@@ -339,12 +346,25 @@ def mergeDicts(dcurrent,dmerged):
             else:
                 #print("newly listing")
                 try:
+                    #instances in which we don't care
+                    #1) They're the same thing
+                    #2) Either one is None
                     if ((isinstance(mv, typing.Hashable)
                     and isinstance(cv, typing.Hashable)
-                    and mv==cv) or cv is None):
+                    and mv==cv) or cv is None
+                    or mv is None):
                         continue
                     else:
-                        dmerged[key]=[mv,cv]
+                        if key == 'score':
+                            del dmerged[key]
+                            dmerged['scores']=[mv,cv]
+                        elif key == 'query_ids':
+                            dmerged['query_ids']=[mv,cv]
+                        elif key == 'name':
+                            #knowledge_graph->nodes->name can't be a list.  Fix this to add a new field later.
+                            continue
+                        else:
+                            dmerged[key]=[mv,cv]
                 except Exception as e:
                     print(e)
         else:
@@ -502,11 +522,34 @@ def canonizeMessageTest(kg,results):
     edges = kg['edges']
     ids=list(nodes.keys())
     if len(ids)>0:
+        changes ={}
         canonical = canonize(ids)
-        changes = {}
-        for key,value in canonical.items():
-            if value is not None and key != value["id"]["identifier"]:
-                changes[key]=value
+        for canon in canonical:
+            if canon in nodes:
+                new_name=get_safe(canonical[canon],'id','label')
+                if new_name is not None and nodes[canon]['name']!=new_name:
+                    #print("changing "+nodes[canon]['name']+" to "+ new_name)
+                    nodes[canon]['name']=new_name
+                if canonical[canon] is not None and canon != canonical[canon]["id"]["identifier"]:
+                    changes[canon]=canonical[canon]
+                    new_id = changes[canon]['id']['identifier']
+                    nodes[new_id]=nodes.pop(canon)
+
+                    original_node={
+                        "attribute_type_id": "biolink:xref",
+                        "original_attribute_name": "original_id",
+                        "value": canon,
+                        "value_type_id": "metatype:String",
+                        "attribute_source": None,
+                        "value_url": None,
+                        "description": None,
+                    }
+                    attributes = nodes[new_id]['attributes']
+                    if isinstance(attributes, list):
+                        attributes.append(original_node)
+                    else:
+                        nodes[new_id]['attributes'] = [original_node]
+
         bindings=[res['node_bindings'] for res in results]
         for binding in bindings:
             for key in binding.keys():
@@ -514,25 +557,6 @@ def canonizeMessageTest(kg,results):
                 for id_dict in id_list:
                     if id_dict['id'] in changes:
                         id_dict['id']=changes[id_dict['id']]['id']['identifier']
-        for change in changes:
-            if change in nodes:
-                new_id = changes[change]['id']['identifier']
-                print("Changing "+(str(change))+" to "+str(new_id))
-                nodes[new_id]=nodes.pop(change)
-                original_node={
-                            "attribute_type_id": "biolink:xref",
-                            "original_attribute_name": "original_id",
-                            "value": change,
-                            "value_type_id": "metatype:String",
-                            "attribute_source": None,
-                            "value_url": None,
-                            "description": None,
-                }
-                attributes = nodes[new_id]['attributes']
-                if isinstance(attributes, list):
-                    attributes.append(original_node)
-                else:
-                    nodes[new_id]['attributes'] = [original_node]
 
         for change in changes:
             for edge_key,edge_value in edges.items():
@@ -540,7 +564,6 @@ def canonizeMessageTest(kg,results):
                     if change == value:
                         new_id = changes[change]['id']['identifier']
                         edges[edge_key][key] = new_id
-
     return kg, results
 
 
@@ -631,10 +654,6 @@ def merge(pk,merged_pk):
         else:
             continue
         if t_mesg.getKnowledgeGraph() is not None:
-            #temporarily removing canonization for testing as I pre-normalized for performance
-            #b4f4e046-db06-4f6b-b4ae-b153e79fb18b
-            #TODO uncomment before committing!
-            canonizeMessage(t_mesg)
             newList.append(t_mesg)
 
     merged = mergeMessages(newList)
