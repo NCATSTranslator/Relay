@@ -538,8 +538,8 @@ def canonizeMessageTest(kg,results):
                     original_node={
                         "attribute_type_id": "biolink:xref",
                         "original_attribute_name": "original_id",
-                        "value": canon,
-                        "value_type_id": "metatype:String",
+                        "value": [canon],
+                        "value_type_id": "metatype:NodeIdentifier",
                         "attribute_source": None,
                         "value_url": None,
                         "description": None,
