@@ -528,9 +528,8 @@ def canonizeMessageTest(kg,results):
         for canon in canonical:
             if canon in nodes:
                 new_name=get_safe(canonical[canon],'id','label')
-                if new_name is not None and nodes[canon]['name']!=new_name:
-                    #print("changing "+nodes[canon]['name']+" to "+ new_name)
-                    nodes[canon]['name']=new_name
+                if new_name is not None and ('name' not in nodes[canon]) or ('name' in nodes[canon] and nodes[canon]['name'] != new_name):
+                    nodes[canon]['name'] = new_name
                 if canonical[canon] is not None and canon != canonical[canon]["id"]["identifier"]:
                     changes[canon]=canonical[canon]
                     new_id = changes[canon]['id']['identifier']
@@ -557,19 +556,30 @@ def canonizeMessageTest(kg,results):
                             "value_url": None,
                             "description": None,
                         }
-                    attributes = nodes[new_id]['attributes']
-                    if isinstance(attributes, list):
-                        attributes.extend((original_node, same_as_attribute))
-                    else:
-                        nodes[new_id]['attributes'] = [original_node, same_as_attribute]
-                        logging.debug("attribute not of type list")
 
-                    #to be discussed  with (Sarah & Tyler)
-                    categories = nodes[new_id]['categories']
-                    if 'type' in canonical[canon].keys():
-                        if type(canonical[canon]['type']) is list and type(categories) is list:
-                            canon_category = canonical[canon]['type']
-                            categories.extend(list(set(canon_category)-set(categories)))
+                    if 'attributes' in nodes[new_id] and isinstance(nodes[new_id]['attributes'], list):
+                        attributes = nodes[new_id]['attributes']
+                        if any(x['original_attribute_name'] == 'equivalent_identifiers' for x in attributes):
+                            attributes.append(original_node)
+                        else:
+                            attributes.extend((original_node, same_as_attribute))
+                    elif 'attributes' not in nodes[new_id]:
+                        logging.debug("attribute field doesnt exist in the current node")
+                        nodes[new_id]['attributes'] = [original_node, same_as_attribute]
+                    else:
+                        logging.debug("attribute not of type list")
+                        if 'equivalent_identifiers' in nodes[new_id]['attributes']['original_attribute_name']:
+                            nodes[new_id]['attributes'] = [original_node]
+                        else:
+                            nodes[new_id]['attributes'] = [original_node, same_as_attribute]
+
+                    if 'categories' not in nodes[new_id]:
+                        nodes[new_id]['categories'] = canonical[canon]['type']
+                    # categories = nodes[new_id]['categories']
+                    # if 'type' in canonical[canon].keys():
+                    #     if type(canonical[canon]['type']) is list and type(categories) is list:
+                    #         canon_category = canonical[canon]['type']
+                    #         categories.extend(list(set(canon_category)-set(categories)))
 
         #by this time get a list of ids in nodes and look for duplicates
         normalized_nodes = list(nodes.keys())
