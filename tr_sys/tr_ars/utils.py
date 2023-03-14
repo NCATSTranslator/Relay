@@ -12,6 +12,7 @@ from celery import shared_task
 from celery import task
 from tr_sys.celery import app
 import typing
+from collections import Counter
 
 #NORMALIZER_URL='https://nodenormalization-sri.renci.org/1.2/get_normalized_nodes?'
 NORMALIZER_URL='https://nodenormalization-sri.renci.org/1.3/get_normalized_nodes'
@@ -527,9 +528,8 @@ def canonizeMessageTest(kg,results):
         for canon in canonical:
             if canon in nodes:
                 new_name=get_safe(canonical[canon],'id','label')
-                if new_name is not None and nodes[canon]['name']!=new_name:
-                    #print("changing "+nodes[canon]['name']+" to "+ new_name)
-                    nodes[canon]['name']=new_name
+                if new_name is not None and ('name' not in nodes[canon]) or ('name' in nodes[canon] and nodes[canon]['name'] != new_name):
+                    nodes[canon]['name'] = new_name
                 if canonical[canon] is not None and canon != canonical[canon]["id"]["identifier"]:
                     changes[canon]=canonical[canon]
                     new_id = changes[canon]['id']['identifier']
@@ -544,11 +544,47 @@ def canonizeMessageTest(kg,results):
                         "value_url": None,
                         "description": None,
                     }
-                    attributes = nodes[new_id]['attributes']
-                    if isinstance(attributes, list):
-                        attributes.append(original_node)
+                    if 'equivalent_identifiers' in canonical[canon].keys():
+                        same_as_attribute = {
+                            'attribute_type_id': 'biolink:same_as',
+                            'original_attribute_name': 'equivalent_identifiers',
+                            'value': [
+                                node['identifier'] for node in canonical[canon]['equivalent_identifiers']
+                            ],
+                            "value_type_id": "metatype:NodeIdentifier",
+                            "attribute_source": None,
+                            "value_url": None,
+                            "description": None,
+                        }
+
+                    if 'attributes' in nodes[new_id] and isinstance(nodes[new_id]['attributes'], list):
+                        attributes = nodes[new_id]['attributes']
+                        if any(x['original_attribute_name'] == 'equivalent_identifiers' for x in attributes):
+                            attributes.append(original_node)
+                        else:
+                            attributes.extend((original_node, same_as_attribute))
+                    elif 'attributes' not in nodes[new_id]:
+                        logging.debug("attribute field doesnt exist in the current node")
+                        nodes[new_id]['attributes'] = [original_node, same_as_attribute]
                     else:
-                        nodes[new_id]['attributes'] = [original_node]
+                        logging.debug("attribute not of type list")
+                        if 'equivalent_identifiers' in nodes[new_id]['attributes']['original_attribute_name']:
+                            nodes[new_id]['attributes'] = [original_node]
+                        else:
+                            nodes[new_id]['attributes'] = [original_node, same_as_attribute]
+
+                    if 'categories' not in nodes[new_id]:
+                        nodes[new_id]['categories'] = canonical[canon]['type']
+                    # categories = nodes[new_id]['categories']
+                    # if 'type' in canonical[canon].keys():
+                    #     if type(canonical[canon]['type']) is list and type(categories) is list:
+                    #         canon_category = canonical[canon]['type']
+                    #         categories.extend(list(set(canon_category)-set(categories)))
+
+        #by this time get a list of ids in nodes and look for duplicates
+        normalized_nodes = list(nodes.keys())
+        if len(normalized_nodes) != len(set(normalized_nodes)):
+            logging.debug('found duplicates in normalized nodes set')
 
         bindings=[res['node_bindings'] for res in results]
         for binding in bindings:
@@ -564,8 +600,23 @@ def canonizeMessageTest(kg,results):
                     if change == value:
                         new_id = changes[change]['id']['identifier']
                         edges[edge_key][key] = new_id
-    return kg, results
 
+        #create a frozenset of subj/obj/predicate on each edge and look for duplicates
+        # normalized_edges=[]
+        # for edge_key,edge_value in edges.items():
+        #     tuple = (edge_value['subject'], edge_value['object'], edge_value['predicate'])
+        #     normalized_edges.append(tuple)
+        # c = Counter(normalized_edges) - Counter(set(normalized_edges))
+        # res = {}
+        # for i, elem in enumerate(normalized_edges):
+        #     if elem in c:
+        #         item = res.get(elem)
+        #         if item:
+        #             item.append(i)
+        #         else:
+        #             res[elem] = [i]
+        # print(res)
+    return kg, results
 
 def canonizeMessage(msg):
     #kg = msg.getKnowledgeGraph()
