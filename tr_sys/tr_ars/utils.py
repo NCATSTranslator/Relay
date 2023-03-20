@@ -559,7 +559,7 @@ def canonizeMessageTest(kg,results):
 
                     if 'attributes' in nodes[new_id] and isinstance(nodes[new_id]['attributes'], list):
                         attributes = nodes[new_id]['attributes']
-                        if any(x['original_attribute_name'] == 'equivalent_identifiers' for x in attributes):
+                        if any('original_attribute_name' in x.keys() and x['original_attribute_name'] == 'equivalent_identifiers' for x in attributes):
                             attributes.append(original_node)
                         else:
                             attributes.extend((original_node, same_as_attribute))
