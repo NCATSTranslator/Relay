@@ -11,7 +11,7 @@ import html
 from tr_smartapi_client.smart_api_discover import SmartApiDiscover
 import traceback
 from django.utils import timezone
-
+import copy
 
 
 logger = get_task_logger(__name__)
@@ -104,13 +104,17 @@ def send_message(actor_dict, mesg_dict, timeout=300):
                 kg = utils.get_safe(rdata,"message", "knowledge_graph")
                 if kg is not None:
                     if results is not None:
+                        logger.info('going to normalize ids for agent: %s and pk: %s' % (inforesid, mesg.pk))
                         kg, results = utils.canonizeMessageTest(kg, results)
                     else:
-                        logger.error('the %s hasnt given any result back' % (inforesid))
+                        logger.debug('the %s has not returned any result back for pk: %s' % (inforesid, mesg.pk))
+                else:
+                    logger.debug('the %s has not returned any knowledge_graphs back for pk: %s' % (inforesid, mesg.pk))
 
                 if results is not None:
                     mesg.result_count = len(rdata["message"]["results"])
                     if len(results)>0:
+                        logger.info('going to normalize scores for agent: %s and pk: %s' % (inforesid, mesg.pk))
                         rdata["message"]["results"] = utils.normalizeScores(results)
                         scorestat = utils.ScoreStatCalc(results)
                         mesg.result_stat = scorestat
@@ -131,8 +135,8 @@ def send_message(actor_dict, mesg_dict, timeout=300):
                         rdata['logs'].append(key+": "+r.headers[key])
     except Exception as e:
         logger.error("Unexpected error 2: {}".format(traceback.format_exception(type(e), e, e.__traceback__)))
-        logger.exception("Can't send message to actor %s\n%s"
-                         % (url,sys.exc_info()))
+        logger.exception("Can't send message to actor %s\n%s for pk: %s"
+                         % (url,sys.exc_info(),mesg.pk))
         status_code = 598
         status = 'E'
 
