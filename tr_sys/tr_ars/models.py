@@ -22,7 +22,7 @@ class Agent(ARSModel):
     contact = models.EmailField(null=True)
     registered = models.DateTimeField(default=timezone.now)
     updated = models.DateTimeField(auto_now=True)
-        
+
     def __str__(self):
         return 'agent{name:%s, uri:%s}' % (self.name, self.uri)
 
@@ -107,5 +107,8 @@ class Message(ARSModel):
                     if elem[0] == jsonobj['fields']['status']:
                         jsonobj['fields']['status'] = elem[1]
         return jsonobj
+
+
+
 
 
