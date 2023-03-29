@@ -654,14 +654,18 @@ def ScoreStatCalc(results):
     stat={}
     if results is not None and len(results)>0:
         scoreList = [d['score'] for d in results if 'score' in d]
-        if len(scoreList) == 0:
+        try:
+            if len(scoreList) <= 1:
+                return stat
+            stat['median'] = statistics.median(scoreList)
+            stat['mean'] = statistics.mean(scoreList)
+            stat['stdev'] = statistics.stdev(scoreList)
+            stat['minimum'] = min(scoreList)
+            stat['maximum'] = max(scoreList)
+        except Exception as e:
+            logging.error("Error in calculating statistics")
+            logging.error(e.__traceback__)
             return stat
-        stat['median'] = statistics.median(scoreList)
-        stat['mean'] = statistics.mean(scoreList)
-        stat['stdev'] = statistics.stdev(scoreList)
-        stat['minimum'] = min(scoreList)
-        stat['maximum'] = max(scoreList)
-
     return stat
 
 def normalizeScores(results):
