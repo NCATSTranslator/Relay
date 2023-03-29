@@ -9,7 +9,6 @@ from utils2 import urlRemoteFromInforesid
 from .models import Agent, Message, Channel, Actor
 import json, sys, logging
 import traceback
-
 from inspect import currentframe, getframeinfo
 from tr_ars import status_report
 from datetime import datetime, timedelta
@@ -284,37 +283,6 @@ def filter_message_deepfirst(rdata, filter, arg):
     final_result_count = len(filter_response)
     return rdata, final_result_count
 
-# def filter_message(key, filter, arg):
-#     mesg = Message.objects.get(pk=key)
-#     if str(mesg.actor.agent.name) == 'ars-default-agent':
-#         new_mesg = Message.create(actor=get_default_actor(), code=200, status='Done')
-#         new_id=new_mesg.pk
-#         new_mesg.data=mesg.data
-#         new_mesg.save()
-#         children = Message.objects.filter(ref__pk=str(mesg.pk))
-#         for child in children:
-#             if child.status == "D" and child.result_count != 0:
-#                 child_dict = child.to_dict()
-#                 rdata_filtered, final_result_count = filter_message_deepfirst(child_dict, filter, arg)
-#                 child_mesg = Message.create(actor=Actor.objects.get(pk=int(child.actor_id)), ref=Message.objects.get(pk=new_mesg.pk), code=200, status='Done')
-#                 child_mesg.result_count = final_result_count
-#                 child_mesg.data= rdata_filtered
-#                 child_mesg.save()
-#         return new_id
-#
-#     else:
-#         if mesg.status == "D" and mesg.result_count != 0:
-#             mesg_dict = mesg.to_dict()
-#             rdata_filtered, final_result_count = filter_message_deepfirst(mesg_dict, filter, arg)
-#             child_mesg = Message.create(actor=Actor.objects.get(pk=int(mesg.actor_id)), code=200, status='Done')
-#             child_mesg.result_count = final_result_count
-#             child_mesg.data = rdata_filtered
-#             child_mesg.save()
-#             new_id=child_mesg.id
-#         else:
-#             return HttpResponse('message doesnt have results or marked as "Done"', status=400)
-#
-#         return new_id
 def filter_message(key, filter_arg_list):
     mesg = Message.objects.get(pk=key)
     if str(mesg.actor.agent.name) == 'ars-default-agent':
@@ -426,18 +394,20 @@ def message(req, key):
             kg = utils.get_safe(data,"message", "knowledge_graph")
             if kg is not None:
                 if res is not None:
+                    logger.info('going to normalize ids for agent: %s and pk: %s' % (agent, key))
                     kg, res = utils.canonizeMessageTest(kg, res)
                 else:
-                    logger.error('the %s hasnt given any result back' % (agent))
+                    logger.debug('the %s has not returned any result back for pk: %s' % (agent, key))
+            else:
+                logger.debug('the %s has not returned any knowledge_graphs back for pk: %s' % (agent, key))
 
             if res is not None:
                 mesg.result_count = len(res)
                 if len(res)>0:
+                    logger.info('going to normalize scores for agent: %s and pk: %s' % (agent, key))
                     data["message"]["results"] = utils.normalizeScores(res)
                     scorestat = utils.ScoreStatCalc(res)
-                    mesg.stat_result = scorestat
-            else:
-                logger.debug("Message returned in unexpected format\n"+data)
+                    mesg.result_stat = scorestat
             # create child message if this one already has results
             if mesg.data and 'results' in mesg.data and mesg.data['results'] != None and len(mesg.data['results']) > 0:
                 mesg = Message.create(name=mesg.name, status=status,
@@ -452,10 +422,10 @@ def message(req, key):
             return HttpResponse('Unknown state reference %s' % key, status=404)
 
         except json.decoder.JSONDecodeError:
-            return HttpResponse('Can not decode json:<br>\n%s' % req.body, status=500)
+            return HttpResponse('Can not decode json:<br>\n%s for the pk: %s' % (req.body, key), status=500)
 
         except Exception as e:
-            logger.error("Unexpected error 12: {}".format(traceback.format_exception(type(e), e, e.__traceback__)))
+            logger.error("Unexpected error 12: {} with the pk: %s".format(traceback.format_exception(type(e), e, e.__traceback__), key))
 
         return HttpResponse('Internal server error', status=500)
 
@@ -713,7 +683,6 @@ def timeoutTest(req,time=300):
         time.sleep(time)
     else:
         pass
-
 
 
 def merge(req, key):
