@@ -70,3 +70,11 @@ httpclients:
   infores:automat-text-mining-provider:
     endpoint: query 
     params:
+
+inactive_clients:
+  - infores:aragorn-ranker-exp
+  - infores:tr_ara_ncats
+  - infores:tr_ara_wfr
+  - infores:icees-pcd
+  - infores:icees-dili
+  - infores:icees-asthma

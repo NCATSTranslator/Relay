@@ -14,6 +14,7 @@ from tr_ars import status_report
 from datetime import datetime, timedelta
 from tr_ars.tasks import send_message
 import ast
+from tr_smartapi_client.smart_api_discover import ConfigFile
 
 #from reasoner_validator import validate_Message, ValidationError, validate_Query
 
@@ -526,6 +527,10 @@ def get_agent(req, name):
 
 
 def get_or_create_actor(data):
+    config = ConfigFile('config.yaml')
+    config_map = config.get_map()
+    inactive_actors = config_map['inactive_clients']
+
     if ('channel' not in data or 'agent' not in data or 'path' not in data):
         return HttpResponse(
             'JSON does not contain "channel", "agent", and "path" fields',
@@ -573,12 +578,13 @@ def get_or_create_actor(data):
     if 'remote' not in data:
         data['remote'] = None
     inforesid = data['inforesid']
-
     created = False
     inforesid_update=False
     try:
         actor = Actor.objects.get(
              agent=agent, path=data['path'])
+        if inforesid in inactive_actors:
+            actor.active=False
         if (actor.inforesid is not None):
             if not actor.inforesid == inforesid:
                 inforesid_update=True
@@ -597,8 +603,10 @@ def get_or_create_actor(data):
            logger.debug("No such actor found for "+inforesid)
            #JSON serializer added for 'channel' as we are now using a list that we're approximating by using a JSON
            #because Django's db models do not support List fields in SQLite
+           if inforesid in inactive_actors:
+               active=False
            actor, created = Actor.objects.update_or_create(
-               channel=json.loads(serializers.serialize('json',channel)), agent=agent, path=data['path'], inforesid=inforesid)
+               channel=json.loads(serializers.serialize('json',channel)), agent=agent, path=data['path'], inforesid=inforesid, active=active)
            status = 201
 
     #Testing Code Above
