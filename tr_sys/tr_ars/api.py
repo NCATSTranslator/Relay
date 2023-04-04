@@ -9,12 +9,12 @@ from utils2 import urlRemoteFromInforesid
 from .models import Agent, Message, Channel, Actor
 import json, sys, logging
 import traceback
-
 from inspect import currentframe, getframeinfo
 from tr_ars import status_report
 from datetime import datetime, timedelta
 from tr_ars.tasks import send_message
 import ast
+from tr_smartapi_client.smart_api_discover import ConfigFile
 
 #from reasoner_validator import validate_Message, ValidationError, validate_Query
 
@@ -257,8 +257,7 @@ def get_report(req,inforesid):
                 time_end = msg[3]
                 time_elapsed = time_end - time_start
                 result_count = msg[4]
-                report[str(mid)]= {"status_code":code, "time_elapsed":str(time_elapsed), "result_count":result_count}
-          
+                report[str(mid)]= {"status_code":code, "time_elapsed":str(time_elapsed), "result_count":result_count, "created_at":str(time_start), "updated_at": str(time_end)}
             return HttpResponse(json.dumps(report, indent=2), content_type='text/plain',
                                 status=200)
     except Exception as e:
@@ -284,37 +283,6 @@ def filter_message_deepfirst(rdata, filter, arg):
     final_result_count = len(filter_response)
     return rdata, final_result_count
 
-# def filter_message(key, filter, arg):
-#     mesg = Message.objects.get(pk=key)
-#     if str(mesg.actor.agent.name) == 'ars-default-agent':
-#         new_mesg = Message.create(actor=get_default_actor(), code=200, status='Done')
-#         new_id=new_mesg.pk
-#         new_mesg.data=mesg.data
-#         new_mesg.save()
-#         children = Message.objects.filter(ref__pk=str(mesg.pk))
-#         for child in children:
-#             if child.status == "D" and child.result_count != 0:
-#                 child_dict = child.to_dict()
-#                 rdata_filtered, final_result_count = filter_message_deepfirst(child_dict, filter, arg)
-#                 child_mesg = Message.create(actor=Actor.objects.get(pk=int(child.actor_id)), ref=Message.objects.get(pk=new_mesg.pk), code=200, status='Done')
-#                 child_mesg.result_count = final_result_count
-#                 child_mesg.data= rdata_filtered
-#                 child_mesg.save()
-#         return new_id
-#
-#     else:
-#         if mesg.status == "D" and mesg.result_count != 0:
-#             mesg_dict = mesg.to_dict()
-#             rdata_filtered, final_result_count = filter_message_deepfirst(mesg_dict, filter, arg)
-#             child_mesg = Message.create(actor=Actor.objects.get(pk=int(mesg.actor_id)), code=200, status='Done')
-#             child_mesg.result_count = final_result_count
-#             child_mesg.data = rdata_filtered
-#             child_mesg.save()
-#             new_id=child_mesg.id
-#         else:
-#             return HttpResponse('message doesnt have results or marked as "Done"', status=400)
-#
-#         return new_id
 def filter_message(key, filter_arg_list):
     mesg = Message.objects.get(pk=key)
     if str(mesg.actor.agent.name) == 'ars-default-agent':
@@ -426,18 +394,20 @@ def message(req, key):
             kg = utils.get_safe(data,"message", "knowledge_graph")
             if kg is not None:
                 if res is not None:
+                    logger.info('going to normalize ids for agent: %s and pk: %s' % (agent, key))
                     kg, res = utils.canonizeMessageTest(kg, res)
                 else:
-                    logger.error('the %s hasnt given any result back' % (agent))
+                    logger.debug('the %s has not returned any result back for pk: %s' % (agent, key))
+            else:
+                logger.debug('the %s has not returned any knowledge_graphs back for pk: %s' % (agent, key))
 
             if res is not None:
                 mesg.result_count = len(res)
                 if len(res)>0:
+                    logger.info('going to normalize scores for agent: %s and pk: %s' % (agent, key))
                     data["message"]["results"] = utils.normalizeScores(res)
                     scorestat = utils.ScoreStatCalc(res)
-                    mesg.stat_result = scorestat
-            else:
-                logger.debug("Message returned in unexpected format\n"+data)
+                    mesg.result_stat = scorestat
             # create child message if this one already has results
             if mesg.data and 'results' in mesg.data and mesg.data['results'] != None and len(mesg.data['results']) > 0:
                 mesg = Message.create(name=mesg.name, status=status,
@@ -452,10 +422,10 @@ def message(req, key):
             return HttpResponse('Unknown state reference %s' % key, status=404)
 
         except json.decoder.JSONDecodeError:
-            return HttpResponse('Can not decode json:<br>\n%s' % req.body, status=500)
+            return HttpResponse('Can not decode json:<br>\n%s for the pk: %s' % (req.body, key), status=500)
 
         except Exception as e:
-            logger.error("Unexpected error 12: {}".format(traceback.format_exception(type(e), e, e.__traceback__)))
+            logger.error("Unexpected error 12: {} with the pk: %s".format(traceback.format_exception(type(e), e, e.__traceback__), key))
 
         return HttpResponse('Internal server error', status=500)
 
@@ -556,6 +526,10 @@ def get_agent(req, name):
 
 
 def get_or_create_actor(data):
+    config = ConfigFile('config.yaml')
+    config_map = config.get_map()
+    inactive_actors = config_map['inactive_clients']
+
     if ('channel' not in data or 'agent' not in data or 'path' not in data):
         return HttpResponse(
             'JSON does not contain "channel", "agent", and "path" fields',
@@ -603,12 +577,13 @@ def get_or_create_actor(data):
     if 'remote' not in data:
         data['remote'] = None
     inforesid = data['inforesid']
-
     created = False
     inforesid_update=False
     try:
         actor = Actor.objects.get(
              agent=agent, path=data['path'])
+        if inforesid in inactive_actors:
+            actor.active=False
         if (actor.inforesid is not None):
             if not actor.inforesid == inforesid:
                 inforesid_update=True
@@ -627,8 +602,10 @@ def get_or_create_actor(data):
            logger.debug("No such actor found for "+inforesid)
            #JSON serializer added for 'channel' as we are now using a list that we're approximating by using a JSON
            #because Django's db models do not support List fields in SQLite
+           if inforesid in inactive_actors:
+               active=False
            actor, created = Actor.objects.update_or_create(
-               channel=json.loads(serializers.serialize('json',channel)), agent=agent, path=data['path'], inforesid=inforesid)
+               channel=json.loads(serializers.serialize('json',channel)), agent=agent, path=data['path'], inforesid=inforesid, active=active)
            status = 201
 
     #Testing Code Above
@@ -713,6 +690,7 @@ def timeoutTest(req,time=300):
         time.sleep(time)
     else:
         pass
+
 
 def retain(req, key):
     if req.method == 'GET':
