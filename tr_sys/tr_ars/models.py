@@ -85,6 +85,7 @@ class Message(ARSModel):
                             on_delete=models.CASCADE)
     result_count = models.IntegerField(null=True, default=None)
     result_stat = models.JSONField(null=True)
+    retain = models.BooleanField('flag to retain data', default=False)
 
     def __str__(self):
         return "message[%s]{name:%s, status:%s}" % (self.id,

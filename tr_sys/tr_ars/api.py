@@ -692,6 +692,22 @@ def timeoutTest(req,time=300):
         pass
 
 
+def retain(req, key):
+    if req.method == 'GET':
+        mesg=Message.objects.get(pk=key)
+        if str(mesg.actor.agent.name) == 'ars-default-agent':
+            mesg.retain = True
+            mesg.save()
+        else:
+            if mesg.ref_id is not None:
+                parent_mesg = Message.objects.get(pk=mesg.ref_id)
+                parent_mesg.retain = True
+                parent_mesg.save()
+                return HttpResponse('retained the message for parent pk: %s' % mesg.ref_id)
+            else:
+                logger.error('pk: %s doesnt have a parent level pk' % key)
+    return HttpResponse('retained the message for parent pk: %s' % key)
+
 def merge(req, key):
     logger.debug("Beginning merge for %s " % key)
     if req.method == 'GET':
@@ -720,7 +736,8 @@ apipatterns = [
     re_path(r'^reports/?$', reports, name='ars-reports'),
     path('reports/<inforesid>',get_report,name='ars-report'),
     re_path(r'^timeoutTest/?$', timeoutTest, name='ars-timeout'),
-    path('merge/<uuid:key>', merge, name='ars-merge')
+    path('merge/<uuid:key>', merge, name='ars-merge'),
+    path('retain/<uuid:key>', retain, name='ars-retain')
 
 
 ]
