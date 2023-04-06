@@ -12,7 +12,7 @@ import traceback
 from inspect import currentframe, getframeinfo
 from tr_ars import status_report
 from datetime import datetime, timedelta
-from tr_ars.tasks import send_message,catch_timeout_async
+from tr_ars.tasks import send_message
 import ast
 from tr_smartapi_client.smart_api_discover import ConfigFile
 
