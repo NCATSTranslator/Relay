@@ -2,7 +2,7 @@
 from __future__ import absolute_import, unicode_literals
 import logging, requests, sys, json
 from celery import shared_task
-from tr_ars.models import Message, Actor
+from tr_ars.models import Message, Actor, Agent
 from tr_ars import utils
 from celery.utils.log import get_task_logger
 from django.conf import settings
@@ -150,20 +150,17 @@ def send_message(actor_dict, mesg_dict, timeout=300):
 @shared_task(name="catch_timeout")
 def catch_timeout_async():
     now =timezone.now()
-    time_threshold = now - timezone.timedelta(minutes=60)
-    max_time = time_threshold+timezone.timedelta(minutes=10)
-    messages = Message.objects.filter(timestamp__gt=max_time,timestamp__lt=time_threshold,status__in='R').values_list('actor','status','code','updated_at')
+    time_threshold = now - timezone.timedelta(minutes=5)
+    max_time = time_threshold+timezone.timedelta(minutes=5)
+
+    messages = Message.objects.filter(timestamp__gt=time_threshold,timestamp__lt=max_time, status__in='R').values_list('actor','id')
     for mesg in messages:
-        agent = str(mesg.actor.agent.name)
-        if agent == 'ars-default-agent':
+        actor = Agent.objects.get(pk=mesg[0])
+        if actor.name == 'ars-default-agent':
             continue
         else:
-            status = mesg.status
-            if status == 'R':
-                logger.info(f'for actor: {mesg.actor}, the status is {mesg.status}')
-                logger.info('the ARA tool has not sent their response back after 10min, setting status to 598')
-                mesg.code = 598
-                mesg.status = 'E'
-                mesg.save()
-            else:
-                logger.error('ARS encountered unrecognizable status')
+            logger.info(f'for actor: {actor.name}, the status is still "Running" after one hour, setting code to 598')
+            message = Message.objects.get(pk=mesg[1])
+            message.code = 598
+            message.status = 'E'
+            message.save()
