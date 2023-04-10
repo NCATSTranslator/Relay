@@ -425,6 +425,19 @@ def message(req, key):
             return HttpResponse('Can not decode json:<br>\n%s for the pk: %s' % (req.body, key), status=500)
 
         except Exception as e:
+            mesg.status = 'E'
+            mesg.code = 500
+            log_entry = {
+                "message":"Internal ARS Server Error",
+                "timestamp":mesg.updated_at,
+                "level":"ERROR"
+            }
+            if 'logs' in data.keys():
+                data['logs'].append(log_entry)
+            else:
+                data['logs'] = [log_entry]
+            mesg.data = data
+            mesg.save()
             logger.error("Unexpected error 12: {} with the pk: %s".format(traceback.format_exception(type(e), e, e.__traceback__), key))
 
         return HttpResponse('Internal server error', status=500)
