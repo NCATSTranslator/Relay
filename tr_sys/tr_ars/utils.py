@@ -528,8 +528,8 @@ def canonizeMessageTest(kg,results):
         for canon in canonical:
             if canon in nodes:
                 new_name=get_safe(canonical[canon],'id','label')
-                if new_name is not None and ('name' not in nodes[canon]) or ('name' in nodes[canon] and nodes[canon]['name'] != new_name):
-                    nodes[canon]['name'] = new_name
+                if new_name is not None and ('name' not in nodes[canon] or ('name' in nodes[canon] and nodes[canon]['name']!= new_name)):
+                        nodes[canon]['name'] = new_name
                 if canonical[canon] is not None and canon != canonical[canon]["id"]["identifier"]:
                     changes[canon]=canonical[canon]
                     new_id = changes[canon]['id']['identifier']
