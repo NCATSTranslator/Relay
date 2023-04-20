@@ -21,6 +21,7 @@ def actor_post_save(sender, instance, **kwargs):
 @receiver(post_save, sender=Message)
 def message_post_save(sender, instance, **kwargs):
     message = instance
+    chosen_actors = instance.chosen_tools
     if message.status == 'R':
         message.code = 202
     if message.status == 'D':
@@ -31,12 +32,22 @@ def message_post_save(sender, instance, **kwargs):
          if len(Message.objects.filter(ref__pk=message.pk)) == 0: # make sure we haven't already done this broadcast
             matching_actors=[]
             for actor in Actor.objects.all():
-                for ch in actor.channel:
-                    if ch in message.actor.channel:
-                        print("match "+str(actor.inforesid))
-                        matching_actors.append(actor)
+                if chosen_actors == []:
+                    for ch in actor.channel:
+                        if ch in message.actor.channel:
+                            print("match "+str(actor.inforesid))
+                            matching_actors.append(actor)
+                else:
+                    for infores in chosen_actors:
+                        if infores == str(actor.inforesid):
+                            print("match "+str(actor.inforesid))
+                            matching_actors.append(actor)
+                        else:
+                            logger.error("chosen actor %s is not in the correct format" % infores)
+                    if matching_actors == []:
+                        logger.error('none of your chosen actors were in the correct format. ARS will not send the message to any actor')
             #send_messages(Actor.objects.filter(message.actor.channel in channel), [message]) #this line will need to be changed to adapt to lists of channels
-            send_messages(matching_actors, [message]) #this line will need to be changed to adapt to lists of channels
+            send_messages(matching_actors, [message])
 
     # check if parent status should be updated to 'Done'
     if message.ref and message.status in ['D', 'S', 'E', 'U']:

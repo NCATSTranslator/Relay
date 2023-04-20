@@ -15,7 +15,7 @@ from datetime import datetime, timedelta
 from tr_ars.tasks import send_message
 import ast
 from tr_smartapi_client.smart_api_discover import ConfigFile
-
+import itertools
 #from reasoner_validator import validate_Message, ValidationError, validate_Query
 
 logger = logging.getLogger(__name__)
@@ -89,6 +89,40 @@ def submit(req):
     try:
         logger.debug('++ submit: %s' % req.body)
         data = json.loads(req.body)
+        edges=utils.get_safe(data,"message","query_graph","edges")
+        if edges is not None and len(edges) == 1:
+            edge = list(edges.values())[0]
+            if 'attribute_constraints' in edge.keys():
+                constraints = edge['attribute_constraints'][0]
+                if 'not' in constraints and constraints['not']:
+                    denylist_actor = constraints['value']
+                    allowlist_actor = []
+                    for actor in Actor.objects.all():
+                        if str(actor.inforesid) not in denylist_actor:
+                            allowlist_actor.append(str(actor.inforesid))
+                else:
+                    allowlist_actor = constraints['value']
+            else:
+                allowlist_actor = []
+        elif len(edges) > 1:
+            contraint_comp = []
+            for edge in edges.keys():
+                if 'attribute_constraints' in edges[edge]:
+                    contraint_comp.append(edges[edge]['attribute_constraints'][0])
+            #now compare those attribute constraints and if they are not the same, eror out
+            constraint_errored = False
+            for edge_const1, edge_const2 in zip(contraint_comp,contraint_comp[1:]):
+                if edge_const1 == edge_const2:
+                    logger.info('attribute constraints are the same, moving on')
+                else:
+                    logger.error('you have submitted a query with 2 different constraint on edges')
+                    constraint_errored = True
+                    data['logs'] =['Query not processed due to multiple conflicting allow/deny lists']
+
+            if not constraint_errored:
+                logger.info('identified a unique attribute_constraints')
+                allowlist_actor = contraint_comp[0]['value']
+
         # if 'message' not in data:
         #     return HttpResponse('Not a valid Translator query json', status=400)
         # create a head message
@@ -116,6 +150,13 @@ def submit(req):
         if 'name' in data:
             message.name = data['name']
         # save and broadcast
+        if constraint_errored:
+            message.status = 'E'
+            data = message.to_dict()
+            return HttpResponse(json.dumps(data, indent=2),
+                            content_type='application/json', status=500)
+        else:
+            message.chosen_tools = allowlist_actor
         message.save()
         data = message.to_dict()
         return HttpResponse(json.dumps(data, indent=2),
