@@ -3,7 +3,7 @@ from django.dispatch import receiver
 import sys, logging
 from .models import Actor, Agent, Message, Channel
 from .pubsub import send_messages
-
+from .utils import extract_chosen_actors, get_safe
 logger = logging.getLogger(__name__)
 
 @receiver(post_save, sender=Actor)
@@ -21,7 +21,12 @@ def actor_post_save(sender, instance, **kwargs):
 @receiver(post_save, sender=Message)
 def message_post_save(sender, instance, **kwargs):
     message = instance
-    chosen_actors = instance.chosen_tools
+    if message.status != 'E':
+        msg = message.to_dict()
+        data = get_safe(msg, 'fields', 'data')
+        if data is not None and 'message' in data.keys():
+            chosen_actors, constraint_errored = extract_chosen_actors(data)
+
     if message.status == 'R':
         message.code = 202
     if message.status == 'D':
@@ -43,9 +48,9 @@ def message_post_save(sender, instance, **kwargs):
                             print("match "+str(actor.inforesid))
                             matching_actors.append(actor)
                         else:
-                            logger.error("chosen actor %s is not in the correct format" % infores)
-                    if matching_actors == []:
-                        logger.error('none of your chosen actors were in the correct format. ARS will not send the message to any actor')
+                            pass
+            if matching_actors == []:
+                logger.error('none of your chosen actors were in the correct format. ARS will not send the message to any actor')
             #send_messages(Actor.objects.filter(message.actor.channel in channel), [message]) #this line will need to be changed to adapt to lists of channels
             send_messages(matching_actors, [message])
 

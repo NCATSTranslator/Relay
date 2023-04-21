@@ -23,6 +23,7 @@ def send_message(actor_dict, mesg_dict, timeout=300):
     url = settings.DEFAULT_HOST + actor_dict['fields']['url']
     logger.debug('sending message %s to %s...' % (mesg_dict['pk'], url))
     data = mesg_dict
+    data = utils.remove_constraint(data)
     data['fields']['actor'] = {
         'id': actor_dict['pk'],
         'channel': actor_dict['fields']['channel'],

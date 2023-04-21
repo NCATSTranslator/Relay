@@ -760,3 +760,48 @@ def specific_node_filter(results, forbbiden_node):
             results.remove(result)
     return results
 
+def extract_chosen_actors(data):
+    constraint_errored = False
+    edges = get_safe(data,"message","query_graph","edges")
+    if edges is not None and len(edges) == 1:
+        edge = list(edges.values())[0]
+        if 'attribute_constraints' in edge.keys() and edge['attribute_constraints'] != []:
+            constraints = edge['attribute_constraints'][0]
+            if 'not' in constraints and constraints['not']:
+                denylist_actor = constraints['value']
+                allowlist_actor = []
+                for actor in Actor.objects.all():
+                    if str(actor.inforesid) not in denylist_actor:
+                        allowlist_actor.append(str(actor.inforesid))
+            else:
+                allowlist_actor = constraints['value']
+        else:
+            allowlist_actor = []
+    elif len(edges) > 1:
+        constraint_comp = []
+        for edge in edges.keys():
+            if 'attribute_constraints' in edges[edge]:
+                constraint_comp.append(edges[edge]['attribute_constraints'][0])
+        #now compare those attribute constraints and if they are not the same, eror out
+        if constraint_comp != []:
+            for edge_const1, edge_const2 in zip(constraint_comp,constraint_comp[1:]):
+                if edge_const1 == edge_const2:
+                    print('attribute constraints are the same, moving on')
+                else:
+                    print('you have submitted a query with 2 different constraint on edges')
+                    constraint_errored = True
+                    allowlist_actor = []
+        else:
+            print('noe of the edges had the attribute_constraint either originally or after removal ')
+        if not constraint_errored:
+            print('identified a unique attribute_constraints')
+            allowlist_actor = constraint_comp[0]['value']
+
+    return allowlist_actor, constraint_errored
+
+def remove_constraint(data):
+    edges = get_safe(data,"fields", "data","message","query_graph","edges")
+    for key, values in edges.items():
+        if 'attribute_constraints' in values.keys():
+            values.pop('attribute_constraints')
+    return data
