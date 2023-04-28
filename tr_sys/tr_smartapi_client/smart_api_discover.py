@@ -136,16 +136,6 @@ class UrlMapSmartApiFetcher(object):
         logging.info("found {} registrations with maturity={}".format(len(byIrid), maturity))
         return byIrid
 
-
-    def _break_tie(self,version,inforesMap):
-        for infores,servers in inforesMap.items():
-            if version is not None:
-                for server in servers:
-                    if server['version'] != version:
-                        servers.remove(server)
-
-
-
     def get_map(self, maturity, version):
         try:
             s = requests.Session()
