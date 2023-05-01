@@ -24,13 +24,29 @@ def message_post_save(sender, instance, **kwargs):
     msg = message.to_dict()
     data = get_safe(msg, "fields", "data")
     if data is not None:
-        if len(data) == 2:
-            if data.keys() >= {"message", "tools"}:
-                chosen_actors = data['tools']
+        if len(data) == 3:
+            if data.keys() >= {"message", "allow_tools", "deny_tools"}:
+                if data['allow_tools'] != [] and data['deny_tools'] != []:
+                    logger.error("you cant include both allow and deny list at the same time")
+                elif not data['deny_tools']:
+                    allow_tools = data['allow_tools']
+                    deny_tools =[]
+                elif not data['allow_tools']:
+                    deny_tools = data['deny_tools']
+                    allow_tools = []
+
+        elif len(data) == 2:
+            if data.keys() >= {"message", "allow_tools"}:
+                allow_tools = data['allow_tools']
+                deny_tools = []
+            elif data.keys() >= {"message", "deny_tools"}:
+                deny_tools = data['deny_tools']
+                allow_tools = []
             else:
                 logger.error("Input query only expect message and tools. Please include the correct fields")
         else:
-            chosen_actors = []
+            allow_tools = []
+            deny_tools = []
 
     if message.status == 'R':
         message.code = 202
@@ -39,23 +55,22 @@ def message_post_save(sender, instance, **kwargs):
     logger.debug('+++ post_save message: %s with the code: %s' % (message, message.code))
     # now broadcast the message to all actors only if it has code=200 and is a parent node
     if message.code == 202 and message.ref == None:
-         if len(Message.objects.filter(ref__pk=message.pk)) == 0: # make sure we haven't already done this broadcast
-             matching_actors=[]
-             for actor in Actor.objects.all():
-                 if chosen_actors == []:
-                     for ch in actor.channel:
-                         if ch in message.actor.channel:
-                             print("match "+str(actor.inforesid))
-                             matching_actors.append(actor)
-                 else:
-                     for infores in chosen_actors:
-                         if infores == str(actor.inforesid):
-                             print("match "+str(actor.inforesid))
-                             matching_actors.append(actor)
-                         else:
-                             pass
-             #send_messages(Actor.objects.filter(message.actor.channel in channel), [message]) #this line will need to be changed to adapt to lists of channels
-             send_messages(matching_actors, [message]) #this line will need to be changed to adapt to lists of channels
+        if len(Message.objects.filter(ref__pk=message.pk)) == 0: # make sure we haven't already done this broadcast
+            matching_actors=[]
+            for actor in Actor.objects.all():
+                if (not allow_tools) and (not deny_tools):
+                    for ch in actor.channel:
+                        if ch in message.actor.channel:
+                            print("match "+str(actor.inforesid))
+                            matching_actors.append(actor)
+                elif allow_tools and not deny_tools:
+                    if str(actor.inforesid) in allow_tools:
+                        matching_actors.append(actor)
+                elif deny_tools and not allow_tools:
+                    if str(actor.inforesid) not in deny_tools:
+                        matching_actors.append(actor)
+            #send_messages(Actor.objects.filter(message.actor.channel in channel), [message]) #this line will need to be changed to adapt to lists of channels
+            send_messages(matching_actors, [message]) #this line will need to be changed to adapt to lists of channels
 
     # check if parent status should be updated to 'Done'
     if message.ref and message.status in ['D', 'S', 'E', 'U']:
