@@ -670,7 +670,7 @@ def ScoreStatCalc(results):
 
 def normalizeScores(results):
     if results is not None and len(results)>0:
-        scoreList = [d['score'] for d in results if 'score' in d]
+        scoreList = [d['score'] for d in results if 'score' in d and d['score'] is not None]
         ranked = list(rankdata(scoreList)*100/len(scoreList))
         if(len(ranked)!=len(scoreList)):
             logging.debug("Score normalization aborted.  Score list lengths not equal")
