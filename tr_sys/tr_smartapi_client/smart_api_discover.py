@@ -125,14 +125,36 @@ class UrlMapSmartApiFetcher(object):
         byIrid = {}
         for irhit in self._irhits_from_res(j):
             if maturity == irhit["maturity"]:
-                #if we have a version set, it's mandatory.  If a server doesn't match it, we don't consider it
-                if version is not None and irhit["version"] != version:
-                    continue
                 key = self._key_of_irhit(irhit)
                 if key is not None:
-                    irhit0 = byIrid[key] if key in byIrid else None
-                    if irhit0 is None or self._newer(irhit, irhit0):
+                    #if we already have an entry for this infores, we hold it in irhitExtant, else None
+                    irhitExtant = byIrid[key] if key in byIrid else None
+
+                    #if we didn't already have anything for this infores, add what we have and move to the next
+                    if irhitExtant is None:
                         byIrid[key] = irhit
+                        continue
+                    if version is not None:
+                        currentVersionCorrect = "version" in irhit.keys() and irhit["version"]==version
+                        extantVersionCorrect = "version" in irhitExtant.keys() and irhitExtant["version"]==version
+                        #if the current one and the one we have are both the right version, take the newest
+                        if currentVersionCorrect and extantVersionCorrect and self._newer(irhit, irhitExtant):
+                            byIrid[key]=irhit
+                        #if the current one is the correct version and the one we have isn't, replace what we have
+                        elif currentVersionCorrect and not extantVersionCorrect:
+                            byIrid[key]=irhit
+                        #if what we have is the correct version and the current is not, next
+                        elif not currentVersionCorrect and extantVersionCorrect:
+                            continue
+                        #if they're both the wrong version, just take the latest one.
+                        elif not currentVersionCorrect and not extantVersionCorrect and self._newer(irhit, irhitExtant):
+                            byIrid[key]=irhit
+                    #if we don't have a version set, we just take the latest one.
+                    else:
+                        if self._newer(irhit, irhitExtant):
+                            byIrid[key]=irhit
+
+
         logging.info("found {} registrations with maturity={}".format(len(byIrid), maturity))
         return byIrid
 
