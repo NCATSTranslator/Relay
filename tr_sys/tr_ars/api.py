@@ -385,7 +385,7 @@ def message(req, key):
 
             mesg = Message.objects.get(pk = key)
             status = 'D'
-            mesg.code = 200
+            code = 200
             if 'tr_ars.message.status' in req.headers:
                 status = req.headers['tr_ars.message.status']
 
@@ -395,7 +395,12 @@ def message(req, key):
             if kg is not None:
                 if res is not None:
                     logger.info('going to normalize ids for agent: %s and pk: %s' % (agent, key))
-                    kg, res = utils.canonizeMessageTest(kg, res)
+                    try:
+                        kg, res = utils.canonizeMessageTest(kg, res)
+                    except Exception as e:
+                        logger.error('Failed to normalize ids for agent: %s and pk: %s' % (agent, key))
+                        status = 'E'
+                        code = 206
                 else:
                     logger.debug('the %s has not returned any result back for pk: %s' % (agent, key))
             else:
@@ -404,15 +409,21 @@ def message(req, key):
             if res is not None:
                 mesg.result_count = len(res)
                 if len(res)>0:
-                    logger.info('going to normalize scores for agent: %s and pk: %s' % (agent, key))
-                    data["message"]["results"] = utils.normalizeScores(res)
-                    scorestat = utils.ScoreStatCalc(res)
-                    mesg.result_stat = scorestat
+                    try:
+                        logger.info('going to normalize scores for agent: %s and pk: %s' % (agent, key))
+                        data["message"]["results"] = utils.normalizeScores(res)
+                        scorestat = utils.ScoreStatCalc(res)
+                        mesg.result_stat = scorestat
+                    except Exception as e:
+                        logger.error('Failed to normalize scores for agent: %s and pk: %s' % (agent, key))
+                        status = 'E'
+                        code = 206
             # create child message if this one already has results
             if mesg.data and 'results' in mesg.data and mesg.data['results'] != None and len(mesg.data['results']) > 0:
                 mesg = Message.create(name=mesg.name, status=status,
                                   actor=mesg.actor, ref=mesg)
             mesg.status = status
+            mesg.code = code
             mesg.data = data
             mesg.save()
             return HttpResponse(json.dumps(mesg.to_dict(), indent=2),
@@ -440,7 +451,7 @@ def message(req, key):
             mesg.save()
             logger.error("Unexpected error 12: {} with the pk: %s".format(traceback.format_exception(type(e), e, e.__traceback__), key))
 
-        return HttpResponse('Internal server error', status=500)
+            return HttpResponse('Internal server error', status=500)
 
     else:
         return HttpResponse('Method %s not supported!' % req.method, status=400)

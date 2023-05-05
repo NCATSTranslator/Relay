@@ -566,6 +566,9 @@ def canonizeMessageTest(kg,results):
                     elif 'attributes' not in nodes[new_id]:
                         logging.debug("attribute field doesnt exist in the current node")
                         nodes[new_id]['attributes'] = [original_node, same_as_attribute]
+                    elif nodes[new_id]['attributes'] is None:
+                        logging.debug("attribute field is None in the current node")
+                        nodes[new_id]['attributes'] = [original_node, same_as_attribute]
                     else:
                         logging.debug("attribute not of type list")
                         if 'equivalent_identifiers' in nodes[new_id]['attributes']['original_attribute_name']:
