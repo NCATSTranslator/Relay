@@ -24,29 +24,42 @@ def message_post_save(sender, instance, **kwargs):
     msg = message.to_dict()
     data = get_safe(msg, "fields", "data")
     if data is not None:
-        if len(data) == 3:
-            if data.keys() >= {"message", "allow_tools", "deny_tools"}:
-                if data['allow_tools'] != [] and data['deny_tools'] != []:
-                    logger.error("you cant include both allow and deny list at the same time")
-                elif not data['deny_tools']:
-                    allow_tools = data['allow_tools']
-                    deny_tools =[]
-                elif not data['allow_tools']:
-                    deny_tools = data['deny_tools']
-                    allow_tools = []
-
-        elif len(data) == 2:
-            if data.keys() >= {"message", "allow_tools"}:
-                allow_tools = data['allow_tools']
-                deny_tools = []
-            elif data.keys() >= {"message", "deny_tools"}:
-                deny_tools = data['deny_tools']
-                allow_tools = []
-            else:
-                logger.error("Input query only expect message and tools. Please include the correct fields")
+        keyList = data.keys()
+        if "allow_tools" in keyList and "deny_tools" in keyList:
+            allow_tools=data['allow_tools']
+            logger.error("Both an allow list and a deny list provided.  Taking only the allow list")
+        elif "allow_tools" in keyList:
+            allow_tools = data['allow_tools']
+            deny_tools=[]
+        elif "deny_tools" in keyList:
+            deny_tools=data['deny_tools']
+            allow_tools=[]
         else:
-            allow_tools = []
-            deny_tools = []
+            allow_tools=[]
+            deny_tools=[]
+        # if len(data) == 3:
+        #     if data.keys() >= {"message", "allow_tools", "deny_tools"}:
+        #         if data['allow_tools'] != [] and data['deny_tools'] != []:
+        #             logger.error("you cant include both allow and deny list at the same time")
+        #         elif not data['deny_tools']:
+        #             allow_tools = data['allow_tools']
+        #             deny_tools =[]
+        #         elif not data['allow_tools']:
+        #             deny_tools = data['deny_tools']
+        #             allow_tools = []
+        #
+        # elif len(data) == 2:
+        #     if data.keys() >= {"message", "allow_tools"}:
+        #         allow_tools = data['allow_tools']
+        #         deny_tools = []
+        #     elif data.keys() >= {"message", "deny_tools"}:
+        #         deny_tools = data['deny_tools']
+        #         allow_tools = []
+        #     else:
+        #         logger.error("Input query only expect message and tools. Please include the correct fields")
+        # else:
+        #     allow_tools = []
+        #     deny_tools = []
 
     if message.status == 'R':
         message.code = 202
