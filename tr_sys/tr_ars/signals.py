@@ -27,6 +27,7 @@ def message_post_save(sender, instance, **kwargs):
         keyList = data.keys()
         if "allow_tools" in keyList and "deny_tools" in keyList:
             allow_tools=data['allow_tools']
+            deny_tools =[]
             logger.error("Both an allow list and a deny list provided.  Taking only the allow list")
         elif "allow_tools" in keyList:
             allow_tools = data['allow_tools']
