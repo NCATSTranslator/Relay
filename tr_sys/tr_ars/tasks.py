@@ -11,7 +11,8 @@ import html
 from tr_smartapi_client.smart_api_discover import SmartApiDiscover
 import traceback
 from django.utils import timezone
-
+from datetime import datetime, timedelta
+import copy
 
 
 logger = get_task_logger(__name__)
@@ -139,19 +140,45 @@ def send_message(actor_dict, mesg_dict, timeout=300):
 @shared_task(name="catch_timeout")
 def catch_timeout_async():
     now =timezone.now()
-    time_threshold = now - timezone.timedelta(minutes=10)
-    messages = Message.objects.filter(timestamp__lt=time_threshold, status__in='R')
+    now = now.replace(tzinfo=None) #this is to get rid of timezone offset naive
+    time_threshold = now - timezone.timedelta(minutes=20)
+    max_time = time_threshold+timezone.timedelta(minutes=10)
+
+    messages = Message.objects.filter(timestamp__gt=time_threshold,timestamp__lt=max_time, status__in='R').values_list('actor','id')
+    
     for mesg in messages:
         agent = str(mesg.actor.agent.name)
         if agent == 'ars-default-agent':
             continue
+        elif actor.name == 'ara-bte':
+            message = Message.objects.get(pk=mesg[1])
+            data = message.data
+            try:
+                r = requests.get(data['url'])
+                if r.status_code == 200:
+                    rj = r.json()
+                    logs = utils.get_safe(rj, "returnvalue","response", "logs")
+                    last_timestamp = logs[-1]['timestamp']
+                    last_time = datetime.strptime(last_timestamp, "%Y-%m-%dT%H:%M:%S.%f%z")
+                    last_time = last_time.replace(tzinfo=None)
+                    if (now - last_time) > timedelta(minutes=5):
+                        logger.info("its been more than 5 min that the tool hasn't been updated")
+                    else:
+                        continue
+                else:
+                    if r.status_code == 202:
+                        status = 'W'
+                    if r.status_code >= 400:
+                        if r.status_code != 503:
+                            status = 'E'
+            except Exception as e:
+                logger.error("Unexpected error 15: {}".format(traceback.format_exception(type(e), e, e.__traceback__)))
         else:
-            status = mesg.status
-            if status == 'R':
-                logger.info(f'for actor: {mesg.actor}, the status is {mesg.status}')
-                logger.info('the ARA tool has not sent their response back after 10min, setting status to 598')
-                mesg.code = 598
-                mesg.status = 'E'
-                mesg.save()
-            else:
-                logger.error('ARS encountered unrecognizable status')
+            continue
+            # logger.info(f'for actor: {actor.name}, the status is still "Running" after one hour, setting code to 598')
+            # message = Message.objects.get(pk=mesg[1])
+            # message.code = 598
+            # message.status = 'E'
+            # message.save()
+
+
