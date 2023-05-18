@@ -655,8 +655,17 @@ def findSharedResults(sharedResults,messageList):
 
 def ScoreStatCalc(results):
     stat={}
+    scoreList = []
     if results is not None and len(results)>0:
-        scoreList = [d['score'] for d in results if 'score' in d]
+        for res in results:
+            if 'analyses' in res.keys() and res['analyses'] != [] and res['analyses'] is not None and 'score' in res['analyses'][0]:
+                score = res['analyses'][0]['score']
+                if score is not None:
+                    scoreList.append(score)
+            else:
+                logging.error("Results dont have the required fields")
+                return stat
+
         try:
             if len(scoreList) <= 1:
                 return stat
@@ -672,8 +681,18 @@ def ScoreStatCalc(results):
     return stat
 
 def normalizeScores(results):
+
+    scoreList = []
     if results is not None and len(results)>0:
-        scoreList = [d['score'] for d in results if 'score' in d and d['score'] is not None]
+        for res in results:
+            if 'analyses' in res.keys() and res['analyses'] != [] and res['analyses'] is not None and 'score' in res['analyses'][0]:
+                score = res['analyses'][0]['score']
+                if score is not None:
+                    scoreList.append(score)
+            else:
+                logging.error("Results dont have the required fields")
+                return results
+
         ranked = list(rankdata(scoreList)*100/len(scoreList))
         if(len(ranked)!=len(scoreList)):
             logging.debug("Score normalization aborted.  Score list lengths not equal")

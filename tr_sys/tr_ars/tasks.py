@@ -105,7 +105,12 @@ def send_message(actor_dict, mesg_dict, timeout=300):
                 if kg is not None:
                     if results is not None:
                         logger.info('going to normalize ids for agent: %s and pk: %s' % (inforesid, mesg.pk))
-                        kg, results = utils.canonizeMessageTest(kg, results)
+                        try:
+                            kg, results = utils.canonizeMessageTest(kg, results)
+                        except Exception as e:
+                            logger.error('Failed to normalize ids for agent: %s and pk: %s' % (inforesid, mesg.pk))
+                            status = 'E'
+                            status_code = 206
                     else:
                         logger.debug('the %s has not returned any result back for pk: %s' % (inforesid, mesg.pk))
                 else:
@@ -114,13 +119,18 @@ def send_message(actor_dict, mesg_dict, timeout=300):
                 if results is not None:
                     mesg.result_count = len(rdata["message"]["results"])
                     if len(results)>0:
-                        logger.info('going to normalize scores for agent: %s and pk: %s' % (inforesid, mesg.pk))
-                        rdata["message"]["results"] = utils.normalizeScores(results)
-                        scorestat = utils.ScoreStatCalc(results)
-                        mesg.result_stat = scorestat
+                        try:
+                            logger.info('going to normalize scores for agent: %s and pk: %s' % (inforesid, mesg.pk))
+                            rdata["message"]["results"] = utils.normalizeScores(results)
+                            scorestat = utils.ScoreStatCalc(results)
+                            mesg.result_stat = scorestat
+                        except Exception as e:
+                            logger.error('Failed to normalize scores for agent: %s and pk: %s' % (inforesid, mesg.pk))
+                            status = 'E'
+                            status_code = 206
+
             if 'tr_ars.message.status' in r.headers:
                 status = r.headers['tr_ars.message.status']
-
         else:
             if r.status_code == 202:
                 status = 'W'
