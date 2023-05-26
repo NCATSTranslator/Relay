@@ -658,8 +658,16 @@ def ScoreStatCalc(results):
     scoreList = []
     if results is not None and len(results)>0:
         for res in results:
-            if 'analyses' in res.keys() and res['analyses'] != [] and res['analyses'] is not None and 'score' in res['analyses'][0]:
-                score = res['analyses'][0]['score']
+            if 'analyses' in res.keys() and res['analyses'] != [] and res['analyses'] is not None:
+                if len(res['analyses']) > 1:
+                    temp_score = []
+                    for analysis in res['analyses']:
+                        if 'score' in analysis.keys():
+                            temp_score.append(analysis['score'])
+                    score = statistics.mean(temp_score)
+                elif len(res['analyses']) == 1 and 'score' in res['analyses'][0]:
+                    score = res['analyses'][0]['score']
+
                 if score is not None:
                     scoreList.append(score)
             else:
@@ -685,8 +693,16 @@ def normalizeScores(results):
     scoreList = []
     if results is not None and len(results)>0:
         for res in results:
-            if 'analyses' in res.keys() and res['analyses'] != [] and res['analyses'] is not None and 'score' in res['analyses'][0]:
-                score = res['analyses'][0]['score']
+            if 'analyses' in res.keys() and res['analyses'] != [] and res['analyses'] is not None:
+                if len(res['analyses']) > 1:
+                    temp_score = []
+                    for analysis in res['analyses']:
+                        if 'score' in analysis.keys():
+                            temp_score.append(analysis['score'])
+                    score = statistics.mean(temp_score)
+                elif len(res['analyses']) == 1 and 'score' in res['analyses'][0]:
+                    score = res['analyses'][0]['score']
+
                 if score is not None:
                     scoreList.append(score)
             else:
