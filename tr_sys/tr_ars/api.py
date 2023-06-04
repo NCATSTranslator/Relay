@@ -356,6 +356,19 @@ def filters(req):
                             content_type='application/json', status=200)
 
 @csrf_exempt
+def latest_pk(req, n):
+    logger.debug("entering latest_pk endpoint")
+    response = {}
+    if req.method == 'GET':
+        response[f'latest_{n}_pks'] = []
+        mesg_list = Message.objects.filter(actor=22).order_by('-timestamp')[:n]
+        for mesg in mesg_list:
+            response[f'latest_{n}_pks'].append(str(mesg.pk))
+
+        return HttpResponse(json.dumps(response, indent=2),
+                            status=200)
+
+@csrf_exempt
 def message(req, key):
     logger.debug("entering message endpoint %s " % key)
 
@@ -761,7 +774,8 @@ apipatterns = [
     path('reports/<inforesid>',get_report,name='ars-report'),
     re_path(r'^timeoutTest/?$', timeoutTest, name='ars-timeout'),
     path('merge/<uuid:key>', merge, name='ars-merge'),
-    path('retain/<uuid:key>', retain, name='ars-retain')
+    path('retain/<uuid:key>', retain, name='ars-retain'),
+    path('latest_pk/<int:n>', latest_pk, name='ars-latestPK')
 
 
 ]
