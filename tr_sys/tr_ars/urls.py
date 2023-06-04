@@ -20,7 +20,8 @@ apipatterns = [
     re_path(r'^status/?$', api.status, name='ars-status'),
     re_path(r'^timeoutTest/?$', api.timeoutTest, name='ars-timeout'),
     path('merge/<uuid:key>', api.merge, name='ars-merge'),
-    path('retain/<uuid:key>', api.retain, name='ars-retain')
+    path('retain/<uuid:key>', api.retain, name='ars-retain'),
+    path('latest_pk/<int:n>', api.latest_pk, name='ars-latestPK')
 ]
 
 
