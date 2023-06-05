@@ -671,6 +671,7 @@ def actors(req):
             actor['fields']['urlRemote'] = urlRemoteFromInforesid(a.inforesid)
             actor['fields']['path'] = req.build_absolute_uri(a.url()) #a.path
             actor['fields']['active'] = a.active
+            actor['fields']['inforesid'] = a.inforesid
             actors.append(actor)
         return HttpResponse(json.dumps(actors, indent=2),
                             content_type='application/json', status=200)
