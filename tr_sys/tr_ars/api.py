@@ -361,7 +361,11 @@ def latest_pk(req, n):
     response = {}
     if req.method == 'GET':
         response[f'latest_{n}_pks'] = []
-        mesg_list = Message.objects.filter(actor=22).order_by('-timestamp')[:n]
+        for actor in Actor.objects.all():
+            if actor.agent.name == 'ars-default-agent':
+                actor_id = actor.id
+
+        mesg_list = Message.objects.filter(actor=actor_id).order_by('-timestamp')[:n]
         for mesg in mesg_list:
             response[f'latest_{n}_pks'].append(str(mesg.pk))
 
