@@ -208,6 +208,7 @@ def trace_message(req, key):
         channel_names=[]
         for ch in mesg.actor.channel:
             channel_names.append(ch['fields']['name'])
+        qc = utils.get_safe(mesg.to_dict(),"fields","data","message","query_graph")
         tree = {
             'message': str(mesg.id),
             'status': dict(Message.STATUS)[mesg.status],
@@ -220,7 +221,7 @@ def trace_message(req, key):
                 'path': mesg.actor.path
             },
             'result_count': mesg.result_count,
-            'query_graph': dict(mesg.data['message']['query_graph']),
+            'query_graph': qc,
             #'query_graph':mesg.data.query_graph,
             'children': []
         }
