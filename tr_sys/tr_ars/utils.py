@@ -665,8 +665,12 @@ def ScoreStatCalc(results):
                         if 'score' in analysis.keys():
                             temp_score.append(analysis['score'])
                     score = statistics.mean(temp_score)
-                elif len(res['analyses']) == 1 and 'score' in res['analyses'][0]:
-                    score = res['analyses'][0]['score']
+                elif len(res['analyses']) == 1:
+                    if 'score' in res['analyses'][0]:
+                        score = res['analyses'][0]['score']
+                    else:
+                        logging.debug('Result doesnt have score field')
+                        score = None
 
                 if score is not None:
                     scoreList.append(score)
@@ -700,8 +704,12 @@ def normalizeScores(results):
                         if 'score' in analysis.keys():
                             temp_score.append(analysis['score'])
                     score = statistics.mean(temp_score)
-                elif len(res['analyses']) == 1 and 'score' in res['analyses'][0]:
-                    score = res['analyses'][0]['score']
+                elif len(res['analyses']) == 1:
+                    if 'score' in res['analyses'][0]:
+                        score = res['analyses'][0]['score']
+                    else:
+                        logging.debug('Result doesnt have score field')
+                        score = None
 
                 if score is not None:
                     scoreList.append(score)
