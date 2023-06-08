@@ -38,7 +38,7 @@ httpclients:
     endpoint: query 
     params:
   infores:robokop:
-    endpoint: query 
+    endpoint: asyncquery
     params:
   infores:unsecret-agent:
     endpoint: query 
