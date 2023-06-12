@@ -6,7 +6,7 @@ class AppConfig(ARSAppConfig):
     name = 'tr_ara_robokop.robokop_app' # must be dot path for module
     actors = [make_actorconf('infores:robokop',
                'runquery', ['general'],
-               'query')] # tuple of remote, name, channel
+               'asyncquery')] # tuple of remote, name, channel
     app_path = 'ara-robokop'
     regex_path = '^' + app_path + '/'
 
