@@ -298,9 +298,12 @@ def mergeDicts(dcurrent,dmerged):
         cv=dcurrent[key]
         #print("key is "+str(key))
         if key in dmerged.keys():
-            if key == 'attributes':
-                print()
+
             mv=dmerged[key]
+            #analyses are a special case in which we just append them at the result level
+            if key == 'analyses':
+                dmerged[key]=mv+cv
+                return dmerged
             if (isinstance(cv,dict) and isinstance(mv,dict)):
                 #print("merging dicts")
                 dmerged[key]=mergeDicts(cv,mv)
@@ -667,6 +670,8 @@ def ScoreStatCalc(results):
                     score = statistics.mean(temp_score)
                 elif len(res['analyses']) == 1 and 'score' in res['analyses'][0]:
                     score = res['analyses'][0]['score']
+                else:
+                    score =None
 
                 if score is not None:
                     scoreList.append(score)
@@ -702,6 +707,8 @@ def normalizeScores(results):
                     score = statistics.mean(temp_score)
                 elif len(res['analyses']) == 1 and 'score' in res['analyses'][0]:
                     score = res['analyses'][0]['score']
+                else:
+                    score = None
 
                 if score is not None:
                     scoreList.append(score)
