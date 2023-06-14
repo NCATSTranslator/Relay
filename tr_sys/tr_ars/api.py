@@ -761,7 +761,8 @@ def merge(req, key):
         merged_message.data=parent.data
         merged_message.save()
         utils.merge.apply_async((key,mid))
-        return redirect('/ars/api/messages/'+str(mid))
+        print(str(mid))
+        #return redirect('/ars/api/messages/'+str(mid))
 
 
 apipatterns = [
