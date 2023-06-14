@@ -19,7 +19,7 @@ infores:example: http://transltr.io:7073
 infores:robokop: https://robokop.renci.org/ara
 infores:unsecret-agent: https://medikanren-trapi.ci.transltr.io
 infores:workflow-runner: https://translator-workflow-runner.renci.org
-infores:cam-kp: https://cam-kp-api.renci.org/1.2.0
+infores:automat-cam-kp: https://automat.ci.transltr.io/cam-kp/1.4
 infores:connections-hypothesis: http://chp.thayer.dartmouth.edu
 infores:cohd: https://cohd.io/api
 infores:genetics-data-provider: https://translator.broadinstitute.org/genetics_provider/trapi/v1.1
