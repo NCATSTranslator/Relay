@@ -86,6 +86,10 @@ class Message(ARSModel):
     result_count = models.IntegerField(null=True, default=None)
     result_stat = models.JSONField(null=True)
     retain = models.BooleanField('flag to retain data', default=False)
+    merge_semaphore=models.BooleanField('flag to indicate that merging is currently in progress',default=False)
+    merged_version = models.ForeignKey('self', related_name="version_merged",null=True, blank=True,
+                                     on_delete=models.CASCADE)
+
 
     def __str__(self):
         return "message[%s]{name:%s, status:%s}" % (self.id,

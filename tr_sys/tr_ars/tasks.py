@@ -102,6 +102,7 @@ def send_message(actor_dict, mesg_dict, timeout=300):
                 status_code = 200
                 results = utils.get_safe(rdata,"message","results")
                 kg = utils.get_safe(rdata,"message", "knowledge_graph")
+                #before we do basically anything else, we normalize
                 if kg is not None:
                     if results is not None:
                         logger.info('going to normalize ids for agent: %s and pk: %s' % (inforesid, mesg.pk))
@@ -116,18 +117,10 @@ def send_message(actor_dict, mesg_dict, timeout=300):
                 else:
                     logger.debug('the %s has not returned any knowledge_graphs back for pk: %s' % (inforesid, mesg.pk))
 
-                if results is not None:
-                    mesg.result_count = len(rdata["message"]["results"])
-                    if len(results)>0:
-                        try:
-                            logger.info('going to normalize scores for agent: %s and pk: %s' % (inforesid, mesg.pk))
-                            rdata["message"]["results"] = utils.normalizeScores(results)
-                            scorestat = utils.ScoreStatCalc(results)
-                            mesg.result_stat = scorestat
-                        except Exception as e:
-                            logger.error('Failed to normalize scores for agent: %s and pk: %s' % (inforesid, mesg.pk))
-                            status = 'E'
-                            status_code = 206
+                parent_pk = mesg.ref.id
+                new_merged = utils.merge_received(parent_pk,mesg.pk)
+                utils.post_process(new_merged.data,new_merged.pk)
+
 
             if 'tr_ars.message.status' in r.headers:
                 status = r.headers['tr_ars.message.status']

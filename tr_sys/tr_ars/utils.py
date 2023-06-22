@@ -2,20 +2,32 @@ import copy
 import json
 import logging
 import traceback
+from datetime import time
+
 import requests
-import urllib
 import statistics
-import sys
-from .models import Agent, Message, Channel, Actor
+from .models import Message, Channel
 from scipy.stats import rankdata
 from celery import shared_task
-from celery import task
 from tr_sys.celery import app
 import typing
 from collections import Counter
 
+ARS_ACTOR = {
+    'channel': [],
+    'agent': {
+        'name': 'ars-ars-agent',
+        'uri': ''
+    },
+    'path': '',
+    'inforesid': 'ARS'
+}
+
+
 #NORMALIZER_URL='https://nodenormalization-sri.renci.org/1.2/get_normalized_nodes?'
 NORMALIZER_URL='https://nodenormalization-sri.renci.org/1.3/get_normalized_nodes'
+ANNOTATOR_URL = "https://biothings.ncats.io/annotator/?append=true"
+
 
 class QueryGraph():
     def __init__(self,qg):
@@ -315,8 +327,6 @@ def mergeDicts(dcurrent,dmerged):
             mv=dmerged[key]
             #analyses are a special case in which we just append them at the result level
             if key == 'analyses':
-                if cv[0]['resource_id']=='infores:rtx-kg2':
-                    print()
                 dmerged[key]=mv+cv
                 return dmerged
             if (isinstance(cv,dict) and isinstance(mv,dict)):
@@ -460,6 +470,127 @@ def sharedResultsJson(sharedResultsMap):
         }
         results.append(json.dumps(result,indent=2))
     return results
+
+def post_process(data,key):
+    mesg=Message.objects.get(pk = key)
+    inforesid = str(mesg.actor.inforesid)
+    # try:
+    #     normalize_nodes(data,key,inforesid)
+    # except Exception as e:
+    #     post_processing_error(mesg,data,"Error in ARS node normalization")
+
+    try:
+        decorate_edges_with_infores(data,inforesid)
+    except Exception as e:
+        post_processing_error(mesg,data,"Error in ARS addition of ARA edge source attribution")
+
+    try:
+        normalize_scores(mesg,data,key,inforesid)
+    except Exception as e:
+        post_processing_error(mesg,data,"Error in ARS score normalization")
+
+
+
+    # mesg.status = status
+    # mesg.code = code
+    mesg.data = data
+    mesg.save()
+def annotate_nodes(data):
+    #TODO pull this URL from SmartAPI
+    r = requests.post(ANNOTATOR_URL,data)
+    rj=r.json()
+    nodes = get_safe(data,"message","knowledge_graph","nodes")
+    if nodes is not None:
+        nodes=rj
+
+def normalize_scores(mesg,data,key, inforesid):
+    res=get_safe(data,"message","results")
+    if res is not None:
+        mesg.result_count = len(res)
+        if len(res)>0:
+            try:
+                logging.info('going to normalize scores for agent: %s and pk: %s' % (inforesid, key))
+                data["message"]["results"] = normalizeScores(res)
+                scorestat = ScoreStatCalc(res)
+                mesg.result_stat = scorestat
+            except Exception as e:
+                logging.error('Failed to normalize scores for agent: %s and pk: %s' % (inforesid, key))
+
+def normalize_nodes(data,inforesid,key):
+    res = get_safe(data,"message","results")
+    kg = get_safe(data,"message", "knowledge_graph")
+    if kg is not None:
+        if res is not None:
+            logging.info('going to normalize ids for agent: %s and pk: %s' % (inforesid, key))
+            try:
+                kg, res = canonizeMessageTest(kg, res)
+            except Exception as e:
+                logging.error('Failed to normalize ids for agent: %s and pk: %s' % (inforesid, key))
+        else:
+            logging.debug('the %s has not returned any result back for pk: %s' % (inforesid, key))
+    else:
+        logging.debug('the %s has not returned any knowledge_graphs back for pk: %s' % (inforesid, key))
+
+def decorate_edges_with_infores(data,inforesid):
+    edges = get_safe(data,"message","knowledge_graph","edges")
+    self_source= {
+        "resource_id": inforesid,
+        "resource_role": "primary_knowledge_source",
+        "source_record_urls": None,
+        "upstream_resource_ids": None
+    }
+    for edge in edges:
+        has_self=False
+        if 'sources' not in edge.keys():
+            edge['sources']=[self_source]
+        else:
+            for source in edge['sources']:
+                if source['resource_id']==inforesid:
+                    has_self=True
+            if not has_self:
+                edge['sources'].append(self_source)
+
+def post_processing_error(mesg,data,text):
+    mesg.status = 'E'
+    mesg.code = 206
+    log_tuple=(text,
+               mesg.updated_at,
+               "WARNING")
+    add_log_entry(data,log_tuple)
+
+def add_log_entry(data, log_tuple):
+    #log_tuple should be a tuple of:
+    #message
+    #timestamp
+    #level
+    log_entry={
+        "message":log_tuple(0),
+        "timestamp":log_tuple(1),
+        "level":log_tuple(2)
+    }
+    if 'logs' in data.keys():
+        data['logs'].append(log_entry)
+    else:
+        data['logs'] = [log_entry]
+
+def add_attribute(node_or_edge, attribute_json):
+    template_attribute= {
+        "value": None,
+        "value_url": None,
+        "attributes": None,
+        "description": None,
+        "value_type_id": None,
+        "attribute_source": None,
+        "attribute_type_id": None,
+        "original_attribute_name": None
+    }
+    for key in attribute_json.keys():
+        if key is not None and key in template_attribute.keys():
+            template_attribute[key]=attribute_json[key]
+    if 'attributes' in node_or_edge.keys():
+        node_or_edge['attributes'].append(template_attribute)
+    else:
+        node_or_edge['attributes']=[template_attribute]
 
 def keys_exist(element, *keys):
     if not isinstance(element, dict):
@@ -776,6 +907,50 @@ def merge(pk,merged_pk):
     mergedComplete.code = 200
     mergedComplete.status = 'D'
     mergedComplete.save()
+
+@app.task(name="merge_received")
+def merge_received(parent_pk,pk_to_merge):
+    parent = Message.objects.get(pk=parent_pk)
+    current_merged_pk=parent.merged_version
+    to_merge_message= Message.objects.get(pk=pk_to_merge)
+    to_merge_message_dict=get_safe(to_merge_message.to_dict(),"fields","data","message")
+    t_to_merge_message=TranslatorMessage(to_merge_message_dict)
+
+    if not parent.merge_semaphore:
+        new_merged_message = createMessage(ARS_ACTOR)
+        #Since we've started a merge, we lock the parent PK for the duration (this is a soft lock)
+        parent.merge_semaphore=True
+        parent.save()
+
+        #If at least one merger has already occurred, we merge the newcomer into that
+        if current_merged_pk is not None:
+            current_merged_message=Message.objects.get(pk=current_merged_pk)
+            current_message_dict = get_safe(current_merged_message.to_dict(),"fields","data","message")
+            t_current_merged_message=TranslatorMessage(current_message_dict)
+
+            merged=mergeMessages([
+                t_current_merged_message,
+                t_to_merge_message
+            ])
+        #If not, we make the newcomer the current "merged" Message
+        else:
+            merged = t_to_merge_message
+
+
+        new_merged_message.data=merged.to_dict()
+        new_merged_message.status='D'
+        new_merged_message.code=200
+        new_merged_message.save()
+
+        #Now that we're done, we unlock update the merged_version on the parent, unlock it, and save
+        parent.merged_version=new_merged_message.id
+        parent.merge_semaphore=False
+        parent.save()
+        return new_merged_message
+    else:
+        #If there is currently a merge happening, we wait until it finishes to do our merge
+        time.sleep(10)
+        merge_received(parent_pk,pk_to_merge,ARS_ACTOR)
 
 def hop_level_filter(results, hop_limit):
 

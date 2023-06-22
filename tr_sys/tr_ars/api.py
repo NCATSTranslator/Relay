@@ -16,6 +16,7 @@ from tr_ars.tasks import send_message
 import ast
 from tr_smartapi_client.smart_api_discover import ConfigFile
 
+
 #from reasoner_validator import validate_Message, ValidationError, validate_Query
 
 logger = logging.getLogger(__name__)
@@ -402,6 +403,7 @@ def message(req, key):
             #    return HttpResponse('Not a valid Translator API json', status=400)
 
             mesg = Message.objects.get(pk = key)
+            parent_pk = mesg.ref.id
             status = 'D'
             code = 200
             if 'tr_ars.message.status' in req.headers:
@@ -410,6 +412,8 @@ def message(req, key):
             agent = str(mesg.actor.agent.name)
             res=utils.get_safe(data,"message","results")
             kg = utils.get_safe(data,"message", "knowledge_graph")
+
+            #before we do basically anything else, we normalize
             if kg is not None:
                 if res is not None:
                     logger.info('going to normalize ids for agent: %s and pk: %s' % (agent, key))
@@ -424,22 +428,17 @@ def message(req, key):
             else:
                 logger.debug('the %s has not returned any knowledge_graphs back for pk: %s' % (agent, key))
 
-            if res is not None:
-                mesg.result_count = len(res)
-                if len(res)>0:
-                    try:
-                        logger.info('going to normalize scores for agent: %s and pk: %s' % (agent, key))
-                        data["message"]["results"] = utils.normalizeScores(res)
-                        scorestat = utils.ScoreStatCalc(res)
-                        mesg.result_stat = scorestat
-                    except Exception as e:
-                        logger.error('Failed to normalize scores for agent: %s and pk: %s' % (agent, key))
-                        status = 'E'
-                        code = 206
+            ars_actor = get_ars_actor()
+            new_merged = utils.merge_received(parent_pk,key,ars_actor)
+
+            #the merged versions is what gets consumed.  So, it's all we do post processing on?
+            utils.post_process(new_merged.data,new_merged.id)
+
             # create child message if this one already has results
             if mesg.data and 'results' in mesg.data and mesg.data['results'] != None and len(mesg.data['results']) > 0:
                 mesg = Message.create(name=mesg.name, status=status,
                                   actor=mesg.actor, ref=mesg)
+
             mesg.status = status
             mesg.code = code
             mesg.data = data
