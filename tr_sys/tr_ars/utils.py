@@ -119,6 +119,11 @@ class TranslatorMessage():
             self.__qg=QueryGraph(message['query_graph'])
         else:
             self.__qg=None
+
+        if "auxiliary_graphs" in message:
+            self.__ag=message['auxiliary_graphs']
+        else:
+            self.__ag=None
         self.__sharedResults = None
 
     def getResults(self):
@@ -127,6 +132,8 @@ class TranslatorMessage():
         return self.__qg
     def getKnowledgeGraph(self):
         return self.__kg
+    def getAuxiliaryGraphs(self):
+        return self.__ag
     def getSharedResults(self):
         return self.__sharedResults
     #returns a set of sets of triples representing results
@@ -278,10 +285,16 @@ def mergeMessagesRecursive(mergedMessage,messageList):
         ckg = currentMessage.getKnowledgeGraph().getRaw()
         mkg = mergedMessage.getKnowledgeGraph().getRaw()
         mergedKnowledgeGraph = mergeDicts(ckg, mkg)
+
         #merge Results
         currentResultMap= currentMessage.getResultMap()
         mergedResultMap=mergedMessage.getResultMap()
         mergedResults=mergeDicts(currentResultMap,mergedResultMap)
+
+        #merge Aux Graphs
+        currentAux = currentMessage.getAuxiliaryGraphs()
+        mergedAux=mergedMessage.getAuxiliaryGraphs()
+        mergeDicts(currentAux,mergedAux)
 
 
 
@@ -302,6 +315,8 @@ def mergeDicts(dcurrent,dmerged):
             mv=dmerged[key]
             #analyses are a special case in which we just append them at the result level
             if key == 'analyses':
+                if cv[0]['resource_id']=='infores:rtx-kg2':
+                    print()
                 dmerged[key]=mv+cv
                 return dmerged
             if (isinstance(cv,dict) and isinstance(mv,dict)):
