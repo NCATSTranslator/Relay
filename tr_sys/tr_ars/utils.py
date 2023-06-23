@@ -11,7 +11,9 @@ from scipy.stats import rankdata
 from celery import shared_task
 from tr_sys.celery import app
 import typing
+import time as sleeptime
 from collections import Counter
+
 
 ARS_ACTOR = {
     'channel': [],
@@ -318,8 +320,11 @@ def mergeMessagesRecursive(mergedMessage,messageList):
 
 
 def mergeDicts(dcurrent,dmerged):
+    if dcurrent is None:
+        dcurrent = {}
+    if dmerged is None:
+        dmerged ={}
     for key in dcurrent.keys():
-
         cv=dcurrent[key]
         #print("key is "+str(key))
         if key in dmerged.keys():
@@ -471,18 +476,23 @@ def sharedResultsJson(sharedResultsMap):
         results.append(json.dumps(result,indent=2))
     return results
 
-def post_process(data,key):
+def pre_merge_process(data,key):
     mesg=Message.objects.get(pk = key)
     inforesid = str(mesg.actor.inforesid)
-    # try:
-    #     normalize_nodes(data,key,inforesid)
-    # except Exception as e:
-    #     post_processing_error(mesg,data,"Error in ARS node normalization")
+    try:
+        normalize_nodes(data,inforesid,key)
+    except Exception as e:
+        post_processing_error(mesg,data,"Error in ARS node normalization")
 
     try:
         decorate_edges_with_infores(data,inforesid)
     except Exception as e:
-        post_processing_error(mesg,data,"Error in ARS addition of ARA edge source attribution")
+        post_processing_error(mesg,data,"Error in ARS edge sources decoration\n"+e)
+
+
+def post_process(data,key):
+    mesg=Message.objects.get(pk = key)
+    inforesid = str(mesg.actor.inforesid)
 
     try:
         normalize_scores(mesg,data,key,inforesid)
@@ -490,6 +500,10 @@ def post_process(data,key):
         post_processing_error(mesg,data,"Error in ARS score normalization")
 
 
+    try:
+        annotate_nodes(data)
+    except Exception as e:
+        post_processing_error(mesg,data,"Error in annotation of nodes")
 
     # mesg.status = status
     # mesg.code = code
@@ -532,21 +546,22 @@ def normalize_nodes(data,inforesid,key):
         logging.debug('the %s has not returned any knowledge_graphs back for pk: %s' % (inforesid, key))
 
 def decorate_edges_with_infores(data,inforesid):
-    edges = get_safe(data,"message","knowledge_graph","edges")
+    edges = get_safe(data,"knowledge_graph","edges")
     self_source= {
         "resource_id": inforesid,
         "resource_role": "primary_knowledge_source",
         "source_record_urls": None,
         "upstream_resource_ids": None
     }
-    for edge in edges:
+    for key, edge in edges.items():
         has_self=False
-        if 'sources' not in edge.keys():
+        if 'sources' not in edge.keys() or edge['sources'] is None or len(edge['sources'])==0:
             edge['sources']=[self_source]
         else:
             for source in edge['sources']:
                 if source['resource_id']==inforesid:
                     has_self=True
+                    break
             if not has_self:
                 edge['sources'].append(self_source)
 
@@ -881,6 +896,7 @@ def getChildrenFromParent(pk):
     return messageList
 
 def createMessage(actor):
+
     message = Message.create(code=202, status='Running', data={},
                              actor=actor)
     message.save()
@@ -909,48 +925,56 @@ def merge(pk,merged_pk):
     mergedComplete.save()
 
 @app.task(name="merge_received")
-def merge_received(parent_pk,pk_to_merge):
+def merge_received(parent_pk,message_to_merge,ARS_ACTOR):
     parent = Message.objects.get(pk=parent_pk)
-    current_merged_pk=parent.merged_version
-    to_merge_message= Message.objects.get(pk=pk_to_merge)
-    to_merge_message_dict=get_safe(to_merge_message.to_dict(),"fields","data","message")
-    t_to_merge_message=TranslatorMessage(to_merge_message_dict)
+    current_merged_pk=parent.merged_version_id
+    #to_merge_message= Message.objects.get(pk=pk_to_merge)
+    #to_merge_message_dict=get_safe(to_merge_message.to_dict(),"fields","data","message")
+    t_to_merge_message=TranslatorMessage(message_to_merge)
 
-    if not parent.merge_semaphore:
+    if not parent.merge_semaphore or 1==1:
         new_merged_message = createMessage(ARS_ACTOR)
+        new_merged_message.save()
         #Since we've started a merge, we lock the parent PK for the duration (this is a soft lock)
         parent.merge_semaphore=True
         parent.save()
+        try:
+            #If at least one merger has already occurred, we merge the newcomer into that
+            if current_merged_pk is not None :
+                current_merged_message=Message.objects.get(pk=current_merged_pk)
+                current_message_dict = get_safe(current_merged_message.to_dict(),"fields","data","message")
+                t_current_merged_message=TranslatorMessage(current_message_dict)
 
-        #If at least one merger has already occurred, we merge the newcomer into that
-        if current_merged_pk is not None:
-            current_merged_message=Message.objects.get(pk=current_merged_pk)
-            current_message_dict = get_safe(current_merged_message.to_dict(),"fields","data","message")
-            t_current_merged_message=TranslatorMessage(current_message_dict)
-
-            merged=mergeMessages([
-                t_current_merged_message,
-                t_to_merge_message
-            ])
-        #If not, we make the newcomer the current "merged" Message
-        else:
-            merged = t_to_merge_message
+                merged=mergeMessages([
+                    t_current_merged_message,
+                    t_to_merge_message
+                ])
+                print()
+            #If not, we make the newcomer the current "merged" Message
+            else:
+                merged = t_to_merge_message
 
 
-        new_merged_message.data=merged.to_dict()
-        new_merged_message.status='D'
-        new_merged_message.code=200
-        new_merged_message.save()
+            new_merged_message.data=merged.to_dict()
+            new_merged_message.status='D'
+            new_merged_message.code=200
+            new_merged_message.save()
 
-        #Now that we're done, we unlock update the merged_version on the parent, unlock it, and save
-        parent.merged_version=new_merged_message.id
-        parent.merge_semaphore=False
-        parent.save()
-        return new_merged_message
+            #Now that we're done, we unlock update the merged_version on the parent, unlock it, and save
+            parent.merged_version=new_merged_message
+            parent.merge_semaphore=False
+            parent.save()
+            return new_merged_message
+        except Exception as e:
+            #If anything goes wrong, we at least need to unlock the semaphore
+            #TODO make some actual proper Exception handling here.
+            parent.merge_semaphore=False
+            parent.save()
+            return {}
     else:
         #If there is currently a merge happening, we wait until it finishes to do our merge
-        time.sleep(10)
-        merge_received(parent_pk,pk_to_merge,ARS_ACTOR)
+        sleeptime.sleep(10)
+        merge_received(parent_pk,message_to_merge,ARS_ACTOR)
 
 def hop_level_filter(results, hop_limit):
 

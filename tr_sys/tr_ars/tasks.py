@@ -116,10 +116,14 @@ def send_message(actor_dict, mesg_dict, timeout=300):
                         logger.debug('the %s has not returned any result back for pk: %s' % (inforesid, mesg.pk))
                 else:
                     logger.debug('the %s has not returned any knowledge_graphs back for pk: %s' % (inforesid, mesg.pk))
+                #no sense in processing something without results
 
-                parent_pk = mesg.ref.id
-                new_merged = utils.merge_received(parent_pk,mesg.pk)
-                utils.post_process(new_merged.data,new_merged.pk)
+                if results is not None and len(results)>0:
+                    parent_pk = mesg.ref.id
+                    ARS_ACTOR=Actor.objects.get(inforesid="ARS")
+                    message_to_merge = utils.get_safe(rdata,"message")
+                    new_merged = utils.merge_received(parent_pk,message_to_merge,ARS_ACTOR)
+                    utils.post_process(new_merged.data,new_merged.pk)
 
 
             if 'tr_ars.message.status' in r.headers:

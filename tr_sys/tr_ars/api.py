@@ -222,6 +222,7 @@ def trace_message(req, key):
                 'path': mesg.actor.path
             },
             'result_count': mesg.result_count,
+            'merged_version': str(mesg.merged_version_id),
             'query_graph': qc,
             #'query_graph':mesg.data.query_graph,
             'children': []
@@ -403,7 +404,7 @@ def message(req, key):
             #    return HttpResponse('Not a valid Translator API json', status=400)
 
             mesg = Message.objects.get(pk = key)
-            parent_pk = mesg.ref.id
+            parent_pk = mesg.ref_id
             status = 'D'
             code = 200
             if 'tr_ars.message.status' in req.headers:
@@ -412,25 +413,14 @@ def message(req, key):
             agent = str(mesg.actor.agent.name)
             res=utils.get_safe(data,"message","results")
             kg = utils.get_safe(data,"message", "knowledge_graph")
+            message_to_merge =utils.get_safe(data,"message")
+
 
             #before we do basically anything else, we normalize
-            if kg is not None:
-                if res is not None:
-                    logger.info('going to normalize ids for agent: %s and pk: %s' % (agent, key))
-                    try:
-                        kg, res = utils.canonizeMessageTest(kg, res)
-                    except Exception as e:
-                        logger.error('Failed to normalize ids for agent: %s and pk: %s' % (agent, key))
-                        status = 'E'
-                        code = 206
-                else:
-                    logger.debug('the %s has not returned any result back for pk: %s' % (agent, key))
-            else:
-                logger.debug('the %s has not returned any knowledge_graphs back for pk: %s' % (agent, key))
+            utils.pre_merge_process(message_to_merge,key)
 
-            ars_actor = get_ars_actor()
-            new_merged = utils.merge_received(parent_pk,key,ars_actor)
-
+            ARS_ACTOR=Actor.objects.get(inforesid="ARS")
+            new_merged = utils.merge_received(parent_pk,message_to_merge,ARS_ACTOR)
             #the merged versions is what gets consumed.  So, it's all we do post processing on?
             utils.post_process(new_merged.data,new_merged.id)
 
