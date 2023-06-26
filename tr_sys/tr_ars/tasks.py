@@ -160,8 +160,8 @@ def send_message(actor_dict, mesg_dict, timeout=300):
 @shared_task(name="catch_timeout")
 def catch_timeout_async():
     now =timezone.now()
-    time_threshold = now - timezone.timedelta(minutes=60)
-    max_time = time_threshold+timezone.timedelta(minutes=10)
+    time_threshold = now - timezone.timedelta(minutes=5)
+    max_time = time_threshold+timezone.timedelta(minutes=1)
 
     messages = Message.objects.filter(timestamp__gt=time_threshold,timestamp__lt=max_time, status__in='R').values_list('actor','id')
     for mesg in messages:
