@@ -413,8 +413,8 @@ def message(req, key):
             agent = str(mesg.actor.agent.name)
             res=utils.get_safe(data,"message","results")
             kg = utils.get_safe(data,"message", "knowledge_graph")
-            message_to_merge =utils.get_safe(data,"message")
-
+            #message_to_merge =utils.get_safe(data,"message")
+            message_to_merge = data
 
             #before we do basically anything else, we normalize
             utils.pre_merge_process(message_to_merge,key)

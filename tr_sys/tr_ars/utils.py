@@ -488,6 +488,10 @@ def pre_merge_process(data,key):
         decorate_edges_with_infores(data,inforesid)
     except Exception as e:
         post_processing_error(mesg,data,"Error in ARS edge sources decoration\n"+e)
+    try:
+        annotate_nodes(mesg,data)
+    except Exception as e:
+        post_processing_error(mesg,data,"Error in annotation of nodes")
 
 
 def post_process(data,key):
@@ -500,22 +504,30 @@ def post_process(data,key):
         post_processing_error(mesg,data,"Error in ARS score normalization")
 
 
-    try:
-        annotate_nodes(data)
-    except Exception as e:
-        post_processing_error(mesg,data,"Error in annotation of nodes")
+    # try:
+    #     annotate_nodes(mesg,data)
+    # except Exception as e:
+    #     post_processing_error(mesg,data,"Error in annotation of nodes")
 
     # mesg.status = status
     # mesg.code = code
     mesg.data = data
     mesg.save()
-def annotate_nodes(data):
+def annotate_nodes(mesg,data):
     #TODO pull this URL from SmartAPI
-    r = requests.post(ANNOTATOR_URL,data)
+    json_data = json.dumps(data)
+    headers = {'Content-type': 'application/json', 'Accept': 'text/plain'}
+    r = requests.post(ANNOTATOR_URL,data=json_data,headers=headers)
     rj=r.json()
+
     nodes = get_safe(data,"message","knowledge_graph","nodes")
-    if nodes is not None:
-        nodes=rj
+    if nodes is not None and r.status_code==200:
+        data['message']['knowledge_graph']['nodes']=rj
+    else:
+        with open(str(mesg.actor)+".json", "w") as outfile:
+            outfile.write(json_data)
+        post_processing_error(mesg,data,"Error in annotation of nodes")
+
 
 def normalize_scores(mesg,data,key, inforesid):
     res=get_safe(data,"message","results")
@@ -546,7 +558,7 @@ def normalize_nodes(data,inforesid,key):
         logging.debug('the %s has not returned any knowledge_graphs back for pk: %s' % (inforesid, key))
 
 def decorate_edges_with_infores(data,inforesid):
-    edges = get_safe(data,"knowledge_graph","edges")
+    edges = get_safe(data,"message","knowledge_graph","edges")
     self_source= {
         "resource_id": inforesid,
         "resource_role": "primary_knowledge_source",
@@ -932,7 +944,7 @@ def merge_received(parent_pk,message_to_merge,ARS_ACTOR):
     #to_merge_message_dict=get_safe(to_merge_message.to_dict(),"fields","data","message")
     t_to_merge_message=TranslatorMessage(message_to_merge)
 
-    if not parent.merge_semaphore or 1==1:
+    if not parent.merge_semaphore:
         new_merged_message = createMessage(ARS_ACTOR)
         new_merged_message.save()
         #Since we've started a merge, we lock the parent PK for the duration (this is a soft lock)
@@ -973,7 +985,7 @@ def merge_received(parent_pk,message_to_merge,ARS_ACTOR):
             return {}
     else:
         #If there is currently a merge happening, we wait until it finishes to do our merge
-        sleeptime.sleep(10)
+        sleeptime.sleep(5)
         merge_received(parent_pk,message_to_merge,ARS_ACTOR)
 
 def hop_level_filter(results, hop_limit):
