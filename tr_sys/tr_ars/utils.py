@@ -546,6 +546,9 @@ def annotate_nodes(mesg,data):
             for key, value in rj.items():
                 for attribute in value['attributes']:
                     add_attribute(data['message']['knowledge_graph']['nodes'][key],attribute)
+            #Not sure about adding back clearly borked nodes, but it is in keeping with policy of non-destructiveness 
+            if len(invalid_nodes)>0:
+                data['message']['knowledge_graph']['nodes'].update(invalid_nodes)
         else:
             with open(str(mesg.actor)+".json", "w") as outfile:
                 outfile.write(json_data)
