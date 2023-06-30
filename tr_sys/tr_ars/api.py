@@ -417,12 +417,14 @@ def message(req, key):
             message_to_merge = data
 
             #before we do basically anything else, we normalize
-            utils.pre_merge_process(message_to_merge,key)
-
-            ARS_ACTOR=Actor.objects.get(inforesid="ARS")
-            new_merged = utils.merge_received(parent_pk,message_to_merge,ARS_ACTOR)
-            #the merged versions is what gets consumed.  So, it's all we do post processing on?
-            utils.post_process(new_merged.data,new_merged.id)
+            try:
+                utils.pre_merge_process(message_to_merge,key)
+                ARS_ACTOR=Actor.objects.get(inforesid="ARS")
+                new_merged = utils.merge_received(parent_pk,message_to_merge,ARS_ACTOR)
+                #the merged versions is what gets consumed.  So, it's all we do post processing on?
+                utils.post_process(new_merged.data,new_merged.id)
+            except Exception as e:
+                logger.debug("Problem with merger or post processeing for %s " % key)
 
             # create child message if this one already has results
             if mesg.data and 'results' in mesg.data and mesg.data['results'] != None and len(mesg.data['results']) > 0:

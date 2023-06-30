@@ -484,21 +484,20 @@ def pre_merge_process(data,key):
         normalize_nodes(data,inforesid,key)
     except Exception as e:
         post_processing_error(mesg,data,"Error in ARS node normalization")
-
     try:
         decorate_edges_with_infores(data,inforesid)
     except Exception as e:
         post_processing_error(mesg,data,"Error in ARS edge sources decoration\n"+e)
-    try:
-        annotate_nodes(mesg,data)
-    except Exception as e:
-        post_processing_error(mesg,data,"Error in annotation of nodes")
+
 
 
 def post_process(data,key):
     mesg=Message.objects.get(pk = key)
     inforesid = str(mesg.actor.inforesid)
-
+    try:
+        annotate_nodes(mesg,data)
+    except Exception as e:
+        post_processing_error(mesg,data,"Error in annotation of nodes")
     try:
         normalize_scores(mesg,data,key,inforesid)
     except Exception as e:
@@ -546,7 +545,7 @@ def annotate_nodes(mesg,data):
             for key, value in rj.items():
                 for attribute in value['attributes']:
                     add_attribute(data['message']['knowledge_graph']['nodes'][key],attribute)
-            #Not sure about adding back clearly borked nodes, but it is in keeping with policy of non-destructiveness 
+            #Not sure about adding back clearly borked nodes, but it is in keeping with policy of non-destructiveness
             if len(invalid_nodes)>0:
                 data['message']['knowledge_graph']['nodes'].update(invalid_nodes)
         else:
