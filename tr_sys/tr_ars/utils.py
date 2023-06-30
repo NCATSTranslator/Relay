@@ -12,6 +12,7 @@ from celery import shared_task
 from tr_sys.celery import app
 import typing
 import time as sleeptime
+import re
 from collections import Counter
 
 
@@ -28,7 +29,7 @@ ARS_ACTOR = {
 
 #NORMALIZER_URL='https://nodenormalization-sri.renci.org/1.2/get_normalized_nodes?'
 NORMALIZER_URL='https://nodenormalization-sri.renci.org/1.3/get_normalized_nodes'
-ANNOTATOR_URL = "https://biothings.ncats.io/annotator/?append=true"
+ANNOTATOR_URL = "https://biothings.ncats.io/annotator/"
 
 
 class QueryGraph():
@@ -515,18 +516,40 @@ def post_process(data,key):
     mesg.save()
 def annotate_nodes(mesg,data):
     #TODO pull this URL from SmartAPI
-    json_data = json.dumps(data)
     headers = {'Content-type': 'application/json', 'Accept': 'text/plain'}
-    r = requests.post(ANNOTATOR_URL,data=json_data,headers=headers)
-    rj=r.json()
-
     nodes = get_safe(data,"message","knowledge_graph","nodes")
-    if nodes is not None and r.status_code==200:
-        data['message']['knowledge_graph']['nodes']=rj
-    else:
-        with open(str(mesg.actor)+".json", "w") as outfile:
-            outfile.write(json_data)
-        post_processing_error(mesg,data,"Error in annotation of nodes")
+    if nodes is not None:
+        nodes_message = {
+            "message":
+                {
+                    "knowledge_graph":{
+                        "nodes":nodes
+                    }
+                }
+        }
+        #we have to scrub input for invalid CURIEs or we'll get a 500 back from the annotator
+        curie_pattern = re.compile("[\w\.]+:[\w\.]+")
+        invalid_nodes={}
+        for key in nodes_message['message']['knowledge_graph']['nodes'].keys():
+            if not curie_pattern.match(str(key)):
+                invalid_nodes[key]=nodes_message['message']['knowledge_graph']['nodes'][key]
+        if len(invalid_nodes)!=0:
+            for key in invalid_nodes.keys():
+                del nodes_message['message']['knowledge_graph']['nodes'][key]
+
+
+        json_data = json.dumps(nodes_message)
+        r = requests.post(ANNOTATOR_URL,data=json_data,headers=headers)
+        rj=r.json()
+
+        if r.status_code==200:
+            for key, value in rj.items():
+                for attribute in value['attributes']:
+                    add_attribute(data['message']['knowledge_graph']['nodes'][key],attribute)
+        else:
+            with open(str(mesg.actor)+".json", "w") as outfile:
+                outfile.write(json_data)
+            post_processing_error(mesg,data,"Error in annotation of nodes")
 
 
 def normalize_scores(mesg,data,key, inforesid):
