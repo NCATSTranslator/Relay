@@ -126,7 +126,7 @@ def send_message(actor_dict, mesg_dict, timeout=300):
                         #message_to_merge = utils.get_safe(rdata,"message")
                         message_to_merge=rdata
                         utils.pre_merge_process(message_to_merge,mesg_dict['pk'])
-                        new_merged = utils.merge_received(parent_pk,message_to_merge,ARS_ACTOR)
+                        new_merged = utils.merge_received(parent_pk,message_to_merge['message'],ARS_ACTOR)
                         utils.post_process(new_merged.data,new_merged.pk)
                     except Exception as e:
                         logger.debug('Problem with post processing or merger of %s for pk: %s' % (inforesid, mesg.pk))

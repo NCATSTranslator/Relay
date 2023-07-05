@@ -30,6 +30,7 @@ ARS_ACTOR = {
 #NORMALIZER_URL='https://nodenormalization-sri.renci.org/1.2/get_normalized_nodes?'
 NORMALIZER_URL='https://nodenormalization-sri.renci.org/1.3/get_normalized_nodes'
 ANNOTATOR_URL = "https://biothings.ncats.io/annotator/"
+APPRAISER_URL='http://ghcr.io/translatorsri/answer-appraiser:v0.1.0'
 
 
 class QueryGraph():
@@ -498,6 +499,12 @@ def post_process(data,key):
         annotate_nodes(mesg,data)
     except Exception as e:
         post_processing_error(mesg,data,"Error in annotation of nodes")
+
+    # try:
+    #     appraise(mesg,data)
+    # except Exception as e:
+    #     post_processing_error(mesg,data,"Error in appraiser")
+
     try:
         normalize_scores(mesg,data,key,inforesid)
     except Exception as e:
@@ -513,6 +520,14 @@ def post_process(data,key):
     # mesg.code = code
     mesg.data = data
     mesg.save()
+
+def appraise(mesg,data):
+    headers = {'Content-type': 'application/json', 'Accept': 'text/plain'}
+    json_data = json.dumps(data)
+    r = requests.post(APPRAISER_URL,data=json_data,headers=headers)
+    rj = r.json()
+    print()
+
 def annotate_nodes(mesg,data):
     #TODO pull this URL from SmartAPI
     headers = {'Content-type': 'application/json', 'Accept': 'text/plain'}
@@ -962,14 +977,14 @@ def merge(pk,merged_pk):
     mergedComplete.save()
 
 @app.task(name="merge_received")
-def merge_received(parent_pk,message_to_merge,ARS_ACTOR):
+def merge_received(parent_pk,message_to_merge,ARS_ACTOR, counter=0):
     parent = Message.objects.get(pk=parent_pk)
     current_merged_pk=parent.merged_version_id
     #to_merge_message= Message.objects.get(pk=pk_to_merge)
     #to_merge_message_dict=get_safe(to_merge_message.to_dict(),"fields","data","message")
     t_to_merge_message=TranslatorMessage(message_to_merge)
 
-    if not parent.merge_semaphore:
+    if not parent.merge_semaphore or True:
         new_merged_message = createMessage(ARS_ACTOR)
         new_merged_message.save()
         #Since we've started a merge, we lock the parent PK for the duration (this is a soft lock)
@@ -992,7 +1007,8 @@ def merge_received(parent_pk,message_to_merge,ARS_ACTOR):
                 merged = t_to_merge_message
 
 
-            new_merged_message.data=merged.to_dict()
+            merged_dict = merged.to_dict()
+            new_merged_message.data=merged_dict
             new_merged_message.status='D'
             new_merged_message.code=200
             new_merged_message.save()
@@ -1010,8 +1026,13 @@ def merge_received(parent_pk,message_to_merge,ARS_ACTOR):
             return {}
     else:
         #If there is currently a merge happening, we wait until it finishes to do our merge
-        sleeptime.sleep(5)
-        merge_received(parent_pk,message_to_merge,ARS_ACTOR)
+        if counter < 5:
+            sleeptime.sleep(5)
+            counter = counter + 1
+            merge_received(parent_pk,message_to_merge,ARS_ACTOR,counter)
+        else:
+            logging.debug("Failed to merge "+str(parent_pk))
+
 
 def hop_level_filter(results, hop_limit):
 
