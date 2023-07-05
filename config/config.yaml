@@ -46,7 +46,7 @@ httpclients:
   infores:workflow-runner:
     endpoint: query 
     params:
-  infores:cam-kp:
+  infores:automat-cam-kp:
     endpoint: query 
     params: limit=100
   infores:connections-hypothesis:
