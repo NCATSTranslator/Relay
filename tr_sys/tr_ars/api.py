@@ -16,6 +16,7 @@ from tr_ars.tasks import send_message
 import ast
 from tr_smartapi_client.smart_api_discover import ConfigFile
 
+
 #from reasoner_validator import validate_Message, ValidationError, validate_Query
 
 logger = logging.getLogger(__name__)
@@ -221,6 +222,7 @@ def trace_message(req, key):
                 'path': mesg.actor.path
             },
             'result_count': mesg.result_count,
+            'merged_version': str(mesg.merged_version_id),
             'query_graph': qc,
             #'query_graph':mesg.data.query_graph,
             'children': []
@@ -402,6 +404,7 @@ def message(req, key):
             #    return HttpResponse('Not a valid Translator API json', status=400)
 
             mesg = Message.objects.get(pk = key)
+            parent_pk = mesg.ref_id
             status = 'D'
             code = 200
             if 'tr_ars.message.status' in req.headers:
@@ -410,36 +413,24 @@ def message(req, key):
             agent = str(mesg.actor.agent.name)
             res=utils.get_safe(data,"message","results")
             kg = utils.get_safe(data,"message", "knowledge_graph")
-            if kg is not None:
-                if res is not None:
-                    logger.info('going to normalize ids for agent: %s and pk: %s' % (agent, key))
-                    try:
-                        kg, res = utils.canonizeMessageTest(kg, res)
-                    except Exception as e:
-                        logger.error('Failed to normalize ids for agent: %s and pk: %s' % (agent, key))
-                        status = 'E'
-                        code = 206
-                else:
-                    logger.debug('the %s has not returned any result back for pk: %s' % (agent, key))
-            else:
-                logger.debug('the %s has not returned any knowledge_graphs back for pk: %s' % (agent, key))
+            #message_to_merge =utils.get_safe(data,"message")
+            message_to_merge = data
 
-            if res is not None:
-                mesg.result_count = len(res)
-                if len(res)>0:
-                    try:
-                        logger.info('going to normalize scores for agent: %s and pk: %s' % (agent, key))
-                        data["message"]["results"] = utils.normalizeScores(res)
-                        scorestat = utils.ScoreStatCalc(res)
-                        mesg.result_stat = scorestat
-                    except Exception as e:
-                        logger.error('Failed to normalize scores for agent: %s and pk: %s' % (agent, key))
-                        status = 'E'
-                        code = 206
+            #before we do basically anything else, we normalize
+            try:
+                utils.pre_merge_process(message_to_merge,key)
+                ARS_ACTOR=Actor.objects.get(inforesid="ARS")
+                new_merged = utils.merge_received(parent_pk,message_to_merge['message'],ARS_ACTOR)
+                #the merged versions is what gets consumed.  So, it's all we do post processing on?
+                utils.post_process(new_merged.data,new_merged.id)
+            except Exception as e:
+                logger.debug("Problem with merger or post processeing for %s " % key)
+
             # create child message if this one already has results
             if mesg.data and 'results' in mesg.data and mesg.data['results'] != None and len(mesg.data['results']) > 0:
                 mesg = Message.create(name=mesg.name, status=status,
                                   actor=mesg.actor, ref=mesg)
+
             mesg.status = status
             mesg.code = code
             mesg.data = data
@@ -761,7 +752,8 @@ def merge(req, key):
         merged_message.data=parent.data
         merged_message.save()
         utils.merge.apply_async((key,mid))
-        return redirect('/ars/api/messages/'+str(mid))
+        print(str(mid))
+        #return redirect('/ars/api/messages/'+str(mid))
 
 
 apipatterns = [

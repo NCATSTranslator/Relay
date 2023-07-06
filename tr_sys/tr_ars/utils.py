@@ -2,20 +2,36 @@ import copy
 import json
 import logging
 import traceback
+from datetime import time
+
 import requests
-import urllib
 import statistics
-import sys
-from .models import Agent, Message, Channel, Actor
+from .models import Message, Channel
 from scipy.stats import rankdata
 from celery import shared_task
-from celery import task
 from tr_sys.celery import app
 import typing
+import time as sleeptime
+import re
 from collections import Counter
+
+
+ARS_ACTOR = {
+    'channel': [],
+    'agent': {
+        'name': 'ars-ars-agent',
+        'uri': ''
+    },
+    'path': '',
+    'inforesid': 'ARS'
+}
+
 
 #NORMALIZER_URL='https://nodenormalization-sri.renci.org/1.2/get_normalized_nodes?'
 NORMALIZER_URL='https://nodenormalization-sri.renci.org/1.3/get_normalized_nodes'
+ANNOTATOR_URL = "https://biothings.ncats.io/annotator/"
+APPRAISER_URL='http://ghcr.io/translatorsri/answer-appraiser:v0.1.0'
+
 
 class QueryGraph():
     def __init__(self,qg):
@@ -119,6 +135,11 @@ class TranslatorMessage():
             self.__qg=QueryGraph(message['query_graph'])
         else:
             self.__qg=None
+
+        if "auxiliary_graphs" in message:
+            self.__ag=message['auxiliary_graphs']
+        else:
+            self.__ag=None
         self.__sharedResults = None
 
     def getResults(self):
@@ -127,6 +148,8 @@ class TranslatorMessage():
         return self.__qg
     def getKnowledgeGraph(self):
         return self.__kg
+    def getAuxiliaryGraphs(self):
+        return self.__ag
     def getSharedResults(self):
         return self.__sharedResults
     #returns a set of sets of triples representing results
@@ -278,10 +301,16 @@ def mergeMessagesRecursive(mergedMessage,messageList):
         ckg = currentMessage.getKnowledgeGraph().getRaw()
         mkg = mergedMessage.getKnowledgeGraph().getRaw()
         mergedKnowledgeGraph = mergeDicts(ckg, mkg)
+
         #merge Results
         currentResultMap= currentMessage.getResultMap()
         mergedResultMap=mergedMessage.getResultMap()
         mergedResults=mergeDicts(currentResultMap,mergedResultMap)
+
+        #merge Aux Graphs
+        currentAux = currentMessage.getAuxiliaryGraphs()
+        mergedAux=mergedMessage.getAuxiliaryGraphs()
+        mergeDicts(currentAux,mergedAux)
 
 
 
@@ -293,14 +322,20 @@ def mergeMessagesRecursive(mergedMessage,messageList):
 
 
 def mergeDicts(dcurrent,dmerged):
+    if dcurrent is None:
+        dcurrent = {}
+    if dmerged is None:
+        dmerged ={}
     for key in dcurrent.keys():
-
         cv=dcurrent[key]
         #print("key is "+str(key))
         if key in dmerged.keys():
-            if key == 'attributes':
-                print()
+
             mv=dmerged[key]
+            #analyses are a special case in which we just append them at the result level
+            if key == 'analyses':
+                dmerged[key]=mv+cv
+                return dmerged
             if (isinstance(cv,dict) and isinstance(mv,dict)):
                 #print("merging dicts")
                 dmerged[key]=mergeDicts(cv,mv)
@@ -442,6 +477,193 @@ def sharedResultsJson(sharedResultsMap):
         }
         results.append(json.dumps(result,indent=2))
     return results
+
+def pre_merge_process(data,key):
+    mesg=Message.objects.get(pk = key)
+    inforesid = str(mesg.actor.inforesid)
+    try:
+        normalize_nodes(data,inforesid,key)
+    except Exception as e:
+        post_processing_error(mesg,data,"Error in ARS node normalization")
+    try:
+        decorate_edges_with_infores(data,inforesid)
+    except Exception as e:
+        post_processing_error(mesg,data,"Error in ARS edge sources decoration\n"+e)
+    try:
+        results = get_safe(data,"message","results")
+        scorestat = ScoreStatCalc(results)
+        mesg.result_stat = scorestat
+    except Exception as e:
+        post_processing_error(mesg,data,"Error in score stat calculation\n"+e)
+
+
+
+def post_process(data,key):
+    mesg=Message.objects.get(pk = key)
+    inforesid = str(mesg.actor.inforesid)
+    try:
+        annotate_nodes(mesg,data)
+    except Exception as e:
+        post_processing_error(mesg,data,"Error in annotation of nodes")
+
+    # try:
+    #     appraise(mesg,data)
+    # except Exception as e:
+    #     post_processing_error(mesg,data,"Error in appraiser")
+
+    try:
+        normalize_scores(mesg,data,key,inforesid)
+    except Exception as e:
+        post_processing_error(mesg,data,"Error in ARS score normalization")
+
+
+    # try:
+    #     annotate_nodes(mesg,data)
+    # except Exception as e:
+    #     post_processing_error(mesg,data,"Error in annotation of nodes")
+
+    # mesg.status = status
+    # mesg.code = code
+    mesg.data = data
+    mesg.save()
+
+def appraise(mesg,data):
+    headers = {'Content-type': 'application/json', 'Accept': 'text/plain'}
+    json_data = json.dumps(data)
+    r = requests.post(APPRAISER_URL,data=json_data,headers=headers)
+    rj = r.json()
+    print()
+
+def annotate_nodes(mesg,data):
+    #TODO pull this URL from SmartAPI
+    headers = {'Content-type': 'application/json', 'Accept': 'text/plain'}
+    nodes = get_safe(data,"message","knowledge_graph","nodes")
+    if nodes is not None:
+        nodes_message = {
+            "message":
+                {
+                    "knowledge_graph":{
+                        "nodes":nodes
+                    }
+                }
+        }
+        #we have to scrub input for invalid CURIEs or we'll get a 500 back from the annotator
+        curie_pattern = re.compile("[\w\.]+:[\w\.]+")
+        invalid_nodes={}
+        for key in nodes_message['message']['knowledge_graph']['nodes'].keys():
+            if not curie_pattern.match(str(key)):
+                invalid_nodes[key]=nodes_message['message']['knowledge_graph']['nodes'][key]
+        if len(invalid_nodes)!=0:
+            for key in invalid_nodes.keys():
+                del nodes_message['message']['knowledge_graph']['nodes'][key]
+
+
+        json_data = json.dumps(nodes_message)
+        r = requests.post(ANNOTATOR_URL,data=json_data,headers=headers)
+        rj=r.json()
+
+        if r.status_code==200:
+            for key, value in rj.items():
+                for attribute in value['attributes']:
+                    add_attribute(data['message']['knowledge_graph']['nodes'][key],attribute)
+            #Not sure about adding back clearly borked nodes, but it is in keeping with policy of non-destructiveness
+            if len(invalid_nodes)>0:
+                data['message']['knowledge_graph']['nodes'].update(invalid_nodes)
+        else:
+            with open(str(mesg.actor)+".json", "w") as outfile:
+                outfile.write(json_data)
+            post_processing_error(mesg,data,"Error in annotation of nodes")
+
+
+def normalize_scores(mesg,data,key, inforesid):
+    res=get_safe(data,"message","results")
+    if res is not None:
+        mesg.result_count = len(res)
+        if len(res)>0:
+            try:
+                logging.info('going to normalize scores for agent: %s and pk: %s' % (inforesid, key))
+                data["message"]["results"] = normalizeScores(res)
+                scorestat = ScoreStatCalc(res)
+                mesg.result_stat = scorestat
+            except Exception as e:
+                logging.error('Failed to normalize scores for agent: %s and pk: %s' % (inforesid, key))
+
+def normalize_nodes(data,inforesid,key):
+    res = get_safe(data,"message","results")
+    kg = get_safe(data,"message", "knowledge_graph")
+    if kg is not None:
+        if res is not None:
+            logging.info('going to normalize ids for agent: %s and pk: %s' % (inforesid, key))
+            try:
+                kg, res = canonizeMessageTest(kg, res)
+            except Exception as e:
+                logging.error('Failed to normalize ids for agent: %s and pk: %s' % (inforesid, key))
+        else:
+            logging.debug('the %s has not returned any result back for pk: %s' % (inforesid, key))
+    else:
+        logging.debug('the %s has not returned any knowledge_graphs back for pk: %s' % (inforesid, key))
+
+def decorate_edges_with_infores(data,inforesid):
+    edges = get_safe(data,"message","knowledge_graph","edges")
+    self_source= {
+        "resource_id": inforesid,
+        "resource_role": "primary_knowledge_source",
+        "source_record_urls": None,
+        "upstream_resource_ids": None
+    }
+    for key, edge in edges.items():
+        has_self=False
+        if 'sources' not in edge.keys() or edge['sources'] is None or len(edge['sources'])==0:
+            edge['sources']=[self_source]
+        else:
+            for source in edge['sources']:
+                if source['resource_id']==inforesid:
+                    has_self=True
+                    break
+            if not has_self:
+                edge['sources'].append(self_source)
+
+def post_processing_error(mesg,data,text):
+    mesg.status = 'E'
+    mesg.code = 206
+    log_tuple=(text,
+               mesg.updated_at,
+               "WARNING")
+    add_log_entry(data,log_tuple)
+
+def add_log_entry(data, log_tuple):
+    #log_tuple should be a tuple of:
+    #message
+    #timestamp
+    #level
+    log_entry={
+        "message":log_tuple(0),
+        "timestamp":log_tuple(1),
+        "level":log_tuple(2)
+    }
+    if 'logs' in data.keys():
+        data['logs'].append(log_entry)
+    else:
+        data['logs'] = [log_entry]
+
+def add_attribute(node_or_edge, attribute_json):
+    template_attribute= {
+        "value": None,
+        "value_url": None,
+        "attributes": None,
+        "description": None,
+        "value_type_id": None,
+        "attribute_source": None,
+        "attribute_type_id": None,
+        "original_attribute_name": None
+    }
+    for key in attribute_json.keys():
+        if key is not None and key in template_attribute.keys():
+            template_attribute[key]=attribute_json[key]
+    if 'attributes' in node_or_edge.keys():
+        node_or_edge['attributes'].append(template_attribute)
+    else:
+        node_or_edge['attributes']=[template_attribute]
 
 def keys_exist(element, *keys):
     if not isinstance(element, dict):
@@ -665,12 +887,14 @@ def ScoreStatCalc(results):
                         if 'score' in analysis.keys():
                             temp_score.append(analysis['score'])
                     score = statistics.mean(temp_score)
+
                 elif len(res['analyses']) == 1:
                     if 'score' in res['analyses'][0]:
                         score = res['analyses'][0]['score']
                     else:
                         logging.debug('Result doesnt have score field')
                         score = None
+
 
                 if score is not None:
                     scoreList.append(score)
@@ -704,12 +928,14 @@ def normalizeScores(results):
                         if 'score' in analysis.keys():
                             temp_score.append(analysis['score'])
                     score = statistics.mean(temp_score)
+
                 elif len(res['analyses']) == 1:
                     if 'score' in res['analyses'][0]:
                         score = res['analyses'][0]['score']
                     else:
                         logging.debug('Result doesnt have score field')
                         score = None
+
 
                 if score is not None:
                     scoreList.append(score)
@@ -736,6 +962,7 @@ def getChildrenFromParent(pk):
     return messageList
 
 def createMessage(actor):
+
     message = Message.create(code=202, status='Running', data={},
                              actor=actor)
     message.save()
@@ -762,6 +989,64 @@ def merge(pk,merged_pk):
     mergedComplete.code = 200
     mergedComplete.status = 'D'
     mergedComplete.save()
+
+@app.task(name="merge_received")
+def merge_received(parent_pk,message_to_merge,ARS_ACTOR, counter=0):
+    parent = Message.objects.get(pk=parent_pk)
+    current_merged_pk=parent.merged_version_id
+    #to_merge_message= Message.objects.get(pk=pk_to_merge)
+    #to_merge_message_dict=get_safe(to_merge_message.to_dict(),"fields","data","message")
+    t_to_merge_message=TranslatorMessage(message_to_merge)
+
+    if not parent.merge_semaphore or True:
+        new_merged_message = createMessage(ARS_ACTOR)
+        new_merged_message.save()
+        #Since we've started a merge, we lock the parent PK for the duration (this is a soft lock)
+        parent.merge_semaphore=True
+        parent.save()
+        try:
+            #If at least one merger has already occurred, we merge the newcomer into that
+            if current_merged_pk is not None :
+                current_merged_message=Message.objects.get(pk=current_merged_pk)
+                current_message_dict = get_safe(current_merged_message.to_dict(),"fields","data","message")
+                t_current_merged_message=TranslatorMessage(current_message_dict)
+
+                merged=mergeMessages([
+                    t_current_merged_message,
+                    t_to_merge_message
+                ])
+                print()
+            #If not, we make the newcomer the current "merged" Message
+            else:
+                merged = t_to_merge_message
+
+
+            merged_dict = merged.to_dict()
+            new_merged_message.data=merged_dict
+            new_merged_message.status='D'
+            new_merged_message.code=200
+            new_merged_message.save()
+
+            #Now that we're done, we unlock update the merged_version on the parent, unlock it, and save
+            parent.merged_version=new_merged_message
+            parent.merge_semaphore=False
+            parent.save()
+            return new_merged_message
+        except Exception as e:
+            #If anything goes wrong, we at least need to unlock the semaphore
+            #TODO make some actual proper Exception handling here.
+            parent.merge_semaphore=False
+            parent.save()
+            return {}
+    else:
+        #If there is currently a merge happening, we wait until it finishes to do our merge
+        if counter < 5:
+            sleeptime.sleep(5)
+            counter = counter + 1
+            merge_received(parent_pk,message_to_merge,ARS_ACTOR,counter)
+        else:
+            logging.debug("Failed to merge "+str(parent_pk))
+
 
 def hop_level_filter(results, hop_limit):
 
