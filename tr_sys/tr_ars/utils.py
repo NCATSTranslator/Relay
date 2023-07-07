@@ -998,7 +998,7 @@ def merge_received(parent_pk,message_to_merge,ARS_ACTOR, counter=0):
     #to_merge_message_dict=get_safe(to_merge_message.to_dict(),"fields","data","message")
     t_to_merge_message=TranslatorMessage(message_to_merge)
 
-    if not parent.merge_semaphore or True:
+    if not parent.merge_semaphore:
         new_merged_message = createMessage(ARS_ACTOR)
         new_merged_message.save()
         #Since we've started a merge, we lock the parent PK for the duration (this is a soft lock)
