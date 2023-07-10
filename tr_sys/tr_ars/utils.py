@@ -30,7 +30,7 @@ ARS_ACTOR = {
 #NORMALIZER_URL='https://nodenormalization-sri.renci.org/1.2/get_normalized_nodes?'
 NORMALIZER_URL='https://nodenormalization-sri.renci.org/1.3/get_normalized_nodes'
 ANNOTATOR_URL = "https://biothings.ncats.io/annotator/"
-APPRAISER_URL='http://ghcr.io/translatorsri/answer-appraiser:v0.1.0'
+APPRAISER_URL='http://localhost:9096/get_appraisal'
 
 
 class QueryGraph():
@@ -495,6 +495,10 @@ def pre_merge_process(data,key):
         mesg.result_stat = scorestat
     except Exception as e:
         post_processing_error(mesg,data,"Error in score stat calculation\n"+e)
+    try:
+        normalize_scores(mesg,data,key,inforesid)
+    except Exception as e:
+        post_processing_error(mesg,data,"Error in ARS score normalization")
 
 
 
@@ -506,10 +510,10 @@ def post_process(data,key):
     except Exception as e:
         post_processing_error(mesg,data,"Error in annotation of nodes")
 
-    # try:
-    #     appraise(mesg,data)
-    # except Exception as e:
-    #     post_processing_error(mesg,data,"Error in appraiser")
+    try:
+        appraise(mesg,data)
+    except Exception as e:
+        post_processing_error(mesg,data,"Error in appraiser")
 
     try:
         normalize_scores(mesg,data,key,inforesid)
@@ -532,6 +536,8 @@ def appraise(mesg,data):
     json_data = json.dumps(data)
     r = requests.post(APPRAISER_URL,data=json_data,headers=headers)
     rj = r.json()
+    #for now, just replacing the whole message, but we could be more precise/efficient
+    data['message']=rj['message']
     print()
 
 def annotate_nodes(mesg,data):
