@@ -2,6 +2,7 @@ import copy
 import json
 import logging
 import traceback
+import os
 from datetime import time
 
 import requests
@@ -30,7 +31,7 @@ ARS_ACTOR = {
 #NORMALIZER_URL='https://nodenormalization-sri.renci.org/1.2/get_normalized_nodes?'
 NORMALIZER_URL='https://nodenormalization-sri.renci.org/1.3/get_normalized_nodes'
 ANNOTATOR_URL = "https://biothings.ncats.io/annotator/"
-APPRAISER_URL='http://localhost:9096/get_appraisal'
+APPRAISER_URL=os.getenv("TR_APPRAISE") if os.getenv("TR_APPRAISE") is not None else "http://localhost:9096/get_appraisal"
 
 
 class QueryGraph():
@@ -535,10 +536,11 @@ def appraise(mesg,data):
     headers = {'Content-type': 'application/json', 'Accept': 'text/plain'}
     json_data = json.dumps(data)
     r = requests.post(APPRAISER_URL,data=json_data,headers=headers)
-    rj = r.json()
-    #for now, just replacing the whole message, but we could be more precise/efficient
-    data['message']=rj['message']
-    print()
+    if r.status_code==200:
+        rj = r.json()
+        #for now, just update the whole message, but we could be more precise/efficient
+        data['message'].update(rj['message'])
+        print()
 
 def annotate_nodes(mesg,data):
     #TODO pull this URL from SmartAPI
