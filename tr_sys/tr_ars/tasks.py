@@ -123,6 +123,7 @@ def send_message(actor_dict, mesg_dict, timeout=300):
                 #no sense in processing something without results
 
                 if results is not None and len(results)>0:
+                    mesg.result_count = len(rdata["message"]["results"])
                     try:
                         parent_pk = mesg.ref.id
                         ARS_ACTOR=Actor.objects.get(inforesid="ARS")
