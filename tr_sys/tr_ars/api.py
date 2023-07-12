@@ -418,11 +418,15 @@ def message(req, key):
 
             #before we do basically anything else, we normalize
             try:
+                if res is not None:
+                    mesg.result_count = len(res)
                 utils.pre_merge_process(message_to_merge,key)
                 ARS_ACTOR=Actor.objects.get(inforesid="ARS")
                 new_merged = utils.merge_received(parent_pk,message_to_merge['message'],ARS_ACTOR)
                 #the merged versions is what gets consumed.  So, it's all we do post processing on?
                 utils.post_process(new_merged.data,new_merged.id)
+                scorestat = utils.ScoreStatCalc(res)
+                mesg.result_stat = scorestat
             except Exception as e:
                 logger.debug("Problem with merger or post processeing for %s " % key)
 
