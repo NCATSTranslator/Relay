@@ -489,7 +489,10 @@ def pre_merge_process(data,key):
         decorate_edges_with_infores(data,inforesid)
     except Exception as e:
         post_processing_error(mesg,data,"Error in ARS edge sources decoration\n"+e)
-
+    try:
+        normalize_scores(mesg,data,key,inforesid)
+    except Exception as e:
+        post_processing_error(mesg,data,"Error in ARS score normalization")
 
 
 def post_process(data,key):
