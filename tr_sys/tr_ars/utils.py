@@ -496,8 +496,6 @@ def pre_merge_process(data,key):
     except Exception as e:
         post_processing_error(mesg,data,"Error in score stat calculation\n"+e)
 
-
-
 def post_process(data,key):
     mesg=Message.objects.get(pk = key)
     inforesid = str(mesg.actor.inforesid)
