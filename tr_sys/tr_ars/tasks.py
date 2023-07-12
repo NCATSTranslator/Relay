@@ -132,8 +132,12 @@ def send_message(actor_dict, mesg_dict, timeout=300):
                         utils.pre_merge_process(message_to_merge,mesg_dict['pk'])
                         new_merged = utils.merge_received(parent_pk,message_to_merge['message'],ARS_ACTOR)
                         utils.post_process(new_merged.data,new_merged.pk)
+                        scorestat = utils.ScoreStatCalc(results)
+                        mesg.result_stat = scorestat
+
                     except Exception as e:
                         logger.debug('Problem with post processing or merger of %s for pk: %s' % (inforesid, mesg.pk))
+
 
 
             if 'tr_ars.message.status' in r.headers:

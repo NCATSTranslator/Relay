@@ -489,12 +489,6 @@ def pre_merge_process(data,key):
         decorate_edges_with_infores(data,inforesid)
     except Exception as e:
         post_processing_error(mesg,data,"Error in ARS edge sources decoration\n"+e)
-    try:
-        results = get_safe(data,"message","results")
-        scorestat = ScoreStatCalc(results)
-        mesg.result_stat = scorestat
-    except Exception as e:
-        post_processing_error(mesg,data,"Error in score stat calculation\n"+e)
 
 
 
