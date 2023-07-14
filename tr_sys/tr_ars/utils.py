@@ -491,12 +491,6 @@ def pre_merge_process(data,key):
     except Exception as e:
         post_processing_error(mesg,data,"Error in ARS edge sources decoration\n"+e)
     try:
-        results = get_safe(data,"message","results")
-        scorestat = ScoreStatCalc(results)
-        mesg.result_stat = scorestat
-    except Exception as e:
-        post_processing_error(mesg,data,"Error in score stat calculation\n"+e)
-    try:
         normalize_scores(mesg,data,key,inforesid)
     except Exception as e:
         post_processing_error(mesg,data,"Error in ARS score normalization")
@@ -510,25 +504,11 @@ def post_process(data,key):
         annotate_nodes(mesg,data)
     except Exception as e:
         post_processing_error(mesg,data,"Error in annotation of nodes")
-
     try:
         appraise(mesg,data)
     except Exception as e:
         post_processing_error(mesg,data,"Error in appraiser")
-
-    try:
-        normalize_scores(mesg,data,key,inforesid)
-    except Exception as e:
-        post_processing_error(mesg,data,"Error in ARS score normalization")
-
-
-    # try:
-    #     annotate_nodes(mesg,data)
-    # except Exception as e:
-    #     post_processing_error(mesg,data,"Error in annotation of nodes")
-
-    # mesg.status = status
-    # mesg.code = code
+    
     mesg.data = data
     mesg.save()
 

@@ -27,9 +27,9 @@ def debug_task(self):
 
 
 app.conf.beat_schedule = {
- #Excute the timeout fucntion every 5 min
-    'checking_timeout_5min':{
+ #Excute the timeout fucntion every 3 min
+    'checking_timeout_3min':{
         'task': 'catch_timeout',
-        'schedule': crontab(minute='*/5'),
+        'schedule': crontab(minute='*/3'),
     },
 }

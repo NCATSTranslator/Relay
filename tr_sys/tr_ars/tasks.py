@@ -83,19 +83,22 @@ def send_message(actor_dict, mesg_dict, timeout=300):
                 status = 'E'
             # now create a new message here
             if(endpoint)=="asyncquery":
-
                 if(callback is not None):
-                    ar = requests.get(callback, json=data, timeout=timeout)
-                    arj=ar.json()
-                    if(arj["fields"]["data"] is None or
-                            arj["fields"]["data"]["message"] is None):
-                        logger.debug("data field empty")
-                        status = 'R'
-                        status_code = 202
-                    else:
-                        logger.debug("data field contains "+ arj["fields"]["data"]["message"])
-                        status = 'D'
-                        status_code = 200
+                    try:
+                        ar = requests.get(callback, json=data, timeout=timeout)
+                        arj=ar.json()
+                        if utils.get_safe(rdata,"fields","data", "message") is None:
+                            logger.debug("data field empty")
+                            status = 'R'
+                            status_code = 202
+                        else:
+                            logger.debug("data field contains "+ arj["fields"]["data"]["message"])
+                            status = 'D'
+                            status_code = 200
+                    except json.decoder.JSONDecodeError:
+                        status = 'E'
+                        status_code = 422
+
             else:
                 logger.debug("Not async? "+query_endpoint)
                 status = 'D'
@@ -106,6 +109,7 @@ def send_message(actor_dict, mesg_dict, timeout=300):
                 #no sense in processing something without results
 
                 if results is not None and len(results)>0:
+                    mesg.result_count = len(rdata["message"]["results"])
                     try:
                         parent_pk = mesg.ref.id
                         ARS_ACTOR=Actor.objects.get(inforesid="ARS")
@@ -114,8 +118,12 @@ def send_message(actor_dict, mesg_dict, timeout=300):
                         utils.pre_merge_process(message_to_merge,mesg_dict['pk'])
                         new_merged = utils.merge_received(parent_pk,message_to_merge['message'],ARS_ACTOR)
                         utils.post_process(new_merged.data,new_merged.pk)
+                        scorestat = utils.ScoreStatCalc(results)
+                        mesg.result_stat = scorestat
+
                     except Exception as e:
                         logger.debug('Problem with post processing or merger of %s for pk: %s' % (inforesid, mesg.pk))
+
 
 
             if 'tr_ars.message.status' in r.headers:
