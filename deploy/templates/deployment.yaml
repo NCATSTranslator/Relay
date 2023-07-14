@@ -29,7 +29,9 @@ spec:
               subPath: settings.py
           env:
             - name: TR_ENV
-              value: {{ .Values.arsserver.env.TR_ENV }}    
+              value: {{ .Values.arsserver.env.TR_ENV }}
+            - name: TR_APPRAISE
+              value: {{ .Values.arsserver.env.TR_APPRAISE }}
         - name: celeryworker
           image: "{{ .Values.celeryworker.image.repository }}:{{ .Values.celeryworker.image.tag }}"
           imagePullPolicy: {{ .Values.celeryworker.image.PullPolicy }}
