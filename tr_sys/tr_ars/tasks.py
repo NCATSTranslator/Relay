@@ -106,20 +106,6 @@ def send_message(actor_dict, mesg_dict, timeout=300):
                 results = utils.get_safe(rdata,"message","results")
                 kg = utils.get_safe(rdata,"message", "knowledge_graph")
                 #before we do basically anything else, we normalize
-                # if kg is not None:
-                #     if results is not None:
-                #         logger.info('going to normalize ids for agent: %s and pk: %s' % (inforesid, mesg.pk))
-                #         try:
-                #             kg, results = utils.canonizeMessageTest(kg, results)
-                #         except Exception as e:
-                #             logger.error('Failed to normalize ids for agent: %s and pk: %s' % (inforesid, mesg.pk))
-                #             status = 'E'
-                #             status_code = 206
-                #     else:
-                #         logger.debug('the %s has not returned any result back for pk: %s' % (inforesid, mesg.pk))
-                # else:
-                #     logger.debug('the %s has not returned any knowledge_graphs back for pk: %s' % (inforesid, mesg.pk))
-
                 #no sense in processing something without results
 
                 if results is not None and len(results)>0:
