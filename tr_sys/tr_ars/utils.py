@@ -566,13 +566,10 @@ def annotate_nodes(mesg,data):
 def normalize_scores(mesg,data,key, inforesid):
     res=get_safe(data,"message","results")
     if res is not None:
-        mesg.result_count = len(res)
         if len(res)>0:
             try:
                 logging.info('going to normalize scores for agent: %s and pk: %s' % (inforesid, key))
                 data["message"]["results"] = normalizeScores(res)
-                scorestat = ScoreStatCalc(res)
-                mesg.result_stat = scorestat
             except Exception as e:
                 logging.error('Failed to normalize scores for agent: %s and pk: %s' % (inforesid, key))
 
