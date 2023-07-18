@@ -504,10 +504,15 @@ def post_process(data,key):
         annotate_nodes(mesg,data)
     except Exception as e:
         post_processing_error(mesg,data,"Error in annotation of nodes")
+        logging.error("Error with node annotations for "+str(key))
+        logging.error(str(e))
+
     try:
         appraise(mesg,data)
     except Exception as e:
         post_processing_error(mesg,data,"Error in appraiser")
+        logging.error("Error with appraise for "+str(key))
+        logging.error(str(e))
     
     mesg.data = data
     mesg.save()
