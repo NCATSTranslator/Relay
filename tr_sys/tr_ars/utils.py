@@ -541,8 +541,8 @@ def appraise(mesg,data):
         rj = r.json()
         #for now, just update the whole message, but we could be more precise/efficient
         logging.debug("Updating message with appraiser data for "+str(mesg.id))
-
         data['message'].update(rj['message'])
+        logging.debug("Updating message with appraiser data complete for "+str(mesg.id))
     else:
         logging.error("Problem with appraiser for "+str(mesg.id))
 
