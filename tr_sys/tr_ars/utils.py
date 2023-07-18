@@ -536,11 +536,15 @@ def appraise(mesg,data):
     headers = {'Content-type': 'application/json', 'Accept': 'text/plain'}
     json_data = json.dumps(data)
     r = requests.post(APPRAISER_URL,data=json_data,headers=headers)
+    logging.debug("Appraiser being called at: "+APPRAISER_URL)
     if r.status_code==200:
         rj = r.json()
         #for now, just update the whole message, but we could be more precise/efficient
+        logging.debug("Updating message with appraiser data for "+str(mesg.id))
+
         data['message'].update(rj['message'])
-        print()
+    else:
+        logging.error("Problem with appraiser for "+str(mesg.id))
 
 def annotate_nodes(mesg,data):
     #TODO pull this URL from SmartAPI
