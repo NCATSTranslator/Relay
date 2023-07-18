@@ -545,6 +545,7 @@ def appraise(mesg,data):
         logging.debug("Updating message with appraiser data complete for "+str(mesg.id))
     else:
         logging.error("Problem with appraiser for "+str(mesg.id))
+        logging.error(r.text)
 
 def annotate_nodes(mesg,data):
     #TODO pull this URL from SmartAPI
