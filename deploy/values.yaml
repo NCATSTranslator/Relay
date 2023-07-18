@@ -12,7 +12,8 @@ arsserver:
     PullPolicy: Always
   containerPort: 8000  
   env:
-    TR_ENV: TR_ENV_VALUE 
+    TR_ENV: TR_ENV_VALUE
+    TR_APPRAISE: TR_APPRAISE_VALUE
 
 celeryworker:
   image:

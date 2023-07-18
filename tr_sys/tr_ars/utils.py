@@ -2,6 +2,7 @@ import copy
 import json
 import logging
 import traceback
+import os
 from datetime import time
 
 import requests
@@ -30,7 +31,7 @@ ARS_ACTOR = {
 #NORMALIZER_URL='https://nodenormalization-sri.renci.org/1.2/get_normalized_nodes?'
 NORMALIZER_URL='https://nodenormalization-sri.renci.org/1.3/get_normalized_nodes'
 ANNOTATOR_URL = "https://biothings.ncats.io/annotator/"
-APPRAISER_URL='http://ghcr.io/translatorsri/answer-appraiser:v0.1.0'
+APPRAISER_URL=os.getenv("TR_APPRAISE") if os.getenv("TR_APPRAISE") is not None else "http://localhost:9096/get_appraisal"
 
 
 class QueryGraph():
@@ -495,6 +496,7 @@ def pre_merge_process(data,key):
         post_processing_error(mesg,data,"Error in ARS score normalization")
 
 
+
 def post_process(data,key):
     mesg=Message.objects.get(pk = key)
     inforesid = str(mesg.actor.inforesid)
@@ -502,25 +504,11 @@ def post_process(data,key):
         annotate_nodes(mesg,data)
     except Exception as e:
         post_processing_error(mesg,data,"Error in annotation of nodes")
-
-    # try:
-    #     appraise(mesg,data)
-    # except Exception as e:
-    #     post_processing_error(mesg,data,"Error in appraiser")
-
     try:
-        normalize_scores(mesg,data,key,inforesid)
+        appraise(mesg,data)
     except Exception as e:
-        post_processing_error(mesg,data,"Error in ARS score normalization")
-
-
-    # try:
-    #     annotate_nodes(mesg,data)
-    # except Exception as e:
-    #     post_processing_error(mesg,data,"Error in annotation of nodes")
-
-    # mesg.status = status
-    # mesg.code = code
+        post_processing_error(mesg,data,"Error in appraiser")
+    
     mesg.data = data
     mesg.save()
 
@@ -528,8 +516,16 @@ def appraise(mesg,data):
     headers = {'Content-type': 'application/json', 'Accept': 'text/plain'}
     json_data = json.dumps(data)
     r = requests.post(APPRAISER_URL,data=json_data,headers=headers)
-    rj = r.json()
-    print()
+    logging.debug("Appraiser being called at: "+APPRAISER_URL)
+    if r.status_code==200:
+        rj = r.json()
+        #for now, just update the whole message, but we could be more precise/efficient
+        logging.debug("Updating message with appraiser data for "+str(mesg.id))
+        data['message'].update(rj['message'])
+        logging.debug("Updating message with appraiser data complete for "+str(mesg.id))
+    else:
+        logging.error("Problem with appraiser for "+str(mesg.id))
+        logging.error(r.text)
 
 def annotate_nodes(mesg,data):
     #TODO pull this URL from SmartAPI
@@ -575,13 +571,10 @@ def annotate_nodes(mesg,data):
 def normalize_scores(mesg,data,key, inforesid):
     res=get_safe(data,"message","results")
     if res is not None:
-        mesg.result_count = len(res)
         if len(res)>0:
             try:
                 logging.info('going to normalize scores for agent: %s and pk: %s' % (inforesid, key))
                 data["message"]["results"] = normalizeScores(res)
-                scorestat = ScoreStatCalc(res)
-                mesg.result_stat = scorestat
             except Exception as e:
                 logging.error('Failed to normalize scores for agent: %s and pk: %s' % (inforesid, key))
 

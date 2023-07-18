@@ -117,6 +117,7 @@ def submit(req):
         if 'name' in data:
             message.name = data['name']
         # save and broadcast
+
         message.save()
         data = message.to_dict()
         return HttpResponse(json.dumps(data, indent=2),
@@ -404,31 +405,33 @@ def message(req, key):
             #    return HttpResponse('Not a valid Translator API json', status=400)
 
             mesg = Message.objects.get(pk = key)
-            parent_pk = mesg.ref_id
             status = 'D'
             code = 200
             if 'tr_ars.message.status' in req.headers:
                 status = req.headers['tr_ars.message.status']
 
-            agent = str(mesg.actor.agent.name)
             res=utils.get_safe(data,"message","results")
             kg = utils.get_safe(data,"message", "knowledge_graph")
-            #message_to_merge =utils.get_safe(data,"message")
-            message_to_merge = data
 
-            #before we do basically anything else, we normalize
-            try:
-                if res is not None:
-                    mesg.result_count = len(res)
-                utils.pre_merge_process(message_to_merge,key)
-                ARS_ACTOR=Actor.objects.get(inforesid="ARS")
-                new_merged = utils.merge_received(parent_pk,message_to_merge['message'],ARS_ACTOR)
-                #the merged versions is what gets consumed.  So, it's all we do post processing on?
-                utils.post_process(new_merged.data,new_merged.id)
+            if res is not None and len(res)>0:
+                mesg.result_count = len(res)
                 scorestat = utils.ScoreStatCalc(res)
                 mesg.result_stat = scorestat
-            except Exception as e:
-                logger.debug("Problem with merger or post processeing for %s " % key)
+                #before we do basically anything else, we normalize
+                try:
+                    parent_pk = mesg.ref_id
+                    ARS_ACTOR=Actor.objects.get(inforesid="ARS")
+                    #message_to_merge =utils.get_safe(data,"message")
+                    message_to_merge = data
+                    utils.pre_merge_process(message_to_merge,key)
+                    agent_name = str(mesg.actor.agent.name)
+                    if agent_name.startswith('ara-'):
+                        new_merged = utils.merge_received(parent_pk,message_to_merge['message'],ARS_ACTOR)
+                        #the merged versions is what gets consumed.  So, it's all we do post processing on?
+                        utils.post_process(new_merged.data,new_merged.id)
+
+                except Exception as e:
+                    logger.debug("Problem with merger or post processeing for %s " % key)
 
             # create child message if this one already has results
             if mesg.data and 'results' in mesg.data and mesg.data['results'] != None and len(mesg.data['results']) > 0:
