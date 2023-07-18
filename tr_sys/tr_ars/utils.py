@@ -355,12 +355,14 @@ def mergeDicts(dcurrent,dmerged):
                             if "id" in cd.keys():
                                 cmap[cd["id"]]=cd
                             else:
-                                logging.debug("list item lacking id? "+str(cd))
+                                pass
+                                #logging.debug("list item lacking id? "+str(cd))
                         for md in mv:
                             if "id" in md.keys():
                                 mmap[md["id"]]=md
                             else:
-                                logging.debug("list item lacking id? "+str(cd))
+                                pass
+                                #logging.debug("list item lacking id? "+str(cd))
 
                         for ck in cmap.keys():
                             if ck in mmap.keys():
@@ -510,16 +512,22 @@ def post_process(data,key):
         annotate_nodes(mesg,data)
     except Exception as e:
         post_processing_error(mesg,data,"Error in annotation of nodes")
+        logging.debug("Error in node annotation with "+str(key))
+        logging.debug(str(e))
 
     try:
         appraise(mesg,data)
     except Exception as e:
         post_processing_error(mesg,data,"Error in appraiser")
+        logging.debug("Error in appraise with "+str(key))
+        logging.debug(str(e))
 
     try:
         normalize_scores(mesg,data,key,inforesid)
     except Exception as e:
         post_processing_error(mesg,data,"Error in ARS score normalization")
+        logging.debug("Error in score normalization with "+str(key))
+        logging.debug(str(e))
 
 
     # try:
