@@ -5,17 +5,6 @@ from operator import itemgetter
 import numpy as np
 import json
 
-
-def main():
-    print("here")
-    f = open('/Users/williamsmard/Software/trashcan/mergeResults.json')
-
-    # returns JSON object as
-    # a dictionary
-    data = json.load(f)
-
-    compute_from_results(data)
-
 def compute_from_results(results):
     sugeno_scores=[]
     weighted_means=[]
@@ -136,5 +125,3 @@ def compute_sugeno_weighted_mean_rank(sugeno_scores, weighted_mean_scores):
                 sugeno_weighted_mean_rank[j] = i + weight_order_copy[idj]
     return sugeno_rank, weighted_mean_rank, sugeno_weighted_mean_rank
 
-if __name__ == "__main__":
-    main()
