@@ -106,34 +106,26 @@ def send_message(actor_dict, mesg_dict, timeout=300):
                 results = utils.get_safe(rdata,"message","results")
                 kg = utils.get_safe(rdata,"message", "knowledge_graph")
                 #before we do basically anything else, we normalize
-                # if kg is not None:
-                #     if results is not None:
-                #         logger.info('going to normalize ids for agent: %s and pk: %s' % (inforesid, mesg.pk))
-                #         try:
-                #             kg, results = utils.canonizeMessageTest(kg, results)
-                #         except Exception as e:
-                #             logger.error('Failed to normalize ids for agent: %s and pk: %s' % (inforesid, mesg.pk))
-                #             status = 'E'
-                #             status_code = 206
-                #     else:
-                #         logger.debug('the %s has not returned any result back for pk: %s' % (inforesid, mesg.pk))
-                # else:
-                #     logger.debug('the %s has not returned any knowledge_graphs back for pk: %s' % (inforesid, mesg.pk))
-
                 #no sense in processing something without results
 
                 if results is not None and len(results)>0:
+                    mesg.result_count = len(rdata["message"]["results"])
+                    scorestat = utils.ScoreStatCalc(results)
+                    mesg.result_stat = scorestat
                     try:
                         parent_pk = mesg.ref.id
                         ARS_ACTOR=Actor.objects.get(inforesid="ARS")
                         #message_to_merge = utils.get_safe(rdata,"message")
                         message_to_merge=rdata
                         utils.pre_merge_process(message_to_merge,mesg_dict['pk'])
-                        new_merged = utils.merge_received(parent_pk,message_to_merge['message'],ARS_ACTOR)
-                        utils.post_process(new_merged.data,new_merged.pk)
+                        agent_name = str(mesg.actor.agent.name)
+                        if agent_name.startswith('ara-'):
+                            new_merged = utils.merge_received(parent_pk,message_to_merge['message'],ARS_ACTOR)
+                            utils.post_process(new_merged.data,new_merged.pk)
+
                     except Exception as e:
                         logger.debug('Problem with post processing or merger of %s for pk: %s' % (inforesid, mesg.pk))
-
+                        logger.debug(str(e))
 
             if 'tr_ars.message.status' in r.headers:
                 status = r.headers['tr_ars.message.status']
