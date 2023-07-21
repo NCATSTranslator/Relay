@@ -3,6 +3,46 @@ from sympy import symbols, expand, simplify, solve
 import itertools
 from operator import itemgetter
 import numpy as np
+import json
+
+
+def main():
+    print("here")
+    f = open('/Users/williamsmard/Software/trashcan/mergeResults.json')
+
+    # returns JSON object as
+    # a dictionary
+    data = json.load(f)
+
+    compute_from_results(data)
+
+def compute_from_results(results):
+    sugeno_scores=[]
+    weighted_means=[]
+    for result in results:
+        novelty=0
+        confidence=0
+        clinical_evidence=0
+        score_blank_factor=0
+        if 'ordering_components' in result.keys():
+            if 'novelty' in result['ordering_components'].keys():
+                novelty = result['ordering_components']['novelty']
+            if 'confidence' in result['ordering_components'].keys():
+                confidence = result['ordering_components']['confidence']
+            if 'clinical_evidence' in result['ordering_components'].keys():
+                clinical_evidence = result['ordering_components']['clinical_evidence']
+        sugeno_score=compute_sugeno(confidence,novelty,clinical_evidence,score_blank_factor)[2]
+        weighted_mean=compute_weighted_mean(confidence,novelty,clinical_evidence,score_blank_factor)
+
+        sugeno_scores.append(sugeno_score)
+        weighted_means.append(weighted_mean)
+        result['sugeno']=sugeno_score
+        result['weighted_mean']=weighted_mean
+
+    final_ranks = compute_sugeno_weighted_mean_rank(sugeno_scores,weighted_means)[2]
+    for i, rank in enumerate(final_ranks):
+        results[i]["rank"]=rank
+    return results
 
 '''
 THIS FUNCTION PRODUCES THE WEIGHT SETS USED IN THE COMPUTATION OF THE SUGENO INTEGRAL
@@ -93,3 +133,6 @@ def compute_sugeno_weighted_mean_rank(sugeno_scores, weighted_mean_scores):
             for idj, j in enumerate(duplicate_indices[i]):
                 sugeno_weighted_mean_rank[j] = i + weight_order_copy[idj]
     return sugeno_rank, weighted_mean_rank, sugeno_weighted_mean_rank
+
+if __name__ == "__main__":
+    main()

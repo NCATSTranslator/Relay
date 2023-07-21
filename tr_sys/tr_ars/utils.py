@@ -7,6 +7,8 @@ from datetime import time
 
 import requests
 import statistics
+
+from . import scoring
 from .models import Message, Channel
 from scipy.stats import rankdata
 from celery import shared_task
@@ -14,6 +16,7 @@ from tr_sys.celery import app
 import typing
 import time as sleeptime
 import re
+from .scoring import compute_from_results
 from collections import Counter
 
 
@@ -355,12 +358,14 @@ def mergeDicts(dcurrent,dmerged):
                             if "id" in cd.keys():
                                 cmap[cd["id"]]=cd
                             else:
-                                logging.debug("list item lacking id? "+str(cd))
+                                #logging.debug("list item lacking id? "+str(cd))
+                                pass
                         for md in mv:
                             if "id" in md.keys():
                                 mmap[md["id"]]=md
                             else:
-                                logging.debug("list item lacking id? "+str(cd))
+                                #logging.debug("list item lacking id? "+str(cd))
+                                pass
 
                         for ck in cmap.keys():
                             if ck in mmap.keys():
@@ -511,9 +516,17 @@ def post_process(data,key):
         appraise(mesg,data)
     except Exception as e:
         post_processing_error(mesg,data,"Error in appraiser")
+
         logging.error("Error with appraise for "+str(key))
         logging.error(str(e))
-    
+
+    try:
+        results = get_safe(data,"message","results")
+        new_res=scoring.compute_from_results(results)
+        print()
+    except Exception as e:
+        post_processing_error(mesg,data,"Error in f-score calculation")
+
     mesg.data = data
     mesg.save()
 
