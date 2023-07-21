@@ -41,7 +41,9 @@ def compute_from_results(results):
 
     final_ranks = compute_sugeno_weighted_mean_rank(sugeno_scores,weighted_means)[2]
     for i, rank in enumerate(final_ranks):
-        results[i]["rank"]=rank
+        #casting to int because some come through as pandas int64
+        results[i]["rank"]=int(rank)
+    results = sorted(results, key=lambda d: d['rank'])
     return results
 
 '''
