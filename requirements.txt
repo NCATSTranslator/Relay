@@ -17,3 +17,4 @@ pytest
 scipy
 django-celery-beat
 statistics
+sympy
