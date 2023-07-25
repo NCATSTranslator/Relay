@@ -120,7 +120,7 @@ def send_message(actor_dict, mesg_dict, timeout=300):
                         utils.pre_merge_process(message_to_merge,mesg_dict['pk'])
                         agent_name = str(mesg.actor.agent.name)
                         if agent_name.startswith('ara-'):
-                            new_merged = utils.merge_received(parent_pk,message_to_merge['message'],ARS_ACTOR)
+                            new_merged = utils.merge_received(parent_pk,message_to_merge['message'],ARS_ACTOR, agent_name)
                             utils.post_process(new_merged.data,new_merged.pk)
 
                     except Exception as e:

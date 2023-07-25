@@ -998,7 +998,7 @@ def merge(pk,merged_pk):
     mergedComplete.save()
 
 @app.task(name="merge_received")
-def merge_received(parent_pk,message_to_merge,ARS_ACTOR, counter=0):
+def merge_received(parent_pk,message_to_merge,ARS_ACTOR, agent_name, counter=0):
     parent = Message.objects.get(pk=parent_pk)
     current_merged_pk=parent.merged_version_id
     #to_merge_message= Message.objects.get(pk=pk_to_merge)
@@ -1040,10 +1040,11 @@ def merge_received(parent_pk,message_to_merge,ARS_ACTOR, counter=0):
             #Need to do this because JSONFields in Django can't have a default (of [] in this case).
             #So, it starts as None/null
             new_merged_message_id_string=str(new_merged_message.id)
+            pk_infores_merge = (new_merged_message_id_string, agent_name)
             if parent.merged_versions_list is None:
-                parent.merged_versions_list=[new_merged_message_id_string]
+                parent.merged_versions_list=[pk_infores_merge]
             else:
-                parent.merged_versions_list.append(new_merged_message_id_string)
+                parent.merged_versions_list.append(pk_infores_merge)
             parent.save()
             return new_merged_message
         except Exception as e:
