@@ -224,7 +224,7 @@ def trace_message(req, key):
             },
             'result_count': mesg.result_count,
             'merged_version': str(mesg.merged_version_id),
-            'merged_version_list':str(mesg.merged_versions_list),
+            'merged_versions_list':str(mesg.merged_versions_list),
             'query_graph': qc,
             #'query_graph':mesg.data.query_graph,
             'children': []

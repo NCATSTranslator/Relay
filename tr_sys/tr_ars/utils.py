@@ -1039,10 +1039,11 @@ def merge_received(parent_pk,message_to_merge,ARS_ACTOR, counter=0):
             parent.merge_semaphore=False
             #Need to do this because JSONFields in Django can't have a default (of [] in this case).
             #So, it starts as None/null
+            new_merged_message_id_string=str(new_merged_message.id)
             if parent.merged_versions_list is None:
-                parent.merged_versions_list=[new_merged_message.id]
+                parent.merged_versions_list=[new_merged_message_id_string]
             else:
-                parent.merged_versions_list.append(new_merged_message.id)
+                parent.merged_versions_list.append(new_merged_message_id_string)
             parent.save()
             return new_merged_message
         except Exception as e:
