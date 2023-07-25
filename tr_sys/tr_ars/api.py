@@ -412,7 +412,8 @@ def message(req, key):
 
             res=utils.get_safe(data,"message","results")
             kg = utils.get_safe(data,"message", "knowledge_graph")
-
+            if mesg.status=='E':
+                return HttpResponse("Response received but Message is already in state "+str(mesg.code)+". Response rejected\n",status=400)
             if res is not None and len(res)>0:
                 mesg.result_count = len(res)
                 scorestat = utils.ScoreStatCalc(res)
@@ -425,7 +426,7 @@ def message(req, key):
                     message_to_merge = data
                     utils.pre_merge_process(message_to_merge,key)
                     agent_name = str(mesg.actor.agent.name)
-                    if agent_name.startswith('ara-') and mesg.status is not 'Error':
+                    if agent_name.startswith('ara-'):
                         new_merged = utils.merge_received(parent_pk,message_to_merge['message'],ARS_ACTOR)
                         #the merged versions is what gets consumed.  So, it's all we do post processing on?
                         utils.post_process(new_merged.data,new_merged.id)
