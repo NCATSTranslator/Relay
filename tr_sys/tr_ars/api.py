@@ -425,7 +425,7 @@ def message(req, key):
                     message_to_merge = data
                     utils.pre_merge_process(message_to_merge,key)
                     agent_name = str(mesg.actor.agent.name)
-                    if agent_name.startswith('ara-'):
+                    if agent_name.startswith('ara-') and mesg.status is not 'Error':
                         new_merged = utils.merge_received(parent_pk,message_to_merge['message'],ARS_ACTOR)
                         #the merged versions is what gets consumed.  So, it's all we do post processing on?
                         utils.post_process(new_merged.data,new_merged.id)

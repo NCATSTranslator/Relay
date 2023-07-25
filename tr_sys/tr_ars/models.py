@@ -89,6 +89,7 @@ class Message(ARSModel):
     merge_semaphore=models.BooleanField('flag to indicate that merging is currently in progress',default=False)
     merged_version = models.ForeignKey('self', related_name="version_merged",null=True, blank=True,
                                      on_delete=models.CASCADE)
+    merged_versions_list= models.JSONField('Ordered list of merged_version PKs', null=True)
 
 
     def __str__(self):
