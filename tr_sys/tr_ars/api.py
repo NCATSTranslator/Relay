@@ -224,6 +224,7 @@ def trace_message(req, key):
             },
             'result_count': mesg.result_count,
             'merged_version': str(mesg.merged_version_id),
+            'merged_versions_list':str(mesg.merged_versions_list),
             'query_graph': qc,
             #'query_graph':mesg.data.query_graph,
             'children': []
@@ -412,7 +413,8 @@ def message(req, key):
 
             res=utils.get_safe(data,"message","results")
             kg = utils.get_safe(data,"message", "knowledge_graph")
-
+            if mesg.status=='E':
+                return HttpResponse("Response received but Message is already in state "+str(mesg.code)+". Response rejected\n",status=400)
             if res is not None and len(res)>0:
                 mesg.result_count = len(res)
                 scorestat = utils.ScoreStatCalc(res)
