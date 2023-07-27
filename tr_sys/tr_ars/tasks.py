@@ -166,7 +166,7 @@ def catch_timeout_async():
         if actor.name == 'ars-default-agent':
             continue
         else:
-            logger.info(f'for actor: {actor.name}, the status is still "Running" after one hour, setting code to 598')
+            logger.info(f'for actor: {actor.name}, the status is still "Running" after 5 min, setting code to 598')
             message = Message.objects.get(pk=mesg[1])
             message.code = 598
             message.status = 'E'
