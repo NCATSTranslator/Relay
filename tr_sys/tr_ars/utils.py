@@ -7,7 +7,7 @@ from datetime import time
 
 import requests
 import statistics
-
+from .api import get_ars_actor, get_or_create_actor
 from . import scoring
 from .models import Message, Channel
 from scipy.stats import rankdata
@@ -998,7 +998,7 @@ def merge(pk,merged_pk):
     mergedComplete.save()
 
 @app.task(name="merge_received")
-def merge_received(parent_pk,message_to_merge,ARS_ACTOR, agent_name, counter=0):
+def merge_received(parent_pk,message_to_merge, agent_name, counter=0):
     parent = Message.objects.get(pk=parent_pk)
     current_merged_pk=parent.merged_version_id
     #to_merge_message= Message.objects.get(pk=pk_to_merge)
@@ -1006,7 +1006,7 @@ def merge_received(parent_pk,message_to_merge,ARS_ACTOR, agent_name, counter=0):
     t_to_merge_message=TranslatorMessage(message_to_merge)
 
     if not parent.merge_semaphore:
-        new_merged_message = createMessage(ARS_ACTOR)
+        new_merged_message = createMessage(get_ars_actor())
         new_merged_message.save()
         #Since we've started a merge, we lock the parent PK for the duration (this is a soft lock)
         parent.merge_semaphore=True
@@ -1058,7 +1058,7 @@ def merge_received(parent_pk,message_to_merge,ARS_ACTOR, agent_name, counter=0):
         if counter < 5:
             sleeptime.sleep(5)
             counter = counter + 1
-            merge_received(parent_pk,message_to_merge,ARS_ACTOR,counter)
+            merge_received(parent_pk,message_to_merge,agent_name,counter)
         else:
             logging.debug("Failed to merge "+str(parent_pk))
 

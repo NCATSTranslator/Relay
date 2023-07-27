@@ -422,13 +422,12 @@ def message(req, key):
                 #before we do basically anything else, we normalize
                 try:
                     parent_pk = mesg.ref_id
-                    ARS_ACTOR=Actor.objects.get(inforesid="ARS")
                     #message_to_merge =utils.get_safe(data,"message")
                     message_to_merge = data
                     utils.pre_merge_process(message_to_merge,key)
                     agent_name = str(mesg.actor.agent.name)
                     if agent_name.startswith('ara-'):
-                        new_merged = utils.merge_received(parent_pk,message_to_merge['message'],ARS_ACTOR,agent_name)
+                        new_merged = utils.merge_received(parent_pk,message_to_merge['message'],agent_name)
                         #the merged versions is what gets consumed.  So, it's all we do post processing on?
                         utils.post_process(new_merged.data,new_merged.id)
 
