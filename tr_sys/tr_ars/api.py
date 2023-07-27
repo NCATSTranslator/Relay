@@ -648,6 +648,8 @@ def get_or_create_actor(data):
            #because Django's db models do not support List fields in SQLite
            if inforesid in inactive_actors:
                active=False
+           else:
+               active=True
            actor, created = Actor.objects.update_or_create(
                channel=json.loads(serializers.serialize('json',channel)), agent=agent, path=data['path'], inforesid=inforesid, active=active)
            status = 201
