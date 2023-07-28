@@ -236,6 +236,10 @@ class TranslatorMessage():
             d['results']=self.getResults().getRaw()
         else:
             d['results']={}
+        if self.getAuxiliaryGraphs() is not None:
+            d['auxiliary_graphs']=self.getAuxiliaryGraphs()
+        else:
+            d['auxiliary_graphs']={}
 
         return {"message":d} #need to wrap all this in "message:"
     def __json__(self):
@@ -487,12 +491,16 @@ def sharedResultsJson(sharedResultsMap):
 def pre_merge_process(data,key):
     mesg=Message.objects.get(pk = key)
     inforesid = str(mesg.actor.inforesid)
+    logging.info("Pre node norm")
     try:
         normalize_nodes(data,inforesid,key)
+        logging.info("node norm success")
     except Exception as e:
         post_processing_error(mesg,data,"Error in ARS node normalization")
+    logging.info("Pre decoration")
     try:
         decorate_edges_with_infores(data,inforesid)
+        logging.info("decoration success")
     except Exception as e:
         post_processing_error(mesg,data,"Error in ARS edge sources decoration\n"+e)
     try:
