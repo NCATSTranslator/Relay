@@ -554,8 +554,6 @@ def appraise(mesg,data):
         logging.info('the response to appraiser code is: %s' % (r.status_code))
         if r.status_code==200:
             rj = r.json()
-            with open('appraiser_results.json', 'w')  as fp:
-                json.dump(rj, fp)
             #for now, just update the whole message, but we could be more precise/efficient
             logging.debug("Updating message with appraiser data for "+str(mesg.id))
             data['message'].update(rj['message'])
