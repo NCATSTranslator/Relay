@@ -124,7 +124,9 @@ def send_message(actor_dict, mesg_dict, timeout=300):
 
                     except Exception as e:
                         logger.debug('Problem with post processing or merger of %s for pk: %s' % (inforesid, mesg.pk))
-                        logger.debug(str(e))
+                        raise e
+                        status = 'E'
+                        status_code = 422
 
             if 'tr_ars.message.status' in r.headers:
                 status = r.headers['tr_ars.message.status']
