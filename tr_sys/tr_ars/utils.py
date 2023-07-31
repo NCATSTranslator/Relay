@@ -236,6 +236,10 @@ class TranslatorMessage():
             d['results']=self.getResults().getRaw()
         else:
             d['results']={}
+        if self.getAuxiliaryGraphs() is not None:
+            d['auxiliary_graphs']=self.getAuxiliaryGraphs()
+        else:
+            d['auxiliary_graphs']={}
 
         return {"message":d} #need to wrap all this in "message:"
     def __json__(self):
@@ -496,6 +500,7 @@ def pre_merge_process(data,key):
         post_processing_error(mesg,data,"Error in ARS node normalization")
         logging.exception("Error in ARS node normaliztion")
         raise e
+
     logging.info("Pre decoration")
     try:
         decorate_edges_with_infores(data,inforesid)
