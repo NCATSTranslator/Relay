@@ -430,7 +430,6 @@ def message(req, key):
                         new_merged = utils.merge_received(parent_pk,message_to_merge['message'],agent_name)
                         #the merged versions is what gets consumed.  So, it's all we do post processing on?
                         utils.post_process(new_merged.data,new_merged.id)
-                        raise Exception
 
                 except Exception as e:
                     logger.debug("Problem with merger or post processeing for %s " % key)
