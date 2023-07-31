@@ -430,15 +430,16 @@ def message(req, key):
                         new_merged = utils.merge_received(parent_pk,message_to_merge['message'],agent_name)
                         #the merged versions is what gets consumed.  So, it's all we do post processing on?
                         utils.post_process(new_merged.data,new_merged.id)
+                        raise Exception
 
                 except Exception as e:
                     logger.debug("Problem with merger or post processeing for %s " % key)
                     logger.exception("error in merger or post processin")
-                    raise e
-                    status = 'E'
-                    code = 422
+                    new_merged.status='E'
+                    new_merged.code = 422
+                    new_merged.save()
 
-            # create child message if this one already has results
+        # create child message if this one already has results
             if mesg.data and 'results' in mesg.data and mesg.data['results'] != None and len(mesg.data['results']) > 0:
                 mesg = Message.create(name=mesg.name, status=status,
                                   actor=mesg.actor, ref=mesg)
