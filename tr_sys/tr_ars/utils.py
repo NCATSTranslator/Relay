@@ -609,7 +609,9 @@ def annotate_nodes(mesg,data):
                     #Not sure about adding back clearly borked nodes, but it is in keeping with policy of non-destructiveness
                 if len(invalid_nodes)>0:
                     data['message']['knowledge_graph']['nodes'].update(invalid_nodes)
-        except exception as e:
+            else:
+                post_processing_error(mesg,data,"Error in annotation of nodes")
+        except Exception as e:
             logging.exception("error in node annotation internal function")
             raise e
         #else:
