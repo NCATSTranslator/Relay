@@ -431,6 +431,7 @@ def mergeKnowledgeGraphs(kg1, kg2):
         secondIds = set(idTest)
     except Exception as e:
         logging.error("Unexpected error 4: {}".format(traceback.format_exception(type(e), e, e.__traceback__)))
+        raise e
     intersection = firstIds.intersection(secondIds)
     firstOnly = firstIds.difference(secondIds)
     secondOnly = secondIds.difference(firstIds)
@@ -497,60 +498,77 @@ def pre_merge_process(data,key):
         logging.info("node norm success")
     except Exception as e:
         post_processing_error(mesg,data,"Error in ARS node normalization")
+        logging.exception("Error in ARS node normaliztion")
+        raise e
+
     logging.info("Pre decoration")
     try:
         decorate_edges_with_infores(data,inforesid)
         logging.info("decoration success")
     except Exception as e:
         post_processing_error(mesg,data,"Error in ARS edge sources decoration\n"+e)
+        logging.exception("Error in ARS edge source decoration")
+        raise e
     try:
         normalize_scores(mesg,data,key,inforesid)
     except Exception as e:
         post_processing_error(mesg,data,"Error in ARS score normalization")
-
+        logging.exception("Error in ARS score normalization")
+        raise e
 
 
 def post_process(data,key):
     mesg=Message.objects.get(pk = key)
     inforesid = str(mesg.actor.inforesid)
+    logging.info("Pre node annotation")
     try:
         annotate_nodes(mesg,data)
+        logging.info("node annotation successful")
     except Exception as e:
         post_processing_error(mesg,data,"Error in annotation of nodes")
         logging.error("Error with node annotations for "+str(key))
-        logging.error(str(e))
-
+        logging.exception("problem with node annotation post process function")
+        raise e
+    logging.info("pre appraiser")
     try:
         appraise(mesg,data)
+        logging.info("appraiser successful")
     except Exception as e:
         post_processing_error(mesg,data,"Error in appraiser")
         logging.error("Error with appraise for "+str(key))
-        logging.error(str(e))
-
+        logging.exception("Error in appraiser post prcess function")
+        raise e
     try:
         results = get_safe(data,"message","results")
         new_res=scoring.compute_from_results(results)
         print()
     except Exception as e:
         post_processing_error(mesg,data,"Error in f-score calculation")
-
+        logging.exception("Error in f-score calculation")
+        raise e
     mesg.data = data
     mesg.save()
 
 def appraise(mesg,data):
     headers = {'Content-type': 'application/json', 'Accept': 'text/plain'}
     json_data = json.dumps(data)
-    r = requests.post(APPRAISER_URL,data=json_data,headers=headers)
-    logging.debug("Appraiser being called at: "+APPRAISER_URL)
-    if r.status_code==200:
-        rj = r.json()
-        #for now, just update the whole message, but we could be more precise/efficient
-        logging.debug("Updating message with appraiser data for "+str(mesg.id))
-        data['message'].update(rj['message'])
-        logging.debug("Updating message with appraiser data complete for "+str(mesg.id))
-    else:
+    logging.info('sending data to APPRIASER URL: %s' % (APPRAISER_URL))
+    try:
+        r = requests.post(APPRAISER_URL,data=json_data,headers=headers)
+        logging.debug("Appraiser being called at: "+APPRAISER_URL)
+        logging.info('the response to appraiser code is: %s' % (r.status_code))
+        if r.status_code==200:
+            rj = r.json()
+            #for now, just update the whole message, but we could be more precise/efficient
+            logging.debug("Updating message with appraiser data for "+str(mesg.id))
+            data['message'].update(rj['message'])
+            logging.debug("Updating message with appraiser data complete for "+str(mesg.id))
+    except Exception as e:
         logging.error("Problem with appraiser for "+str(mesg.id))
         logging.error(r.text)
+        logging.exception("error in appraiser for "+str(mesg.id))
+        raise e
+        
 
 def annotate_nodes(mesg,data):
     #TODO pull this URL from SmartAPI
@@ -577,20 +595,27 @@ def annotate_nodes(mesg,data):
 
 
         json_data = json.dumps(nodes_message)
-        r = requests.post(ANNOTATOR_URL,data=json_data,headers=headers)
-        rj=r.json()
-
-        if r.status_code==200:
-            for key, value in rj.items():
-                for attribute in value['attributes']:
-                    add_attribute(data['message']['knowledge_graph']['nodes'][key],attribute)
-            #Not sure about adding back clearly borked nodes, but it is in keeping with policy of non-destructiveness
-            if len(invalid_nodes)>0:
-                data['message']['knowledge_graph']['nodes'].update(invalid_nodes)
-        else:
-            with open(str(mesg.actor)+".json", "w") as outfile:
-                outfile.write(json_data)
-            post_processing_error(mesg,data,"Error in annotation of nodes")
+        try:
+            r = requests.post(ANNOTATOR_URL,data=json_data,headers=headers)
+            rj=r.json()
+            logging.info('the response status for node anotator is: %s' % (r.status_code))
+            if r.status_code==200:
+                for key, value in rj.items():
+                    if 'attributes' in value.keys():
+                        for attribute in value['attributes']:
+                            add_attribute(data['message']['knowledge_graph']['nodes'][key],attribute)
+                    #Not sure about adding back clearly borked nodes, but it is in keeping with policy of non-destructiveness
+                if len(invalid_nodes)>0:
+                    data['message']['knowledge_graph']['nodes'].update(invalid_nodes)
+            else:
+                post_processing_error(mesg,data,"Error in annotation of nodes")
+        except Exception as e:
+            logging.exception("error in node annotation internal function")
+            raise e
+        #else:
+         #   with open(str(mesg.actor)+".json", "w") as outfile:
+          #      outfile.write(json_data)
+           # post_processing_error(mesg,data,"Error in annotation of nodes")
 
 
 def normalize_scores(mesg,data,key, inforesid):
@@ -602,6 +627,9 @@ def normalize_scores(mesg,data,key, inforesid):
                 data["message"]["results"] = normalizeScores(res)
             except Exception as e:
                 logging.error('Failed to normalize scores for agent: %s and pk: %s' % (inforesid, key))
+                logging.exception('failed to normalize scores for agent: %s and pk: %s' %(inforesid, key))
+                raise e
+
 
 def normalize_nodes(data,inforesid,key):
     res = get_safe(data,"message","results")
@@ -613,6 +641,8 @@ def normalize_nodes(data,inforesid,key):
                 kg, res = canonizeMessageTest(kg, res)
             except Exception as e:
                 logging.error('Failed to normalize ids for agent: %s and pk: %s' % (inforesid, key))
+                logging.exception('failed to normalize ids for agent: %s and pk: %s' % (inforesid, key))
+                raise e
         else:
             logging.debug('the %s has not returned any result back for pk: %s' % (inforesid, key))
     else:
@@ -1056,6 +1086,8 @@ def merge_received(parent_pk,message_to_merge, agent_name, counter=0):
             parent.save()
             return new_merged_message
         except Exception as e:
+            raise e
+            logging.exception("problem with merging for %s :" % agent_name) 
             #If anything goes wrong, we at least need to unlock the semaphore
             #TODO make some actual proper Exception handling here.
             parent.merge_semaphore=False
