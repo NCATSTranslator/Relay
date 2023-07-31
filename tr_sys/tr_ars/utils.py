@@ -599,8 +599,6 @@ def annotate_nodes(mesg,data):
             r = requests.post(ANNOTATOR_URL,data=json_data,headers=headers)
             rj=r.json()
             logging.info('the response status for node anotator is: %s' % (r.status_code))
-            with open('annotator_results.json', 'w') as f:
-                json.dump(rj, f)
             if r.status_code==200:
                 for key, value in rj.items():
                     if 'attributes' in value.keys():
