@@ -536,7 +536,7 @@ def post_process(data,key):
     except Exception as e:
         post_processing_error(mesg,data,"Error in appraiser")
         logging.error("Error with appraise for "+str(key))
-        logging.exception("Error in appraiser post prcess function")
+        logging.exception("Error in appraiser post process function")
         raise e
     try:
         results = get_safe(data,"message","results")

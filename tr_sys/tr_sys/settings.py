@@ -223,4 +223,4 @@ DATA_UPLOAD_MAX_MEMORY_SIZE=1073741824
 CELERY_TASK_ALWAYS_EAGER=False
 
 USE_CELERY = True
-DEFAULT_HOST = 'https://ars-dev.transltr.io'
+DEFAULT_HOST = 'http://localhost:8000'
