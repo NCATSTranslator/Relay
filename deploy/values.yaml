@@ -20,7 +20,8 @@ celeryworker:
     repository: 853771734544.dkr.ecr.us-east-1.amazonaws.com/translator-ars
     tag: DOCKER_VERSION_VALUE
     PullPolicy: Always
-
+  env:
+    TR_APPRAISE: TR_APPRAISE_VALUE
 rabbitmq:
   image:
     repository: 853771734544.dkr.ecr.us-east-1.amazonaws.com/translator-rabbitmq
