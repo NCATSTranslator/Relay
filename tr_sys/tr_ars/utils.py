@@ -562,14 +562,14 @@ def appraise(mesg,data, agent_name,retry_counter=0):
                 logging.debug("Updating message with appraiser data for agent %s and pk %s " % (agent_name, str(mesg.id)))
                 data['message'].update(rj['message'])
                 logging.debug("Updating message with appraiser data complete for "+str(mesg.id))
-            elif r.status_code == 503:
-                logging.debug("Received 503 from appraiser for agent %s and pk %s" % (agent_name,str(mesg.id)))
-
+            else:
                 retry_counter +=1
+                logging.debug("Received Error state from appraiser for agent %s and pk %s  Code %s Attempt %s" % (agent_name,str(mesg.id),str(r.status_code),str(retry_counter)))
+                logging.debug("JSON fields "+str(json_data.keys()))
                 if retry_counter<3:
                     appraise(mesg,data, agent_name,retry_counter)
                 else:
-                    logging.error("3 consecutive 503s from appraise for agent %s and pk %s " % (agent_name,str(mesg.id)))
+                    logging.error("3 consecutive Errors from appraise for agent %s and pk %s " % (agent_name,str(mesg.id)))
                     raise Exception
     except Exception as e:
 
