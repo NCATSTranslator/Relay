@@ -539,6 +539,7 @@ def post_process(data,key, agent_name):
     try:
         results = get_safe(data,"message","results")
         new_res=scoring.compute_from_results(results)
+        logging.info("scoring succeeded")
         print()
     except Exception as e:
         post_processing_error(mesg,data,"Error in f-score calculation")
@@ -552,15 +553,15 @@ def appraise(mesg,data, agent_name):
     json_data = json.dumps(data)
     logging.info('sending data for agent: %s to APPRIASER URL: %s' % (agent_name, APPRAISER_URL))
     try:
-        r = requests.post(APPRAISER_URL,data=json_data,headers=headers)
-        logging.debug("Appraiser being called at: "+APPRAISER_URL)
-        logging.info('the response for agent %s to appraiser code is: %s' % (agent_name, r.status_code))
-        if r.status_code==200:
-            rj = r.json()
-            #for now, just update the whole message, but we could be more precise/efficient
-            logging.debug("Updating message with appraiser data for agent %s and pk %s " % (agent_name, str(mesg.id)))
-            data['message'].update(rj['message'])
-            logging.debug("Updating message with appraiser data complete for "+str(mesg.id))
+        with requests.post(APPRAISER_URL,data=json_data,headers=headers, stream=True) as r:
+            logging.debug("Appraiser being called at: "+APPRAISER_URL)
+            logging.info('the response for agent %s to appraiser code is: %s' % (agent_name, r.status_code))
+            if r.status_code==200:
+                rj = r.json()
+                #for now, just update the whole message, but we could be more precise/efficient
+                logging.debug("Updating message with appraiser data for agent %s and pk %s " % (agent_name, str(mesg.id)))
+                data['message'].update(rj['message'])
+                logging.debug("Updating message with appraiser data complete for "+str(mesg.id))
     except Exception as e:
         logging.error("Problem with appraiser for agent %s and pk %s " % (agent_name,str(mesg.id)))
         logging.error(r.text)
