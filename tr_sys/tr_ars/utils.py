@@ -489,12 +489,11 @@ def sharedResultsJson(sharedResultsMap):
         results.append(json.dumps(result,indent=2))
     return results
 
-def pre_merge_process(data,key):
+def pre_merge_process(data,key, agent_name):
     mesg=Message.objects.get(pk = key)
-    inforesid = str(mesg.actor.inforesid)
     logging.info("Pre node norm")
     try:
-        normalize_nodes(data,inforesid,key)
+        normalize_nodes(data,agent_name,key)
         logging.info("node norm success")
     except Exception as e:
         post_processing_error(mesg,data,"Error in ARS node normalization")
@@ -503,26 +502,25 @@ def pre_merge_process(data,key):
 
     logging.info("Pre decoration")
     try:
-        decorate_edges_with_infores(data,inforesid)
+        decorate_edges_with_infores(data,agent_name)
         logging.info("decoration success")
     except Exception as e:
         post_processing_error(mesg,data,"Error in ARS edge sources decoration\n"+e)
         logging.exception("Error in ARS edge source decoration")
         raise e
     try:
-        normalize_scores(mesg,data,key,inforesid)
+        normalize_scores(mesg,data,key,agent_name)
     except Exception as e:
         post_processing_error(mesg,data,"Error in ARS score normalization")
         logging.exception("Error in ARS score normalization")
         raise e
 
 
-def post_process(data,key):
+def post_process(data,key, agent_name):
     mesg=Message.objects.get(pk = key)
-    inforesid = str(mesg.actor.inforesid)
     logging.info("Pre node annotation")
     try:
-        annotate_nodes(mesg,data)
+        annotate_nodes(mesg,data,agent_name)
         logging.info("node annotation successful")
     except Exception as e:
         post_processing_error(mesg,data,"Error in annotation of nodes")
@@ -531,12 +529,12 @@ def post_process(data,key):
         raise e
     logging.info("pre appraiser")
     try:
-        appraise(mesg,data)
+        appraise(mesg,data,agent_name)
         logging.info("appraiser successful")
     except Exception as e:
         post_processing_error(mesg,data,"Error in appraiser")
         logging.error("Error with appraise for "+str(key))
-        logging.exception("Error in appraiser post prcess function")
+        logging.exception("Error in appraiser post process function")
         raise e
     try:
         results = get_safe(data,"message","results")
@@ -549,28 +547,28 @@ def post_process(data,key):
     mesg.data = data
     mesg.save()
 
-def appraise(mesg,data):
+def appraise(mesg,data, agent_name):
     headers = {'Content-type': 'application/json', 'Accept': 'text/plain'}
     json_data = json.dumps(data)
-    logging.info('sending data to APPRIASER URL: %s' % (APPRAISER_URL))
+    logging.info('sending data for agent: %s to APPRIASER URL: %s' % (agent_name, APPRAISER_URL))
     try:
         r = requests.post(APPRAISER_URL,data=json_data,headers=headers)
         logging.debug("Appraiser being called at: "+APPRAISER_URL)
-        logging.info('the response to appraiser code is: %s' % (r.status_code))
+        logging.info('the response for agent %s to appraiser code is: %s' % (agent_name, r.status_code))
         if r.status_code==200:
             rj = r.json()
             #for now, just update the whole message, but we could be more precise/efficient
-            logging.debug("Updating message with appraiser data for "+str(mesg.id))
+            logging.debug("Updating message with appraiser data for agent %s and pk %s " % (agent_name, str(mesg.id)))
             data['message'].update(rj['message'])
             logging.debug("Updating message with appraiser data complete for "+str(mesg.id))
     except Exception as e:
-        logging.error("Problem with appraiser for "+str(mesg.id))
+        logging.error("Problem with appraiser for agent %s and pk %s " % (agent_name,str(mesg.id)))
         logging.error(r.text)
-        logging.exception("error in appraiser for "+str(mesg.id))
+        logging.exception("Error with appraiser for agent %s and pk %s " % (agent_name,str(mesg.id)))
         raise e
         
 
-def annotate_nodes(mesg,data):
+def annotate_nodes(mesg,data,agent_name):
     #TODO pull this URL from SmartAPI
     headers = {'Content-type': 'application/json', 'Accept': 'text/plain'}
     nodes = get_safe(data,"message","knowledge_graph","nodes")
@@ -598,7 +596,7 @@ def annotate_nodes(mesg,data):
         try:
             r = requests.post(ANNOTATOR_URL,data=json_data,headers=headers)
             rj=r.json()
-            logging.info('the response status for node anotator is: %s' % (r.status_code))
+            logging.info('the response status for agent %s node annotator is: %s' % (agent_name,r.status_code))
             if r.status_code==200:
                 for key, value in rj.items():
                     if 'attributes' in value.keys():
@@ -618,40 +616,40 @@ def annotate_nodes(mesg,data):
            # post_processing_error(mesg,data,"Error in annotation of nodes")
 
 
-def normalize_scores(mesg,data,key, inforesid):
+def normalize_scores(mesg,data,key, agent_name):
     res=get_safe(data,"message","results")
     if res is not None:
         if len(res)>0:
             try:
-                logging.info('going to normalize scores for agent: %s and pk: %s' % (inforesid, key))
+                logging.info('going to normalize scores for agent: %s and pk: %s' % (agent_name, key))
                 data["message"]["results"] = normalizeScores(res)
             except Exception as e:
-                logging.error('Failed to normalize scores for agent: %s and pk: %s' % (inforesid, key))
-                logging.exception('failed to normalize scores for agent: %s and pk: %s' %(inforesid, key))
+                logging.error('Failed to normalize scores for agent: %s and pk: %s' % (agent_name, key))
+                logging.exception('failed to normalize scores for agent: %s and pk: %s' %(agent_name, key))
                 raise e
 
 
-def normalize_nodes(data,inforesid,key):
+def normalize_nodes(data,agent_name,key):
     res = get_safe(data,"message","results")
     kg = get_safe(data,"message", "knowledge_graph")
     if kg is not None:
         if res is not None:
-            logging.info('going to normalize ids for agent: %s and pk: %s' % (inforesid, key))
+            logging.info('going to normalize ids for agent: %s and pk: %s' % (agent_name, key))
             try:
                 kg, res = canonizeMessageTest(kg, res)
             except Exception as e:
-                logging.error('Failed to normalize ids for agent: %s and pk: %s' % (inforesid, key))
-                logging.exception('failed to normalize ids for agent: %s and pk: %s' % (inforesid, key))
+                logging.error('Failed to normalize ids for agent: %s and pk: %s' % (agent_name, key))
+                logging.exception('failed to normalize ids for agent: %s and pk: %s' % (agent_name, key))
                 raise e
         else:
-            logging.debug('the %s has not returned any result back for pk: %s' % (inforesid, key))
+            logging.debug('the %s has not returned any result back for pk: %s' % (agent_name, key))
     else:
-        logging.debug('the %s has not returned any knowledge_graphs back for pk: %s' % (inforesid, key))
+        logging.debug('the %s has not returned any knowledge_graphs back for pk: %s' % (agent_name, key))
 
-def decorate_edges_with_infores(data,inforesid):
+def decorate_edges_with_infores(data,agent_name):
     edges = get_safe(data,"message","knowledge_graph","edges")
     self_source= {
-        "resource_id": inforesid,
+        "resource_id": agent_name,
         "resource_role": "primary_knowledge_source",
         "source_record_urls": None,
         "upstream_resource_ids": None
@@ -662,7 +660,7 @@ def decorate_edges_with_infores(data,inforesid):
             edge['sources']=[self_source]
         else:
             for source in edge['sources']:
-                if source['resource_id']==inforesid:
+                if source['resource_id']==agent_name:
                     has_self=True
                     break
             if not has_self:

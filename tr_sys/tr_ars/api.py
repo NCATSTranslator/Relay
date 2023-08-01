@@ -424,12 +424,12 @@ def message(req, key):
                     parent_pk = mesg.ref_id
                     #message_to_merge =utils.get_safe(data,"message")
                     message_to_merge = data
-                    utils.pre_merge_process(message_to_merge,key)
                     agent_name = str(mesg.actor.agent.name)
+                    utils.pre_merge_process(message_to_merge,key, agent_name)
                     if agent_name.startswith('ara-'):
                         new_merged = utils.merge_received(parent_pk,message_to_merge['message'],agent_name)
                         #the merged versions is what gets consumed.  So, it's all we do post processing on?
-                        utils.post_process(new_merged.data,new_merged.id)
+                        utils.post_process(new_merged.data,new_merged.id, agent_name)
 
                 except Exception as e:
                     logger.debug("Problem with merger or post processeing for %s " % key)
