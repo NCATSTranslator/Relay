@@ -548,7 +548,7 @@ def post_process(data,key, agent_name):
     mesg.data = data
     mesg.save()
 
-def appraise(mesg,data, agent_name):
+def appraise(mesg,data, agent_name,retry_counter=0):
     headers = {'Content-type': 'application/json', 'Accept': 'text/plain'}
     json_data = json.dumps(data)
     logging.info('sending data for agent: %s to APPRIASER URL: %s' % (agent_name, APPRAISER_URL))
@@ -562,10 +562,18 @@ def appraise(mesg,data, agent_name):
                 logging.debug("Updating message with appraiser data for agent %s and pk %s " % (agent_name, str(mesg.id)))
                 data['message'].update(rj['message'])
                 logging.debug("Updating message with appraiser data complete for "+str(mesg.id))
+            elif r.status_code == 503:
+                logging.debug("Received 503 from appraiser for agent %s and pk %s" % (agent_name,str(mesg.id)))
+
+                retry_counter +=1
+                if retry_counter<3:
+                    appraise(mesg,data, agent_name,retry_counter)
     except Exception as e:
+
         logging.error("Problem with appraiser for agent %s and pk %s " % (agent_name,str(mesg.id)))
+        logging.error(type(e).__name__)
+        logging.error(e.args)
         logging.error(r.text)
-        logging.exception("Error with appraiser for agent %s and pk %s " % (agent_name,str(mesg.id)))
         raise e
         
 
@@ -1095,6 +1103,7 @@ def merge_received(parent_pk,message_to_merge, agent_name, counter=0):
     else:
         #If there is currently a merge happening, we wait until it finishes to do our merge
         if counter < 5:
+            logging.debug("Merged_version locked for %s.  Attempt %s:" % (agent_name, str(counter)))
             sleeptime.sleep(5)
             counter = counter + 1
             merge_received(parent_pk,message_to_merge,agent_name,counter)
