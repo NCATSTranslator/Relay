@@ -41,6 +41,9 @@ spec:
             - name: config-vol
               mountPath: /ars/tr_sys/tr_sys/settings.py
               subPath: settings.py
+          env:
+            - name: TR_APPRAISE
+              value: {{ .Values.celeryworker.env.TR_APPRAISE }}
         - name: rabbitmq
           image: "{{ .Values.rabbitmq.image.repository }}:{{ .Values.rabbitmq.image.tag }}"
           imagePullPolicy: {{ .Values.rabbitmq.image.PullPolicy }}
