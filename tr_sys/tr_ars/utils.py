@@ -568,6 +568,9 @@ def appraise(mesg,data, agent_name,retry_counter=0):
                 retry_counter +=1
                 if retry_counter<3:
                     appraise(mesg,data, agent_name,retry_counter)
+                else:
+                    logging.error("3 consecutive 503s from appraise for agent %s and pk %s " % (agent_name,str(mesg.id)))
+                    raise Exception
     except Exception as e:
 
         logging.error("Problem with appraiser for agent %s and pk %s " % (agent_name,str(mesg.id)))
