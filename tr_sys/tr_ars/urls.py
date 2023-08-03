@@ -21,7 +21,8 @@ apipatterns = [
     re_path(r'^timeoutTest/?$', api.timeoutTest, name='ars-timeout'),
     path('merge/<uuid:key>', api.merge, name='ars-merge'),
     path('retain/<uuid:key>', api.retain, name='ars-retain'),
-    path('latest_pk/<int:n>', api.latest_pk, name='ars-latestPK')
+    path('latest_pk/<int:n>', api.latest_pk, name='ars-latestPK'),
+    path('post_process/<uuid:key>', api.post_process, name='ars-post_process_debug')
 ]
 
 

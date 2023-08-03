@@ -611,7 +611,7 @@ def annotate_nodes(mesg,data,agent_name):
             logging.info('the response status for agent %s node annotator is: %s' % (agent_name,r.status_code))
             if r.status_code==200:
                 for key, value in rj.items():
-                    if 'attributes' in value.keys():
+                    if 'attributes' in value.keys() and value['attributes'] is not None:
                         for attribute in value['attributes']:
                             add_attribute(data['message']['knowledge_graph']['nodes'][key],attribute)
                     #Not sure about adding back clearly borked nodes, but it is in keeping with policy of non-destructiveness
