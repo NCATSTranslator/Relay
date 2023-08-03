@@ -1080,7 +1080,7 @@ def merge_received(parent_pk,message_to_merge, agent_name, counter=0):
 
             merged_dict = merged.to_dict()
             new_merged_message.data=merged_dict
-            new_merged_message.status='Running'
+            new_merged_message.status='R'
             new_merged_message.code=202
             new_merged_message.save()
 
