@@ -768,6 +768,14 @@ def merge(req, key):
         utils.merge.apply_async((key,mid))
         print(str(mid))
         #return redirect('/ars/api/messages/'+str(mid))
+def post_process(req, key):
+    if req.method=='GET':
+        logger.debug("Beginning debugging post_process for %s " % key)
+        mesg=Message.objects.get(pk=key)
+        data = mesg.data
+        actor_name = mesg.actor
+        utils.post_process(data,key,actor_name)
+
 
 
 apipatterns = [
@@ -787,7 +795,9 @@ apipatterns = [
     re_path(r'^timeoutTest/?$', timeoutTest, name='ars-timeout'),
     path('merge/<uuid:key>', merge, name='ars-merge'),
     path('retain/<uuid:key>', retain, name='ars-retain'),
-    path('latest_pk/<int:n>', latest_pk, name='ars-latestPK')
+    path('latest_pk/<int:n>', latest_pk, name='ars-latestPK'),
+    path('post_process/<uuid:key>', post_process, name='ars-post_process_debug')
+
 
 
 ]
