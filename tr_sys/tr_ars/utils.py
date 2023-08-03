@@ -545,6 +545,8 @@ def post_process(data,key, agent_name):
         post_processing_error(mesg,data,"Error in f-score calculation")
         logging.exception("Error in f-score calculation")
         raise e
+    mesg.status='D'
+    mesg.code=200
     mesg.data = data
     mesg.save()
 
@@ -1078,8 +1080,8 @@ def merge_received(parent_pk,message_to_merge, agent_name, counter=0):
 
             merged_dict = merged.to_dict()
             new_merged_message.data=merged_dict
-            new_merged_message.status='D'
-            new_merged_message.code=200
+            new_merged_message.status='R'
+            new_merged_message.code=202
             new_merged_message.save()
 
             #Now that we're done, we unlock update the merged_version on the parent, unlock it, and save
