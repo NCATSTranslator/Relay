@@ -663,7 +663,7 @@ def normalize_nodes(data,agent_name,key):
 def decorate_edges_with_infores(data,agent_name):
     edges = get_safe(data,"message","knowledge_graph","edges")
     self_source= {
-        "resource_id": agent_name,
+        "resource_id": "infores:"+agent_name,
         "resource_role": "primary_knowledge_source",
         "source_record_urls": None,
         "upstream_resource_ids": None
@@ -674,10 +674,18 @@ def decorate_edges_with_infores(data,agent_name):
             edge['sources']=[self_source]
         else:
             for source in edge['sources']:
-                if source['resource_id']==agent_name:
+                if source['resource_id']=="infores:"+agent_name:
                     has_self=True
-                    break
+
+                if source['resource_role']=="primary_knowledge_source":
+                    has_primary=True
             if not has_self:
+                #if we already have a primary knowledge source but not our self, we add ourself as an aggregator
+                if has_primary:
+                    self_source['resource_role']="aggregator_knowledge_source"
+                else:
+                    self_source["resource_role"]="primary_knowledge_source"
+                #then we add it, be it primary or aggregator
                 edge['sources'].append(self_source)
 
 def post_processing_error(mesg,data,text):
