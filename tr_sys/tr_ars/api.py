@@ -426,6 +426,12 @@ def message(req, key):
                     message_to_merge = data
                     agent_name = str(mesg.actor.agent.name)
                     utils.pre_merge_process(message_to_merge,key, agent_name)
+                    if mesg.data and 'results' in mesg.data and mesg.data['results'] != None and len(mesg.data['results']) > 0:
+                        mesg = Message.create(name=mesg.name, status=status, actor=mesg.actor, ref=mesg)
+                    mesg.status = status
+                    mesg.code = code
+                    mesg.data = data
+                    mesg.save()
                     if agent_name.startswith('ara-'):
                         new_merged = utils.merge_received(parent_pk,message_to_merge['message'],agent_name)
                         #the merged versions is what gets consumed.  So, it's all we do post processing on?
@@ -437,16 +443,16 @@ def message(req, key):
                     new_merged.status='E'
                     new_merged.code = 422
                     new_merged.save()
+            else:
+                # create child message if this one already has results
+                if mesg.data and 'results' in mesg.data and mesg.data['results'] != None and len(mesg.data['results']) > 0:
+                    mesg = Message.create(name=mesg.name, status=status, actor=mesg.actor, ref=mesg)
+                mesg.status = status
+                mesg.code = code
+                mesg.data = data
+                mesg.save()
 
-        # create child message if this one already has results
-            if mesg.data and 'results' in mesg.data and mesg.data['results'] != None and len(mesg.data['results']) > 0:
-                mesg = Message.create(name=mesg.name, status=status,
-                                  actor=mesg.actor, ref=mesg)
 
-            mesg.status = status
-            mesg.code = code
-            mesg.data = data
-            mesg.save()
             return HttpResponse(json.dumps(mesg.to_dict(), indent=2),
                                 status=201)
 

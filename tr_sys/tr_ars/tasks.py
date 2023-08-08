@@ -117,7 +117,14 @@ def send_message(actor_dict, mesg_dict, timeout=300):
                         #message_to_merge = utils.get_safe(rdata,"message")
                         message_to_merge=rdata
                         agent_name = str(mesg.actor.agent.name)
+                        mesg.code = status_code
+                        mesg.status = status
+                        mesg.data = rdata
+                        mesg.url = url
+                        mesg.save()
+                        logger.debug('+++ message saved: %s' % (mesg.pk))
                         utils.pre_merge_process(message_to_merge,mesg_dict['pk'], agent_name)
+
                         if agent_name.startswith('ara-'):
                             new_merged = utils.merge_received(parent_pk,message_to_merge['message'], agent_name)
                             utils.post_process(new_merged.data,new_merged.pk, agent_name)
@@ -142,19 +149,26 @@ def send_message(actor_dict, mesg_dict, timeout=300):
                 for key in r.headers:
                     if key.lower().find('tr_ars') > -1:
                         rdata['logs'].append(key+": "+r.headers[key])
+            mesg.code = status_code
+            mesg.status = status
+            mesg.data = rdata
+            mesg.url = url
+            mesg.save()
+            logger.debug('+++ message saved: %s' % (mesg.pk))
     except Exception as e:
         logger.error("Unexpected error 2: {}".format(traceback.format_exception(type(e), e, e.__traceback__)))
         logger.exception("Can't send message to actor %s\n%s for pk: %s"
                          % (url,sys.exc_info(),mesg.pk))
         status_code = 598
         status = 'E'
+        mesg.code = status_code
+        mesg.status = status
+        mesg.data = rdata
+        mesg.url = url
+        mesg.save()
+        logger.debug('+++ message saved: %s' % (mesg.pk))
 
-    mesg.code = status_code
-    mesg.status = status
-    mesg.data = rdata
-    mesg.url = url
-    mesg.save()
-    logger.debug('+++ message saved: %s' % (mesg.pk))
+
 
 @shared_task(name="catch_timeout")
 def catch_timeout_async():
