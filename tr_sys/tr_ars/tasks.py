@@ -159,7 +159,7 @@ def send_message(actor_dict, mesg_dict, timeout=300):
         logger.error("Unexpected error 2: {}".format(traceback.format_exception(type(e), e, e.__traceback__)))
         logger.exception("Can't send message to actor %s\n%s for pk: %s"
                          % (url,sys.exc_info(),mesg.pk))
-        status_code = 598
+        status_code = 500
         status = 'E'
         mesg.code = status_code
         mesg.status = status
