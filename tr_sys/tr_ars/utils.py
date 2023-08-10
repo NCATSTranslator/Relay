@@ -577,7 +577,7 @@ def appraise(mesg,data, agent_name,retry_counter=0):
             else:
                 retry_counter +=1
                 logging.debug("Received Error state from appraiser for agent %s and pk %s  Code %s Attempt %s" % (agent_name,str(mesg.id),str(r.status_code),str(retry_counter)))
-                logging.debug("JSON fields "+str(json_data.keys()))
+                logging.debug("JSON fields "+str(json.dumps(json_data).keys()))
                 if retry_counter<3:
                     appraise(mesg,data, agent_name,retry_counter)
                 else:
