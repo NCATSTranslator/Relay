@@ -517,6 +517,7 @@ def pre_merge_process(data,key, agent_name):
 
 
 def post_process(data,key, agent_name):
+    code =200
     mesg=Message.objects.get(pk = key)
     logging.info("Pre node annotation")
     try:
@@ -532,10 +533,19 @@ def post_process(data,key, agent_name):
         appraise(mesg,data,agent_name)
         logging.info("appraiser successful")
     except Exception as e:
-        post_processing_error(mesg,data,"Error in appraiser")
+        code = 422
+        results = get_safe(data,"message","results")
+        default_ordering_component = {
+            "novelty": 0,
+            "confidence": 0,
+            "clinical_evidence": 0
+        }
+        for result in results:
+            result['ordering_components']=default_ordering_component
+        #post_processing_error(mesg,data,"Error in appraiser")
         logging.error("Error with appraise for "+str(key))
         logging.exception("Error in appraiser post process function")
-        raise e
+        #raise e
     try:
         results = get_safe(data,"message","results")
         new_res=scoring.compute_from_results(results)
@@ -546,7 +556,7 @@ def post_process(data,key, agent_name):
         logging.exception("Error in f-score calculation")
         raise e
     mesg.status='D'
-    mesg.code=200
+    mesg.code=code
     mesg.data = data
     mesg.save()
 
@@ -578,7 +588,7 @@ def appraise(mesg,data, agent_name,retry_counter=0):
         logging.error("Problem with appraiser for agent %s and pk %s " % (agent_name,str(mesg.id)))
         logging.error(type(e).__name__)
         logging.error(e.args)
-        logging.error(r.text)
+        logging.error("Adding default ordering_components for agent %s and pk %s " % (agent_name,str(mesg.id)))
         raise e
         
 
