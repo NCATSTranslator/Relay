@@ -541,7 +541,10 @@ def post_process(data,key, agent_name):
             "clinical_evidence": 0
         }
         for result in results:
-            result['ordering_components']=default_ordering_component
+            if 'ordering_components' not in result.keys():
+                result['ordering_components']=default_ordering_component
+            else:
+                continue
         #post_processing_error(mesg,data,"Error in appraiser")
         logging.error("Error with appraise for "+str(key))
         logging.exception("Error in appraiser post process function")
@@ -608,6 +611,7 @@ def annotate_nodes(mesg,data,agent_name):
         #we have to scrub input for invalid CURIEs or we'll get a 500 back from the annotator
         curie_pattern = re.compile("[\w\.]+:[\w\.]+")
         invalid_nodes={}
+
         for key in nodes_message['message']['knowledge_graph']['nodes'].keys():
             if not curie_pattern.match(str(key)):
                 invalid_nodes[key]=nodes_message['message']['knowledge_graph']['nodes'][key]
@@ -625,7 +629,8 @@ def annotate_nodes(mesg,data,agent_name):
                 for key, value in rj.items():
                     if 'attributes' in value.keys() and value['attributes'] is not None:
                         for attribute in value['attributes']:
-                            add_attribute(data['message']['knowledge_graph']['nodes'][key],attribute)
+                            if attribute is not None:
+                                add_attribute(data['message']['knowledge_graph']['nodes'][key],attribute)
                     #Not sure about adding back clearly borked nodes, but it is in keeping with policy of non-destructiveness
                 if len(invalid_nodes)>0:
                     data['message']['knowledge_graph']['nodes'].update(invalid_nodes)
