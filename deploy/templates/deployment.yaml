@@ -54,6 +54,24 @@ spec:
           imagePullPolicy: {{ .Values.redis.image.PullPolicy }}
           ports:
             - containerPort: {{ .Values.redis.containerPort }}
+          startupProbe:
+            httpGet:
+              path: /
+              port: {{ .Values.appraiser.service.port }}
+            failureThreshold: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /
+              port: {{ .Values.appraiser.service.port }}
+            failureThreshold: 3
+            periodSeconds: 30
+          livenessProbe:
+            httpGet:
+              path: /
+              port: {{ .Values.appraiser.service.port }}
+            failureThreshold: 3
+            periodSeconds: 30
       volumes:
         - name: config-vol
           configMap:
