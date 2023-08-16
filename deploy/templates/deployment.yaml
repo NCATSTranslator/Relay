@@ -32,6 +32,24 @@ spec:
               value: {{ .Values.arsserver.env.TR_ENV }}
             - name: TR_APPRAISE
               value: {{ .Values.arsserver.env.TR_APPRAISE }}
+          startupProbe:
+            httpGet:
+              path: /
+              port: 8000
+            failureThreshold: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 8000
+            failureThreshold: 3
+            periodSeconds: 30
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 8000
+            failureThreshold: 3
+            periodSeconds: 30
         - name: celeryworker
           image: "{{ .Values.celeryworker.image.repository }}:{{ .Values.celeryworker.image.tag }}"
           imagePullPolicy: {{ .Values.celeryworker.image.PullPolicy }}
@@ -54,24 +72,6 @@ spec:
           imagePullPolicy: {{ .Values.redis.image.PullPolicy }}
           ports:
             - containerPort: {{ .Values.redis.containerPort }}
-          startupProbe:
-            httpGet:
-              path: /
-              port: {{ .Values.service.port }}
-            failureThreshold: 30
-            periodSeconds: 10
-          readinessProbe:
-            httpGet:
-              path: /
-              port: {{ .Values.service.port }}
-            failureThreshold: 3
-            periodSeconds: 30
-          livenessProbe:
-            httpGet:
-              path: /
-              port: {{ .Values.service.port }}
-            failureThreshold: 3
-            periodSeconds: 30
       volumes:
         - name: config-vol
           configMap:
