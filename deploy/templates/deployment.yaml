@@ -57,19 +57,19 @@ spec:
           startupProbe:
             httpGet:
               path: /
-              port: {{ .Values.appraiser.service.port }}
+              port: {{ .Values.service.port }}
             failureThreshold: 30
             periodSeconds: 10
           readinessProbe:
             httpGet:
               path: /
-              port: {{ .Values.appraiser.service.port }}
+              port: {{ .Values.service.port }}
             failureThreshold: 3
             periodSeconds: 30
           livenessProbe:
             httpGet:
               path: /
-              port: {{ .Values.appraiser.service.port }}
+              port: {{ .Values.service.port }}
             failureThreshold: 3
             periodSeconds: 30
       volumes:
