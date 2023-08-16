@@ -61,11 +61,6 @@ INSTALLED_APPS = [
     'tr_kp_icees_kg.icees_kg_app.AppConfig',
     'django_celery_results',
     'markdownify',
-    'health_check',
-    'health_check.contrib.celery',
-    'health_check.contrib.celery_ping',
-    'health_check.contrib.rabbitmq',
-    'health_check.contrib.redis',
 ]
 
 MIDDLEWARE = [
@@ -111,7 +106,7 @@ CHANNEL_LAYERS = {
         },
     },
 }
-REDIS_URL = "redis://redis:6379"
+
 # Database
 # https://docs.djangoproject.com/en/1.11/ref/settings/#databases
 
@@ -212,7 +207,7 @@ STATICFILES_DIRS = (
 CELERY_RESULT_BACKEND = 'django-db'
 CELERY_CACHE_BACKEND = 'django-cache'
 CELERY_BROKER_URL = 'pyamqp://rabbitmq:5672'
-BROKER_URL = 'pyamqp://rabbitmq:5672'
+
 # Other important shared settings
 
 USE_CELERY = True
