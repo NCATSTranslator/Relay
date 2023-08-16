@@ -63,11 +63,6 @@ INSTALLED_APPS = [
     'django_celery_results',
     'markdownify',
     'django_celery_beat',
-    'health_check',
-    'health_check.contrib.celery',
-    'health_check.contrib.celery_ping',
-    'health_check.contrib.rabbitmq',
-    'health_check.contrib.redis',
 ]
 
 MIDDLEWARE = [
@@ -113,7 +108,6 @@ CHANNEL_LAYERS = {
         },
     },
 }
-REDIS_URL = "redis://127.0.0.1:6379"
 
 # Database
 # https://docs.djangoproject.com/en/1.11/ref/settings/#databases
@@ -220,8 +214,7 @@ STATICFILES_DIRS = (
 
 CELERY_RESULT_BACKEND = 'django-db'
 CELERY_CACHE_BACKEND = 'django-cache'
-CELERY_BROKER_URL = 'amqp://localhost:5672'
-BROKER_URL = 'amqp://localhost:5672'
+CELERY_BROKER_URL = 'amqp://localhost'
 CELERY_IMPORTS = [
     'tr_ars.tasks',
 ]
