@@ -653,8 +653,7 @@ def annotate_nodes(mesg,data,agent_name):
                         for attribute in value['attributes']:
                             if attribute is not None:
                                 add_attribute(data['message']['knowledge_graph']['nodes'][key],attribute)
-                            else:
-                                value['attribute
+                            
                     #Not sure about adding back clearly borked nodes, but it is in keeping with policy of non-destructiveness
                 if len(invalid_nodes)>0:
                     data['message']['knowledge_graph']['nodes'].update(invalid_nodes)
