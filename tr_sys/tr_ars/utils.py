@@ -493,6 +493,11 @@ def pre_merge_process(data,key, agent_name):
     mesg=Message.objects.get(pk = key)
     logging.info("Pre node norm")
     try:
+        scrub_null_attributes(data)
+    except Exception as e:
+        logging.exception("Error in the scrubbing of null attributes")
+        raise e
+    try:
         normalize_nodes(data,agent_name,key)
         logging.info("node norm success")
     except Exception as e:
@@ -563,6 +568,23 @@ def post_process(data,key, agent_name):
     mesg.data = data
     mesg.save()
 
+def scrub_null_attributes(data):
+    nodes = get_safe(data,"message","knowledge_graph","nodes")
+    edges = get_safe(data,"message","knowledge_graph","edges")
+    for nodeId,nodeStuff in nodes.items():
+        nodeAttributes = get_safe(nodeStuff,"attributes")
+        if nodeAttributes is not None:
+            while None in nodeAttributes:
+                nodeAttributes.remove(None)
+
+    for edgeId, edgeStuff in edges.items():
+        edgeAttributes =get_safe(edgeStuff,"attributes")
+        if edgeAttributes is not None:
+            while None in edgeAttributes:
+                edgeAttributes.remove(None)
+
+
+
 def appraise(mesg,data, agent_name,retry_counter=0):
     headers = {'Content-type': 'application/json', 'Accept': 'text/plain'}
     json_data = json.dumps(data)
@@ -631,6 +653,7 @@ def annotate_nodes(mesg,data,agent_name):
                         for attribute in value['attributes']:
                             if attribute is not None:
                                 add_attribute(data['message']['knowledge_graph']['nodes'][key],attribute)
+                            
                     #Not sure about adding back clearly borked nodes, but it is in keeping with policy of non-destructiveness
                 if len(invalid_nodes)>0:
                     data['message']['knowledge_graph']['nodes'].update(invalid_nodes)
