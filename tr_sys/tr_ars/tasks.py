@@ -118,7 +118,7 @@ def send_message(actor_dict, mesg_dict, timeout=300):
                         message_to_merge=rdata
                         agent_name = str(mesg.actor.agent.name)
 
-                        utils.pre_merge_process(message_to_merge,mesg_dict['pk'], agent_name)
+                        utils.pre_merge_process(message_to_merge,mesg_dict['pk'], agent_name, inforesid)
                         mesg.code = status_code
                         mesg.status = status
                         mesg.data = rdata
