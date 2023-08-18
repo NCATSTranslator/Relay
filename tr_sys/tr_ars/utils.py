@@ -489,7 +489,7 @@ def sharedResultsJson(sharedResultsMap):
         results.append(json.dumps(result,indent=2))
     return results
 
-def pre_merge_process(data,key, agent_name):
+def pre_merge_process(data,key, agent_name,inforesid):
     mesg=Message.objects.get(pk = key)
     logging.info("Pre node norm")
     try:
@@ -507,7 +507,7 @@ def pre_merge_process(data,key, agent_name):
 
     logging.info("Pre decoration")
     try:
-        decorate_edges_with_infores(data,agent_name)
+        decorate_edges_with_infores(data,inforesid)
         logging.info("decoration success")
     except Exception as e:
         post_processing_error(mesg,data,"Error in ARS edge sources decoration\n"+e)
@@ -698,10 +698,10 @@ def normalize_nodes(data,agent_name,key):
     else:
         logging.debug('the %s has not returned any knowledge_graphs back for pk: %s' % (agent_name, key))
 
-def decorate_edges_with_infores(data,agent_name):
+def decorate_edges_with_infores(data,inforesid):
     edges = get_safe(data,"message","knowledge_graph","edges")
     self_source= {
-        "resource_id": "infores:"+agent_name,
+        "resource_id": inforesid,
         "resource_role": "primary_knowledge_source",
         "source_record_urls": None,
         "upstream_resource_ids": None
@@ -712,7 +712,7 @@ def decorate_edges_with_infores(data,agent_name):
             edge['sources']=[self_source]
         else:
             for source in edge['sources']:
-                if source['resource_id']=="infores:"+agent_name:
+                if source['resource_id']==inforesid:
                     has_self=True
 
                 if source['resource_role']=="primary_knowledge_source":
