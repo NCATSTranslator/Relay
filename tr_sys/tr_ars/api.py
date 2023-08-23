@@ -413,6 +413,8 @@ def message(req, key):
 
             res=utils.get_safe(data,"message","results")
             kg = utils.get_safe(data,"message", "knowledge_graph")
+            actor = Actor.objects.get(pk=mesg.actor_id)
+            inforesid =actor.inforesid
             if mesg.status=='E':
                 return HttpResponse("Response received but Message is already in state "+str(mesg.code)+". Response rejected\n",status=400)
             if res is not None and len(res)>0:
@@ -425,7 +427,7 @@ def message(req, key):
                     #message_to_merge =utils.get_safe(data,"message")
                     message_to_merge = data
                     agent_name = str(mesg.actor.agent.name)
-                    utils.pre_merge_process(message_to_merge,key, agent_name)
+                    utils.pre_merge_process(message_to_merge,key, agent_name, inforesid)
                     if mesg.data and 'results' in mesg.data and mesg.data['results'] != None and len(mesg.data['results']) > 0:
                         mesg = Message.create(name=mesg.name, status=status, actor=mesg.actor, ref=mesg)
                     mesg.status = status

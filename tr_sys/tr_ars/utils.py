@@ -489,9 +489,14 @@ def sharedResultsJson(sharedResultsMap):
         results.append(json.dumps(result,indent=2))
     return results
 
-def pre_merge_process(data,key, agent_name):
+def pre_merge_process(data,key, agent_name,inforesid):
     mesg=Message.objects.get(pk = key)
     logging.info("Pre node norm")
+    try:
+        scrub_null_attributes(data)
+    except Exception as e:
+        logging.exception("Error in the scrubbing of null attributes")
+        raise e
     try:
         normalize_nodes(data,agent_name,key)
         logging.info("node norm success")
@@ -502,7 +507,7 @@ def pre_merge_process(data,key, agent_name):
 
     logging.info("Pre decoration")
     try:
-        decorate_edges_with_infores(data,agent_name)
+        decorate_edges_with_infores(data,inforesid)
         logging.info("decoration success")
     except Exception as e:
         post_processing_error(mesg,data,"Error in ARS edge sources decoration\n"+e)
@@ -562,6 +567,23 @@ def post_process(data,key, agent_name):
     mesg.code=code
     mesg.data = data
     mesg.save()
+
+def scrub_null_attributes(data):
+    nodes = get_safe(data,"message","knowledge_graph","nodes")
+    edges = get_safe(data,"message","knowledge_graph","edges")
+    for nodeId,nodeStuff in nodes.items():
+        nodeAttributes = get_safe(nodeStuff,"attributes")
+        if nodeAttributes is not None:
+            while None in nodeAttributes:
+                nodeAttributes.remove(None)
+
+    for edgeId, edgeStuff in edges.items():
+        edgeAttributes =get_safe(edgeStuff,"attributes")
+        if edgeAttributes is not None:
+            while None in edgeAttributes:
+                edgeAttributes.remove(None)
+
+
 
 def appraise(mesg,data, agent_name,retry_counter=0):
     headers = {'Content-type': 'application/json', 'Accept': 'text/plain'}
@@ -631,6 +653,7 @@ def annotate_nodes(mesg,data,agent_name):
                         for attribute in value['attributes']:
                             if attribute is not None:
                                 add_attribute(data['message']['knowledge_graph']['nodes'][key],attribute)
+                            
                     #Not sure about adding back clearly borked nodes, but it is in keeping with policy of non-destructiveness
                 if len(invalid_nodes)>0:
                     data['message']['knowledge_graph']['nodes'].update(invalid_nodes)
@@ -675,10 +698,10 @@ def normalize_nodes(data,agent_name,key):
     else:
         logging.debug('the %s has not returned any knowledge_graphs back for pk: %s' % (agent_name, key))
 
-def decorate_edges_with_infores(data,agent_name):
+def decorate_edges_with_infores(data,inforesid):
     edges = get_safe(data,"message","knowledge_graph","edges")
     self_source= {
-        "resource_id": "infores:"+agent_name,
+        "resource_id": inforesid,
         "resource_role": "primary_knowledge_source",
         "source_record_urls": None,
         "upstream_resource_ids": None
@@ -689,7 +712,7 @@ def decorate_edges_with_infores(data,agent_name):
             edge['sources']=[self_source]
         else:
             for source in edge['sources']:
-                if source['resource_id']=="infores:"+agent_name:
+                if source['resource_id']==inforesid:
                     has_self=True
 
                 if source['resource_role']=="primary_knowledge_source":
