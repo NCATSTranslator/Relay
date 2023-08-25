@@ -44,7 +44,6 @@ def send_message(actor_dict, mesg_dict, timeout=300):
 
     status = 'U'
     status_code = 0
-    agent_name = str(mesg.actor.agent.name)
     rdata = data['fields']['data']
     inforesid = actor_dict['fields']['inforesid']
     endpoint=SmartApiDiscover().endpoint(inforesid)
@@ -116,6 +115,8 @@ def send_message(actor_dict, mesg_dict, timeout=300):
                     parent_pk = mesg.ref.id
                     #message_to_merge = utils.get_safe(rdata,"message")
                     message_to_merge=rdata
+                    agent_name = str(mesg.actor.agent.name)
+
                     utils.pre_merge_process(message_to_merge,mesg_dict['pk'], agent_name, inforesid)
                     mesg.code = status_code
                     mesg.status = status
@@ -163,6 +164,10 @@ def send_message(actor_dict, mesg_dict, timeout=300):
         new_merged.status='E'
         new_merged.code = 422
         new_merged.save()
+
+
+
+
 
 
 @shared_task(name="catch_timeout")
