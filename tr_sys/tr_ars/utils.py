@@ -535,6 +535,10 @@ def post_process(data,key, agent_name):
         raise e
     logging.info("pre appraiser")
     try:
+        scrub_null_attributes(data)
+    except Exception as e:
+        logging.info("Problem with the second scrubbing of null attributes")
+    try:
         appraise(mesg,data,agent_name)
         logging.info("appraiser successful")
     except Exception as e:
@@ -597,7 +601,7 @@ def appraise(mesg,data, agent_name,retry_counter=0):
                 rj = r.json()
                 #for now, just update the whole message, but we could be more precise/efficient
                 logging.debug("Updating message with appraiser data for agent %s and pk %s " % (agent_name, str(mesg.id)))
-                data['message'].update(rj['message'])
+                data['message']['results']=rj['message']['results']
                 logging.debug("Updating message with appraiser data complete for "+str(mesg.id))
             else:
                 retry_counter +=1
