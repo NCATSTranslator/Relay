@@ -545,19 +545,26 @@ def post_process(data,key, agent_name):
             "confidence": 0,
             "clinical_evidence": 0
         }
-        for result in results:
-            if 'ordering_components' not in result.keys():
-                result['ordering_components']=default_ordering_component
-            else:
-                continue
+        if results is not None:
+            for result in results:
+                if 'ordering_components' not in result.keys():
+                    result['ordering_components']=default_ordering_component
+                else:
+                    continue
+        else:
+            logging.error('results returned from appraiser is None')
+
         #post_processing_error(mesg,data,"Error in appraiser")
         logging.error("Error with appraise for "+str(key))
         logging.exception("Error in appraiser post process function")
         #raise e
     try:
         results = get_safe(data,"message","results")
-        new_res=scoring.compute_from_results(results)
-        logging.info("scoring succeeded")
+        if results is not None:
+            new_res=scoring.compute_from_results(results)
+            logging.info("scoring succeeded")
+        else:
+            logging.error('results from appraiser returns None, cant do the scoring')
         print()
     except Exception as e:
         post_processing_error(mesg,data,"Error in f-score calculation")
@@ -571,17 +578,19 @@ def post_process(data,key, agent_name):
 def scrub_null_attributes(data):
     nodes = get_safe(data,"message","knowledge_graph","nodes")
     edges = get_safe(data,"message","knowledge_graph","edges")
-    for nodeId,nodeStuff in nodes.items():
-        nodeAttributes = get_safe(nodeStuff,"attributes")
-        if nodeAttributes is not None:
-            while None in nodeAttributes:
-                nodeAttributes.remove(None)
+    if nodes is not None:
+        for nodeId,nodeStuff in nodes.items():
+            nodeAttributes = get_safe(nodeStuff,"attributes")
+            if nodeAttributes is not None:
+                while None in nodeAttributes:
+                    nodeAttributes.remove(None)
 
-    for edgeId, edgeStuff in edges.items():
-        edgeAttributes =get_safe(edgeStuff,"attributes")
-        if edgeAttributes is not None:
-            while None in edgeAttributes:
-                edgeAttributes.remove(None)
+    if edges is not None:
+        for edgeId, edgeStuff in edges.items():
+            edgeAttributes =get_safe(edgeStuff,"attributes")
+            if edgeAttributes is not None:
+                while None in edgeAttributes:
+                    edgeAttributes.remove(None)
 
 
 
@@ -706,25 +715,26 @@ def decorate_edges_with_infores(data,inforesid):
         "source_record_urls": None,
         "upstream_resource_ids": None
     }
-    for key, edge in edges.items():
-        has_self=False
-        if 'sources' not in edge.keys() or edge['sources'] is None or len(edge['sources'])==0:
-            edge['sources']=[self_source]
-        else:
-            for source in edge['sources']:
-                if source['resource_id']==inforesid:
-                    has_self=True
+    if edges is not None:
+        for key, edge in edges.items():
+            has_self=False
+            if 'sources' not in edge.keys() or edge['sources'] is None or len(edge['sources'])==0:
+                edge['sources']=[self_source]
+            else:
+                for source in edge['sources']:
+                    if source['resource_id']==inforesid:
+                        has_self=True
 
-                if source['resource_role']=="primary_knowledge_source":
-                    has_primary=True
-            if not has_self:
-                #if we already have a primary knowledge source but not our self, we add ourself as an aggregator
-                if has_primary:
-                    self_source['resource_role']="aggregator_knowledge_source"
-                else:
-                    self_source["resource_role"]="primary_knowledge_source"
-                #then we add it, be it primary or aggregator
-                edge['sources'].append(self_source)
+                    if source['resource_role']=="primary_knowledge_source":
+                        has_primary=True
+                if not has_self:
+                    #if we already have a primary knowledge source but not our self, we add ourself as an aggregator
+                    if has_primary:
+                        self_source['resource_role']="aggregator_knowledge_source"
+                    else:
+                        self_source["resource_role"]="primary_knowledge_source"
+                    #then we add it, be it primary or aggregator
+                    edge['sources'].append(self_source)
 
 def post_processing_error(mesg,data,text):
     mesg.status = 'E'
@@ -1113,11 +1123,13 @@ def merge_received(parent_pk,message_to_merge, agent_name, counter=0):
                 current_merged_message=Message.objects.get(pk=current_merged_pk)
                 current_message_dict = get_safe(current_merged_message.to_dict(),"fields","data","message")
                 t_current_merged_message=TranslatorMessage(current_message_dict)
-
-                merged=mergeMessages([
-                    t_current_merged_message,
-                    t_to_merge_message
-                ])
+                if current_message_dict is not None:
+                    merged=mergeMessages([
+                        t_current_merged_message,
+                        t_to_merge_message
+                    ])
+                else:
+                    logging.error(f'current message dictionary returns none')
                 print()
             #If not, we make the newcomer the current "merged" Message
             else:
