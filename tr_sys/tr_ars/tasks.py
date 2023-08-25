@@ -112,18 +112,31 @@ def send_message(actor_dict, mesg_dict, timeout=300):
                     mesg.result_count = len(rdata["message"]["results"])
                     scorestat = utils.ScoreStatCalc(results)
                     mesg.result_stat = scorestat
-                    parent_pk = mesg.ref.id
-                    #message_to_merge = utils.get_safe(rdata,"message")
-                    message_to_merge=rdata
-                    agent_name = str(mesg.actor.agent.name)
+                    try:
+                        parent_pk = mesg.ref.id
+                        #message_to_merge = utils.get_safe(rdata,"message")
+                        message_to_merge=rdata
+                        agent_name = str(mesg.actor.agent.name)
 
-                    utils.pre_merge_process(message_to_merge,mesg_dict['pk'], agent_name, inforesid)
-                    mesg.code = status_code
-                    mesg.status = status
-                    mesg.data = rdata
-                    mesg.url = url
-                    mesg.save()
-                    logger.debug('+++ message saved: %s' % (mesg.pk))
+                        utils.pre_merge_process(message_to_merge,mesg_dict['pk'], agent_name, inforesid)
+                        mesg.code = status_code
+                        mesg.status = status
+                        mesg.data = rdata
+                        mesg.url = url
+                        mesg.save()
+                        logger.debug('+++ message saved: %s' % (mesg.pk))
+                        if agent_name.startswith('ara-'):
+                            new_merged = utils.merge_received(parent_pk,message_to_merge['message'], agent_name)
+                            utils.post_process(new_merged.data,new_merged.pk, agent_name)
+
+                    except Exception as e:
+                        logger.debug('Problem with post processing or merger of %s for pk: %s' % (inforesid, mesg.pk))
+                        new_merged.status='E'
+                        new_merged.code = 422
+                        new_merged.save()
+
+            if 'tr_ars.message.status' in r.headers:
+                status = r.headers['tr_ars.message.status']
         else:
             if r.status_code == 202:
                 status = 'W'
@@ -154,19 +167,6 @@ def send_message(actor_dict, mesg_dict, timeout=300):
         mesg.url = url
         mesg.save()
         logger.debug('+++ message saved: %s' % (mesg.pk))
-    try:
-        if agent_name.startswith('ara-'):
-            new_merged = utils.merge_received(parent_pk,message_to_merge['message'], agent_name)
-            utils.post_process(new_merged.data,new_merged.pk, agent_name)
-
-    except Exception as e:
-        logger.debug('Problem with post processing or merger of %s for pk: %s' % (inforesid, mesg.pk))
-        new_merged.status='E'
-        new_merged.code = 422
-        new_merged.save()
-
-
-
 
 
 
