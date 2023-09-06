@@ -436,9 +436,12 @@ def message(req, key):
                     mesg.data = data
                     mesg.save()
                     if agent_name.startswith('ara-'):
+                        logging.debug("Starting merge for "+mesg.pk)
                         new_merged = utils.merge_received(parent_pk,message_to_merge['message'],agent_name)
+                        logging.debug("Merge complete for "+new_merged.pk)
                         #the merged versions is what gets consumed.  So, it's all we do post processing on?
                         utils.post_process(new_merged.data,new_merged.id, agent_name)
+                        logging.debug("Post processing complete for "+new_merged.pk)
 
                 except Exception as e:
                     logger.debug("Problem with merger or post processeing for %s " % key)

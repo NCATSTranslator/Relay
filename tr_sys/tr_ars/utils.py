@@ -491,7 +491,7 @@ def sharedResultsJson(sharedResultsMap):
 
 def pre_merge_process(data,key, agent_name,inforesid):
     mesg=Message.objects.get(pk = key)
-    logging.info("Pre node norm")
+    logging.info("Pre node norm for"+str(key))
     try:
         scrub_null_attributes(data)
     except Exception as e:
@@ -499,13 +499,13 @@ def pre_merge_process(data,key, agent_name,inforesid):
         raise e
     try:
         normalize_nodes(data,agent_name,key)
-        logging.info("node norm success")
+        logging.info("node norm success for "+str(key))
     except Exception as e:
         post_processing_error(mesg,data,"Error in ARS node normalization")
         logging.exception("Error in ARS node normaliztion")
         raise e
 
-    logging.info("Pre decoration")
+    logging.info("Pre decoration for "+str(key))
     try:
         decorate_edges_with_infores(data,inforesid)
         logging.info("decoration success")
@@ -513,6 +513,7 @@ def pre_merge_process(data,key, agent_name,inforesid):
         post_processing_error(mesg,data,"Error in ARS edge sources decoration\n"+e)
         logging.exception("Error in ARS edge source decoration")
         raise e
+    logging.info("Normalizing scores for "+str(key))
     try:
         normalize_scores(mesg,data,key,agent_name)
     except Exception as e:
@@ -524,7 +525,7 @@ def pre_merge_process(data,key, agent_name,inforesid):
 def post_process(data,key, agent_name):
     code =200
     mesg=Message.objects.get(pk = key)
-    logging.info("Pre node annotation")
+    logging.info("Pre node annotation for "+str(key))
     try:
         annotate_nodes(mesg,data,agent_name)
         logging.info("node annotation successful")
@@ -533,7 +534,7 @@ def post_process(data,key, agent_name):
         logging.error("Error with node annotations for "+str(key))
         logging.exception("problem with node annotation post process function")
         raise e
-    logging.info("pre appraiser")
+    logging.info("pre appraiser for "+str(key))
     try:
         scrub_null_attributes(data)
     except Exception as e:
@@ -1111,6 +1112,7 @@ def merge(pk,merged_pk):
 def merge_received(parent_pk,message_to_merge, agent_name, counter=0):
     parent = Message.objects.get(pk=parent_pk)
     current_merged_pk=parent.merged_version_id
+    logging.info("Beginning merge for "+str(current_merged_pk))
     #to_merge_message= Message.objects.get(pk=pk_to_merge)
     #to_merge_message_dict=get_safe(to_merge_message.to_dict(),"fields","data","message")
     t_to_merge_message=TranslatorMessage(message_to_merge)
