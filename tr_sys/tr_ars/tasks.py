@@ -126,11 +126,11 @@ def send_message(actor_dict, mesg_dict, timeout=300):
                         mesg.save()
                         logger.debug('+++ message saved: %s' % (mesg.pk))
                         if agent_name.startswith('ara-'):
-                            logging.debug("Merge starting for "+mesg.pk)
+                            logging.debug("Merge starting for "+str(mesg.pk))
                             new_merged = utils.merge_received(parent_pk,message_to_merge['message'], agent_name)
-                            logging.debug("Merge complete for "+new_merged.pk)
+                            logging.debug("Merge complete for "+str(new_merged.pk))
                             utils.post_process(new_merged.data,new_merged.pk, agent_name)
-                            logging.debug("Post processing done for "+new_merged.pk)
+                            logging.debug("Post processing done for "+str(new_merged.pk))
 
                     except Exception as e:
                         logger.debug('Problem with post processing or merger of %s for pk: %s' % (inforesid, mesg.pk))
