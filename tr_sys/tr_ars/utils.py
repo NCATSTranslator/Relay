@@ -275,20 +275,21 @@ def getCommonNodes(messageList):
 
 
 
-def mergeMessages(messageList):
+def mergeMessages(messageList,pk):
     messageListCopy = copy.deepcopy(messageList)
     message = messageListCopy.pop()
-    merged = mergeMessagesRecursive(message,messageListCopy)
+    merged = mergeMessagesRecursive(message,messageListCopy, pk)
 
     return merged
 
-def mergeMessagesRecursive(mergedMessage,messageList):
+def mergeMessagesRecursive(mergedMessage,messageList,pk):
     #need to clean things up and average our normalized scores now that they're all in
-
+    logging.info(f'Merging : {pk} recursively.  Currently {str(len(messageList))} messages left in the queue')
     if len(messageList)==0:
         try:
             results = mergedMessage.getResults()
             if results is not None:
+                logging.info(f'Averaing normalized scores for {pk}')
                 results = results.getRaw()
                 for result in results:
                     if "normalized_score" in result.keys():
@@ -306,27 +307,36 @@ def mergeMessagesRecursive(mergedMessage,messageList):
         #merge Knowledge Graphs
 
         #mergedKnowledgeGraph = mergeKnowledgeGraphs(currentMessage.getKnowledgeGraph(),mergedMessage.getKnowledgeGraph())
+        logging.info(f'Merging knowledge graphs for {pk}')
         ckg = currentMessage.getKnowledgeGraph().getRaw()
         mkg = mergedMessage.getKnowledgeGraph().getRaw()
         mergedKnowledgeGraph = mergeDicts(ckg, mkg)
+        logging.info(f'Merging knowledge graphs complete for {pk}')
 
         #merge Results
+        logging.info(f'Merging results for {pk}')
         currentResultMap= currentMessage.getResultMap()
         mergedResultMap=mergedMessage.getResultMap()
         mergedResults=mergeDicts(currentResultMap,mergedResultMap)
+        logging.info(f'Merging results complete for {pk}')
 
         #merge Aux Graphs
+        logging.info(f'Merging aux graphs for {pk}')
         currentAux = currentMessage.getAuxiliaryGraphs()
         mergedAux=mergedMessage.getAuxiliaryGraphs()
         mergeDicts(currentAux,mergedAux)
+        logging.info(f'Merging aux graphs complete for {pk}')
 
 
+        logging.info(f'Merging: creating and converting for {pk}')
 
         values = mergedResultMap.values()
         newResults= Results(list(values))
         mergedMessage.setResults(newResults)
         mergedMessage.setKnowledgeGraph(KnowledgeGraph(mergedKnowledgeGraph))
-        return mergeMessagesRecursive(mergedMessage,messageList)
+        logging.info(f'Merging: creating and converting complete for {pk}')
+
+        return mergeMessagesRecursive(mergedMessage,messageList,pk)
 
 
 def mergeDicts(dcurrent,dmerged):
@@ -904,10 +914,10 @@ def canonizeMessageTest(kg,results):
                         else:
                             attributes.extend((original_node, same_as_attribute))
                     elif 'attributes' not in nodes[new_id]:
-                        logging.debug("attribute field doesnt exist in the current node")
+                        #logging.debug("attribute field doesnt exist in the current node")
                         nodes[new_id]['attributes'] = [original_node, same_as_attribute]
                     elif nodes[new_id]['attributes'] is None:
-                        logging.debug("attribute field is None in the current node")
+                        #logging.debug("attribute field is None in the current node")
                         nodes[new_id]['attributes'] = [original_node, same_as_attribute]
                     else:
                         logging.debug("attribute not of type list")
@@ -1118,6 +1128,7 @@ def merge_received(parent_pk,message_to_merge, agent_name, counter=0):
     t_to_merge_message=TranslatorMessage(message_to_merge)
 
     if not parent.merge_semaphore:
+        logging.info("merge semaphore False for "+str(current_merged_pk))
         new_merged_message = createMessage(get_ars_actor())
         new_merged_message.save()
         #Since we've started a merge, we lock the parent PK for the duration (this is a soft lock)
@@ -1132,8 +1143,9 @@ def merge_received(parent_pk,message_to_merge, agent_name, counter=0):
                 if current_message_dict is not None:
                     merged=mergeMessages([
                         t_current_merged_message,
-                        t_to_merge_message
-                    ])
+                        t_to_merge_message,
+                    ],
+                    str(new_merged_message.pk))
                 else:
                     logging.error(f'current message dictionary returns none')
                 print()
