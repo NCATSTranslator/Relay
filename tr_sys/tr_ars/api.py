@@ -214,6 +214,7 @@ def trace_message(req, key):
         tree = {
             'message': str(mesg.id),
             'status': dict(Message.STATUS)[mesg.status],
+            'code':mesg.code,
             'actor': {
                 'pk': mesg.actor.pk,
                 'inforesid': mesg.actor.inforesid,
