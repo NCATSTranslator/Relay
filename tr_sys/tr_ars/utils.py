@@ -275,20 +275,21 @@ def getCommonNodes(messageList):
 
 
 
-def mergeMessages(messageList):
+def mergeMessages(messageList,pk):
     messageListCopy = copy.deepcopy(messageList)
     message = messageListCopy.pop()
-    merged = mergeMessagesRecursive(message,messageListCopy)
+    merged = mergeMessagesRecursive(message,messageListCopy, pk)
 
     return merged
 
-def mergeMessagesRecursive(mergedMessage,messageList):
+def mergeMessagesRecursive(mergedMessage,messageList,pk):
     #need to clean things up and average our normalized scores now that they're all in
-
+    logging.info(f'Merging : {pk} recursively.  Currently {str(len(messageList))} messages left in the queue')
     if len(messageList)==0:
         try:
             results = mergedMessage.getResults()
             if results is not None:
+                logging.info(f'Averaing normalized scores for {pk}')
                 results = results.getRaw()
                 for result in results:
                     if "normalized_score" in result.keys():
@@ -306,27 +307,36 @@ def mergeMessagesRecursive(mergedMessage,messageList):
         #merge Knowledge Graphs
 
         #mergedKnowledgeGraph = mergeKnowledgeGraphs(currentMessage.getKnowledgeGraph(),mergedMessage.getKnowledgeGraph())
+        logging.info(f'Merging knowledge graphs for {pk}')
         ckg = currentMessage.getKnowledgeGraph().getRaw()
         mkg = mergedMessage.getKnowledgeGraph().getRaw()
         mergedKnowledgeGraph = mergeDicts(ckg, mkg)
+        logging.info(f'Merging knowledge graphs complete for {pk}')
 
         #merge Results
+        logging.info(f'Merging results for {pk}')
         currentResultMap= currentMessage.getResultMap()
         mergedResultMap=mergedMessage.getResultMap()
         mergedResults=mergeDicts(currentResultMap,mergedResultMap)
+        logging.info(f'Merging results complete for {pk}')
 
         #merge Aux Graphs
+        logging.info(f'Merging aux graphs for {pk}')
         currentAux = currentMessage.getAuxiliaryGraphs()
         mergedAux=mergedMessage.getAuxiliaryGraphs()
         mergeDicts(currentAux,mergedAux)
+        logging.info(f'Merging aux graphs complete for {pk}')
 
 
+        logging.info(f'Merging: creating and converting for {pk}')
 
         values = mergedResultMap.values()
         newResults= Results(list(values))
         mergedMessage.setResults(newResults)
         mergedMessage.setKnowledgeGraph(KnowledgeGraph(mergedKnowledgeGraph))
-        return mergeMessagesRecursive(mergedMessage,messageList)
+        logging.info(f'Merging: creating and converting complete for {pk}')
+
+        return mergeMessagesRecursive(mergedMessage,messageList,pk)
 
 
 def mergeDicts(dcurrent,dmerged):
@@ -491,7 +501,7 @@ def sharedResultsJson(sharedResultsMap):
 
 def pre_merge_process(data,key, agent_name,inforesid):
     mesg=Message.objects.get(pk = key)
-    logging.info("Pre node norm")
+    logging.info("Pre node norm for"+str(key))
     try:
         scrub_null_attributes(data)
     except Exception as e:
@@ -499,13 +509,13 @@ def pre_merge_process(data,key, agent_name,inforesid):
         raise e
     try:
         normalize_nodes(data,agent_name,key)
-        logging.info("node norm success")
+        logging.info("node norm success for "+str(key))
     except Exception as e:
         post_processing_error(mesg,data,"Error in ARS node normalization")
         logging.exception("Error in ARS node normaliztion")
         raise e
 
-    logging.info("Pre decoration")
+    logging.info("Pre decoration for "+str(key))
     try:
         decorate_edges_with_infores(data,inforesid)
         logging.info("decoration success")
@@ -513,6 +523,7 @@ def pre_merge_process(data,key, agent_name,inforesid):
         post_processing_error(mesg,data,"Error in ARS edge sources decoration\n"+e)
         logging.exception("Error in ARS edge source decoration")
         raise e
+    logging.info("Normalizing scores for "+str(key))
     try:
         normalize_scores(mesg,data,key,agent_name)
     except Exception as e:
@@ -524,7 +535,7 @@ def pre_merge_process(data,key, agent_name,inforesid):
 def post_process(data,key, agent_name):
     code =200
     mesg=Message.objects.get(pk = key)
-    logging.info("Pre node annotation")
+    logging.info("Pre node annotation for "+str(key))
     try:
         annotate_nodes(mesg,data,agent_name)
         logging.info("node annotation successful")
@@ -533,36 +544,47 @@ def post_process(data,key, agent_name):
         logging.error("Error with node annotations for "+str(key))
         logging.exception("problem with node annotation post process function")
         raise e
-    logging.info("pre appraiser")
+    logging.info("pre appraiser for "+str(key))
     try:
-        appraise(mesg,data,agent_name)
-        logging.info("appraiser successful")
+        scrub_null_attributes(data)
     except Exception as e:
-        code = 422
-        results = get_safe(data,"message","results")
-        default_ordering_component = {
-            "novelty": 0,
-            "confidence": 0,
-            "clinical_evidence": 0
-        }
-        for result in results:
-            if 'ordering_components' not in result.keys():
-                result['ordering_components']=default_ordering_component
-            else:
-                continue
-        #post_processing_error(mesg,data,"Error in appraiser")
-        logging.error("Error with appraise for "+str(key))
-        logging.exception("Error in appraiser post process function")
-        #raise e
-    try:
-        results = get_safe(data,"message","results")
-        new_res=scoring.compute_from_results(results)
-        logging.info("scoring succeeded")
-        print()
-    except Exception as e:
-        post_processing_error(mesg,data,"Error in f-score calculation")
-        logging.exception("Error in f-score calculation")
-        raise e
+        logging.info("Problem with the second scrubbing of null attributes")
+    # try:
+    #     appraise(mesg,data,agent_name)
+    #     logging.info("appraiser successful")
+    # except Exception as e:
+    #     code = 422
+    #     results = get_safe(data,"message","results")
+    #     default_ordering_component = {
+    #         "novelty": 0,
+    #         "confidence": 0,
+    #         "clinical_evidence": 0
+    #     }
+    #     if results is not None:
+    #         for result in results:
+    #             if 'ordering_components' not in result.keys():
+    #                 result['ordering_components']=default_ordering_component
+    #             else:
+    #                 continue
+    #     else:
+    #         logging.error('results returned from appraiser is None')
+    #
+    #     #post_processing_error(mesg,data,"Error in appraiser")
+    #     logging.error("Error with appraise for "+str(key))
+    #     logging.exception("Error in appraiser post process function")
+    #     #raise e
+    # try:
+    #     results = get_safe(data,"message","results")
+    #     if results is not None:
+    #         new_res=scoring.compute_from_results(results)
+    #         logging.info("scoring succeeded")
+    #     else:
+    #         logging.error('results from appraiser returns None, cant do the scoring')
+    #     print()
+    # except Exception as e:
+    #     post_processing_error(mesg,data,"Error in f-score calculation")
+    #     logging.exception("Error in f-score calculation")
+    #     raise e
     mesg.status='D'
     mesg.code=code
     mesg.data = data
@@ -571,17 +593,19 @@ def post_process(data,key, agent_name):
 def scrub_null_attributes(data):
     nodes = get_safe(data,"message","knowledge_graph","nodes")
     edges = get_safe(data,"message","knowledge_graph","edges")
-    for nodeId,nodeStuff in nodes.items():
-        nodeAttributes = get_safe(nodeStuff,"attributes")
-        if nodeAttributes is not None:
-            while None in nodeAttributes:
-                nodeAttributes.remove(None)
+    if nodes is not None:
+        for nodeId,nodeStuff in nodes.items():
+            nodeAttributes = get_safe(nodeStuff,"attributes")
+            if nodeAttributes is not None:
+                while None in nodeAttributes:
+                    nodeAttributes.remove(None)
 
-    for edgeId, edgeStuff in edges.items():
-        edgeAttributes =get_safe(edgeStuff,"attributes")
-        if edgeAttributes is not None:
-            while None in edgeAttributes:
-                edgeAttributes.remove(None)
+    if edges is not None:
+        for edgeId, edgeStuff in edges.items():
+            edgeAttributes =get_safe(edgeStuff,"attributes")
+            if edgeAttributes is not None:
+                while None in edgeAttributes:
+                    edgeAttributes.remove(None)
 
 
 
@@ -597,7 +621,7 @@ def appraise(mesg,data, agent_name,retry_counter=0):
                 rj = r.json()
                 #for now, just update the whole message, but we could be more precise/efficient
                 logging.debug("Updating message with appraiser data for agent %s and pk %s " % (agent_name, str(mesg.id)))
-                data['message'].update(rj['message'])
+                data['message']['results']=rj['message']['results']
                 logging.debug("Updating message with appraiser data complete for "+str(mesg.id))
             else:
                 retry_counter +=1
@@ -706,25 +730,26 @@ def decorate_edges_with_infores(data,inforesid):
         "source_record_urls": None,
         "upstream_resource_ids": None
     }
-    for key, edge in edges.items():
-        has_self=False
-        if 'sources' not in edge.keys() or edge['sources'] is None or len(edge['sources'])==0:
-            edge['sources']=[self_source]
-        else:
-            for source in edge['sources']:
-                if source['resource_id']==inforesid:
-                    has_self=True
+    if edges is not None:
+        for key, edge in edges.items():
+            has_self=False
+            if 'sources' not in edge.keys() or edge['sources'] is None or len(edge['sources'])==0:
+                edge['sources']=[self_source]
+            else:
+                for source in edge['sources']:
+                    if source['resource_id']==inforesid:
+                        has_self=True
 
-                if source['resource_role']=="primary_knowledge_source":
-                    has_primary=True
-            if not has_self:
-                #if we already have a primary knowledge source but not our self, we add ourself as an aggregator
-                if has_primary:
-                    self_source['resource_role']="aggregator_knowledge_source"
-                else:
-                    self_source["resource_role"]="primary_knowledge_source"
-                #then we add it, be it primary or aggregator
-                edge['sources'].append(self_source)
+                    if source['resource_role']=="primary_knowledge_source":
+                        has_primary=True
+                if not has_self:
+                    #if we already have a primary knowledge source but not our self, we add ourself as an aggregator
+                    if has_primary:
+                        self_source['resource_role']="aggregator_knowledge_source"
+                    else:
+                        self_source["resource_role"]="primary_knowledge_source"
+                    #then we add it, be it primary or aggregator
+                    edge['sources'].append(self_source)
 
 def post_processing_error(mesg,data,text):
     mesg.status = 'E'
@@ -889,10 +914,10 @@ def canonizeMessageTest(kg,results):
                         else:
                             attributes.extend((original_node, same_as_attribute))
                     elif 'attributes' not in nodes[new_id]:
-                        logging.debug("attribute field doesnt exist in the current node")
+                        #logging.debug("attribute field doesnt exist in the current node")
                         nodes[new_id]['attributes'] = [original_node, same_as_attribute]
                     elif nodes[new_id]['attributes'] is None:
-                        logging.debug("attribute field is None in the current node")
+                        #logging.debug("attribute field is None in the current node")
                         nodes[new_id]['attributes'] = [original_node, same_as_attribute]
                     else:
                         logging.debug("attribute not of type list")
@@ -1097,11 +1122,13 @@ def merge(pk,merged_pk):
 def merge_received(parent_pk,message_to_merge, agent_name, counter=0):
     parent = Message.objects.get(pk=parent_pk)
     current_merged_pk=parent.merged_version_id
+    logging.info("Beginning merge for "+str(current_merged_pk))
     #to_merge_message= Message.objects.get(pk=pk_to_merge)
     #to_merge_message_dict=get_safe(to_merge_message.to_dict(),"fields","data","message")
     t_to_merge_message=TranslatorMessage(message_to_merge)
 
     if not parent.merge_semaphore:
+        logging.info("merge semaphore False for "+str(current_merged_pk))
         new_merged_message = createMessage(get_ars_actor())
         new_merged_message.save()
         #Since we've started a merge, we lock the parent PK for the duration (this is a soft lock)
@@ -1113,11 +1140,14 @@ def merge_received(parent_pk,message_to_merge, agent_name, counter=0):
                 current_merged_message=Message.objects.get(pk=current_merged_pk)
                 current_message_dict = get_safe(current_merged_message.to_dict(),"fields","data","message")
                 t_current_merged_message=TranslatorMessage(current_message_dict)
-
-                merged=mergeMessages([
-                    t_current_merged_message,
-                    t_to_merge_message
-                ])
+                if current_message_dict is not None:
+                    merged=mergeMessages([
+                        t_current_merged_message,
+                        t_to_merge_message,
+                    ],
+                    str(new_merged_message.pk))
+                else:
+                    logging.error(f'current message dictionary returns none')
                 print()
             #If not, we make the newcomer the current "merged" Message
             else:

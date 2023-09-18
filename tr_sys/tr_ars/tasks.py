@@ -117,8 +117,8 @@ def send_message(actor_dict, mesg_dict, timeout=300):
                         #message_to_merge = utils.get_safe(rdata,"message")
                         message_to_merge=rdata
                         agent_name = str(mesg.actor.agent.name)
-
-                        utils.pre_merge_process(message_to_merge,mesg_dict['pk'], agent_name, inforesid)
+                        child_pk=str(mesg.pk)
+                        utils.pre_merge_process(message_to_merge,child_pk, agent_name, inforesid)
                         mesg.code = status_code
                         mesg.status = status
                         mesg.data = rdata
@@ -126,8 +126,11 @@ def send_message(actor_dict, mesg_dict, timeout=300):
                         mesg.save()
                         logger.debug('+++ message saved: %s' % (mesg.pk))
                         if agent_name.startswith('ara-'):
+                            logging.debug("Merge starting for "+str(mesg.pk))
                             new_merged = utils.merge_received(parent_pk,message_to_merge['message'], agent_name)
+                            logging.debug("Merge complete for "+str(new_merged.pk))
                             utils.post_process(new_merged.data,new_merged.pk, agent_name)
+                            logging.debug("Post processing done for "+str(new_merged.pk))
 
                     except Exception as e:
                         logger.debug('Problem with post processing or merger of %s for pk: %s' % (inforesid, mesg.pk))
@@ -173,16 +176,20 @@ def send_message(actor_dict, mesg_dict, timeout=300):
 @shared_task(name="catch_timeout")
 def catch_timeout_async():
     now =timezone.now()
+    logging.info(f'Checking timeout at {now}')
     time_threshold = now - timezone.timedelta(minutes=10)
     max_time = time_threshold+timezone.timedelta(minutes=5)
 
-    messages = Message.objects.filter(timestamp__gt=time_threshold,timestamp__lt=max_time, status__in='R').values_list('actor','id')
+    messages = Message.objects.filter(timestamp__gt=time_threshold,timestamp__lt=max_time, status__in='R').values_list('actor','id','timestamp','updated_at')
     for mesg in messages:
-        actor = Agent.objects.get(pk=mesg[0])
+        mpk=mesg[0]
+        actor = Agent.objects.get(pk=mpk)
+        logging.info(f'actor: {actor} id: {mesg[1]} timestamp: {mesg[2]} updated_at {mesg[3]}')
+
         if actor.name == 'ars-default-agent':
             continue
         else:
-            logger.info(f'for actor: {actor.name}, the status is still "Running" after 5 min, setting code to 598')
+            logger.info(f'for actor: {actor.name}, and pk {str(mpk)} the status is still "Running" after 5 min, setting code to 598')
             message = Message.objects.get(pk=mesg[1])
             message.code = 598
             message.status = 'E'
