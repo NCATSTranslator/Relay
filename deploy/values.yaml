@@ -36,6 +36,22 @@ redis:
     PullPolicy: Always
   containerPort: 6379
 
+affinity:
+  # this ensures pod only runs on node with label application=managed-app
+  nodeAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      nodeSelectorTerms:
+      - matchExpressions:
+        - key: application
+          operator: In
+          values:
+          - managed-app    
+tolerations:
+  - key: "transltr"
+    value: "managed-app"
+    operator: "Equal"
+    effect: "NoSchedule"
+
 service:
   type: ClusterIP
   port: 80
