@@ -18,5 +18,3 @@ scipy
 django-celery-beat
 statistics
 sympy
-opentelemetry-instrumentation-django
-opentelemetry-sdk
