@@ -107,40 +107,27 @@ def send_message(actor_dict, mesg_dict, timeout=300):
                 kg = utils.get_safe(rdata,"message", "knowledge_graph")
                 #before we do basically anything else, we normalize
                 #no sense in processing something without results
-
                 if results is not None and len(results)>0:
                     mesg.result_count = len(rdata["message"]["results"])
                     scorestat = utils.ScoreStatCalc(results)
                     mesg.result_stat = scorestat
-                    try:
-                        parent_pk = mesg.ref.id
-                        #message_to_merge = utils.get_safe(rdata,"message")
-                        message_to_merge=rdata
-                        agent_name = str(mesg.actor.agent.name)
-                        child_pk=str(mesg.pk)
-                        utils.pre_merge_process(message_to_merge,child_pk, agent_name, inforesid)
-                        mesg.code = status_code
-                        mesg.status = status
-                        mesg.data = rdata
-                        mesg.url = url
-                        mesg.save()
-                        logger.debug('+++ message saved: %s' % (mesg.pk))
-                        if agent_name.startswith('ara-'):
-                            logging.debug("Merge starting for "+str(mesg.pk))
-                            new_merged = utils.merge_received(parent_pk,message_to_merge['message'], agent_name)
-                            logging.debug("Merge complete for "+str(new_merged.pk))
-                            utils.post_process(new_merged.data,new_merged.pk, agent_name)
-                            logging.debug("Post processing done for "+str(new_merged.pk))
-
-                    except Exception as e:
-                        logger.debug('Problem with post processing or merger of %s for pk: %s' % (inforesid, mesg.pk))
-                        new_merged.status='E'
-                        new_merged.code = 422
-                        new_merged.save()
-
+                    parent_pk = mesg.ref.id
+                    #message_to_merge = utils.get_safe(rdata,"message")
+                    message_to_merge=rdata
+                    agent_name = str(mesg.actor.agent.name)
+                    child_pk=str(mesg.pk)
+                    utils.pre_merge_process(message_to_merge,child_pk, agent_name, inforesid)
+                #Whether we did any additional processing or not, we need to save what we have
+                mesg.code = status_code
+                mesg.status = status
+                mesg.data = rdata
+                mesg.url = url
+                mesg.save()
+                logger.debug('+++ message saved: %s' % (mesg.pk))
+        else:
+            #if the tool returned something other than 200, we log as appropriate and then save
             if 'tr_ars.message.status' in r.headers:
                 status = r.headers['tr_ars.message.status']
-        else:
             if r.status_code == 202:
                 status = 'W'
                 url = url[:url.rfind('/')] + '/aresponse/' + r.text
@@ -158,6 +145,7 @@ def send_message(actor_dict, mesg_dict, timeout=300):
             mesg.url = url
             mesg.save()
             logger.debug('+++ message saved: %s' % (mesg.pk))
+    #This exception is meant to handle unexpected errors in the ORIGINAL return from the ARA
     except Exception as e:
         logger.error("Unexpected error 2: {}".format(traceback.format_exception(type(e), e, e.__traceback__)))
         logger.exception("Can't send message to actor %s\n%s for pk: %s"
@@ -170,8 +158,24 @@ def send_message(actor_dict, mesg_dict, timeout=300):
         mesg.url = url
         mesg.save()
         logger.debug('+++ message saved: %s' % (mesg.pk))
-
-
+    try:
+        agent_name = str(mesg.actor.agent.name)
+        if mesg.code == 200:
+            if agent_name.startswith('ara-'):
+                logging.debug("Merge starting for "+str(mesg.pk))
+                new_merged = utils.merge_received(parent_pk,message_to_merge['message'], agent_name)
+                logging.debug("Merge complete for "+str(new_merged.pk))
+                utils.post_process(new_merged.data,new_merged.pk, agent_name)
+                logging.debug("Post processing done for "+str(new_merged.pk))
+        else:
+            logging.debug("Skipping merge and post for "+str(mesg.pk)+
+                          " because the contributing message is in state: "+str(mesg.code))
+    #This exception relates to the merged version, not the original.  Never the two may interfere
+    except Exception as e:
+        logger.debug('Problem with post processing or merger of %s for pk: %s' % (inforesid, mesg.pk))
+        new_merged.status='E'
+        new_merged.code = 422
+        new_merged.save()
 
 @shared_task(name="catch_timeout")
 def catch_timeout_async():
