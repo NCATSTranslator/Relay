@@ -70,17 +70,13 @@ def message_post_save(sender, instance, **kwargs):
             children = Message.objects.filter(ref__pk=pmessage.pk)
             logger.debug('%s: %d children' % (pmessage.pk, len(children)))
             finished = True
-            allError = True
             for child in children:
                 if child.status not in ['D', 'S', 'E', 'U']:
                     finished = False
-                if child.status not in ['S','E', 'U']:
-                    allError = False
-            if allError or finished:
-                if allError:
-                    pmessage.status = 'E'
-                elif finished:
-                    pmessage.status = 'D'
+
+            if finished:
+                pmessage.status = 'D'
+                pmessage.code = 200
                 pmessage.save()
 
 @receiver(pre_save, sender=Message)
