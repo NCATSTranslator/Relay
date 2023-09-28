@@ -84,6 +84,7 @@ def submit(req):
     logger.debug("submit")
     """Query submission"""
     logger.debug("entering submit")
+    submission_time = timezone.now()
     if req.method != 'POST':
         return HttpResponse('Only POST is permitted!', status=405)
 
@@ -104,7 +105,7 @@ def submit(req):
             if(isinstance(wf,list)):
                 if(len(wf)>0):
                     message = Message.create(code=202, status='Running', data=data,
-                                             actor=get_workflow_actor())
+                                             actor=get_workflow_actor(), timestamp=submission_time)
                     logger.debug("Sending message to workflow runner")#TO-DO CHANGE
                     # message.save()
                     # send_message(get_workflow_actor().to_dict(),message.to_dict())
@@ -112,7 +113,7 @@ def submit(req):
                     #                     content_type='application/json', status=201)
         else:
             message = Message.create(code=202, status='Running', data=data,
-                              actor=get_default_actor())
+                              actor=get_default_actor(), timestamp=submission_time)
 
         if 'name' in data:
             message.name = data['name']
