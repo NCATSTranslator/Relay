@@ -215,6 +215,7 @@ def trace_message(req, key):
             'message': str(mesg.id),
             'status': dict(Message.STATUS)[mesg.status],
             'code':mesg.code,
+            'timestamp': str(mesg.timestamp),
             'actor': {
                 'pk': mesg.actor.pk,
                 'inforesid': mesg.actor.inforesid,
