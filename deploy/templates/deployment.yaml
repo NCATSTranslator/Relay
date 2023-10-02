@@ -32,14 +32,14 @@ spec:
               value: {{ .Values.arsserver.env.TR_ENV }}
             - name: TR_APPRAISE
               value: {{ .Values.arsserver.env.TR_APPRAISE }}
-          {{- with .Values.arsserver.resources }}
-          resources:
-            {{- toYaml . | nindent 12 }}
-          {{- end }}
             - name: TR_NORMALIZER
               value: {{ .Values.arsserver.env.TR_NORMALIZER }}
             - name: TR_ANNOTATOR
               value: {{ .Values.arsserver.env.TR_ANNOTATOR }}
+          {{- with .Values.arsserver.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
         - name: celeryworker
           image: "{{ .Values.celeryworker.image.repository }}:{{ .Values.celeryworker.image.tag }}"
           imagePullPolicy: {{ .Values.celeryworker.image.PullPolicy }}
