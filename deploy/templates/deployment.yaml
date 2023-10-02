@@ -32,6 +32,10 @@ spec:
               value: {{ .Values.arsserver.env.TR_ENV }}
             - name: TR_APPRAISE
               value: {{ .Values.arsserver.env.TR_APPRAISE }}
+            - name: TR_NORMALIZER
+              value: {{ .Values.arsserver.env.TR_NORMALIZER }}
+            - name: TR_ANNOTATOR
+              value: {{ .Values.arsserver.env.TR_ANNOTATOR }}
           {{- with .Values.arsserver.resources }}
           resources:
             {{- toYaml . | nindent 12 }}
