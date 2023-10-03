@@ -1087,10 +1087,10 @@ def getChildrenFromParent(pk):
             messageList.append(Message.objects.get(pk=childPk))
     return messageList
 
-def createMessage(actor, parent):
+def createMessage(actor):
 
     message = Message.create(code=202, status='Running', data={},
-                             actor=actor, ref=parent)
+                             actor=actor)
     message.save()
     return message
 
@@ -1127,7 +1127,7 @@ def merge_received(parent_pk,message_to_merge, agent_name, counter=0):
 
     if not parent.merge_semaphore:
         logging.info("merge semaphore False for "+str(current_merged_pk))
-        new_merged_message = createMessage(get_ars_actor(),parent)
+        new_merged_message = createMessage(get_ars_actor())
         new_merged_message.save()
         #Since we've started a merge, we lock the parent PK for the duration (this is a soft lock)
         parent.merge_semaphore=True
