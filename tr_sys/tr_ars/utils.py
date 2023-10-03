@@ -31,7 +31,7 @@ ARS_ACTOR = {
 }
 
 NORMALIZER_URL=os.getenv("TR_NORMALIZER") if os.getenv("TR_NORMALIZER") is not None else "https://nodenorm.transltr.io/1.3/get_normalized_nodes"
-ANNOTATOR_URL=os.getenv("TR_ANNOTATOR") if os.getenv("TR_ANNOTATOR") is not None else "https://biothings.ncats.io/annotator"
+ANNOTATOR_URL=os.getenv("TR_ANNOTATOR") if os.getenv("TR_ANNOTATOR") is not None else "https://biothings.ci.transltr.io/annotator/"
 APPRAISER_URL=os.getenv("TR_APPRAISE") if os.getenv("TR_APPRAISE") is not None else "http://localhost:9096/get_appraisal"
 
 
@@ -682,7 +682,10 @@ def annotate_nodes(mesg,data,agent_name):
             else:
                 post_processing_error(mesg,data,"Error in annotation of nodes")
         except Exception as e:
-            logging.exception("error in node annotation internal function")
+            logging.exception("error in node annotation internal function for agent: %s" % agent_name)
+            logging.error("Unexpected error 3: {}".format(traceback.format_exception(type(e), e, e.__traceback__)))
+            logging.error(type(e).__name__)
+            logging.error(e.args)
             raise e
         #else:
          #   with open(str(mesg.actor)+".json", "w") as outfile:
