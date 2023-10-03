@@ -755,19 +755,48 @@ def timeoutTest(req,time=300):
 
 def retain(req, key):
     if req.method == 'GET':
-        mesg=Message.objects.get(pk=key)
-        if str(mesg.actor.agent.name) == 'ars-default-agent':
-            mesg.retain = True
-            mesg.save()
-        else:
-            if mesg.ref_id is not None:
-                parent_mesg = Message.objects.get(pk=mesg.ref_id)
-                parent_mesg.retain = True
-                parent_mesg.save()
-                return HttpResponse('retained the message for parent pk: %s' % mesg.ref_id)
+        try:
+            mesg=Message.objects.get(pk=key)
+            if str(mesg.actor.agent.name) == 'ars-default-agent':
+                mesg.retain = True
+                mesg.save()
+                if mesg.merged_versions_list != []:
+                    merge_mesg_retain(mesg.merged_versions_list)
+                    return HttpResponse('retained the message for both parent pk: %s and its merged pks %s: ' % (key, list(mesg.merged_versions_list)))
+                else:
+                    logger.error('pk: %s doesnt have any merged message' % key)
+                    return HttpResponse('retained the message for only parent pk: %s' % key)
+            elif str(mesg.actor.agent.name) == 'ars-ars-agent':
+                mesg.retain = True
+                mesg.save()
+                if mesg.ref_id is not None:
+                    parent_mesg = Message.objects.get(pk=mesg.ref_id)
+                    parent_mesg.retain = True
+                    parent_mesg.save()
+                    return HttpResponse('retained the message for both parent pk: %s and its merged pk %s' % (str(mesg.ref_id),key))
             else:
-                logger.error('pk: %s doesnt have a parent level pk' % key)
-    return HttpResponse('retained the message for parent pk: %s' % key)
+                if mesg.ref_id is not None:
+                    parent_mesg = Message.objects.get(pk=mesg.ref_id)
+                    parent_mesg.retain = True
+                    parent_mesg.save()
+                    if parent_mesg.merged_versions_list != []:
+                        merge_mesg_retain(parent_mesg.merged_versions_list)
+                        return HttpResponse('retained the message for both parent pk: %s and its merged pks:%s' % (mesg.ref_id,list(mesg.merged_versions_list)))
+                    else:
+                        logger.error('pk: %s doesnt have any merged message' % key)
+                        return HttpResponse('retained the message for only parent pk: %s' % mesg.ref_id)
+                else:
+                    logger.error('pk: %s doesnt have a parent level pk' % key)
+        except Message.DoesNotExist:
+            return HttpResponse('Unknown message %s' % key, status=404)
+
+
+def merge_mesg_retain(merged_versions_list):
+    for merge_item in merged_versions_list:
+        merge_pk=merge_item[0]
+        merged_mesg = Message.objects.get(pk=merge_pk)
+        merged_mesg.retain = True
+        merged_mesg.save()
 
 def merge(req, key):
     logger.debug("Beginning merge for %s " % key)
