@@ -417,7 +417,7 @@ def message(req, key):
             kg = utils.get_safe(data,"message", "knowledge_graph")
             actor = Actor.objects.get(pk=mesg.actor_id)
             inforesid =actor.inforesid
-            logging.info('received msg from agent: %s with parent pk: %s' % (str(inforesid), str(mesg.ref_id)))
+            logging.info('received msg from agent: %s with parent pk: %s and res_num: %s' % (str(inforesid), str(mesg.ref_id), len(res)))
             if mesg.status=='E':
                 return HttpResponse("Response received but Message is already in state "+str(mesg.code)+". Response rejected\n",status=400)
             if res is not None and len(res)>0:
