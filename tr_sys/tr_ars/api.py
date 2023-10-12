@@ -412,12 +412,15 @@ def message(req, key):
             code = 200
             if 'tr_ars.message.status' in req.headers:
                 status = req.headers['tr_ars.message.status']
-
             res=utils.get_safe(data,"message","results")
             kg = utils.get_safe(data,"message", "knowledge_graph")
             actor = Actor.objects.get(pk=mesg.actor_id)
             inforesid =actor.inforesid
             logging.info('received msg from agent: %s with parent pk: %s' % (str(inforesid), str(mesg.ref_id)))
+            if mesg.result_count is not None and mesg.result_count >0:
+                return HttpResponse('ARS already has a response with: %s results for pk %s \nWe are temporarily '
+                                    'disallowing subsequent updates to PKs which already have results\n'
+                                    % (str(len(res)), str(key)),status=409)
             if mesg.status=='E':
                 return HttpResponse("Response received but Message is already in state "+str(mesg.code)+". Response rejected\n",status=400)
             if res is not None and len(res)>0:
