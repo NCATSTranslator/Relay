@@ -588,6 +588,20 @@ def post_process(data,key, agent_name):
     mesg.data = data
     mesg.save()
 
+@shared_task(name="merge_and_post_process")
+def merge_and_post_process(parent_pk,message_to_merge, agent_name):
+    #logging.debug("Starting merge for "+str(mesg.pk))
+    try:
+        merged = merge_received(parent_pk,message_to_merge, agent_name)
+        post_process(merged.data,merged.id, agent_name)
+    except Exception as e:
+        logging.debug("Problem with merger or post processeing for %s " % str(parent_pk))
+        logging.exception("error in merger or post processing")
+        merged.status='E'
+        merged.code = 422
+        merged.save()
+
+
 def scrub_null_attributes(data):
     nodes = get_safe(data,"message","knowledge_graph","nodes")
     edges = get_safe(data,"message","knowledge_graph","edges")
@@ -682,10 +696,7 @@ def annotate_nodes(mesg,data,agent_name):
             else:
                 post_processing_error(mesg,data,"Error in annotation of nodes")
         except Exception as e:
-            logging.exception("error in node annotation internal function for agent: %s" % agent_name)
-            logging.error("Unexpected error 3: {}".format(traceback.format_exception(type(e), e, e.__traceback__)))
-            logging.error(type(e).__name__)
-            logging.error(e.args)
+            logging.exception("error in node annotation internal function")
             raise e
         #else:
          #   with open(str(mesg.actor)+".json", "w") as outfile:
