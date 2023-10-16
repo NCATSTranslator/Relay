@@ -158,24 +158,22 @@ def send_message(actor_dict, mesg_dict, timeout=300):
         mesg.url = url
         mesg.save()
         logger.debug('+++ message saved: %s' % (mesg.pk))
-    try:
-        agent_name = str(mesg.actor.agent.name)
-        if mesg.code == 200:
-            if agent_name.startswith('ara-'):
-                logging.debug("Merge starting for "+str(mesg.pk))
-                new_merged = utils.merge_received(parent_pk,message_to_merge['message'], agent_name)
-                logging.debug("Merge complete for "+str(new_merged.pk))
-                utils.post_process(new_merged.data,new_merged.pk, agent_name)
-                logging.debug("Post processing done for "+str(new_merged.pk))
-        else:
-            logging.debug("Skipping merge and post for "+str(mesg.pk)+
-                          " because the contributing message is in state: "+str(mesg.code))
-    #This exception relates to the merged version, not the original.  Never the two may interfere
-    except Exception as e:
-        logger.debug('Problem with post processing or merger of %s for pk: %s' % (inforesid, mesg.pk))
-        new_merged.status='E'
-        new_merged.code = 422
-        new_merged.save()
+
+    agent_name = str(mesg.actor.agent.name)
+    if mesg.code == 200:
+        logger.info("pre async call")
+        if agent_name.startswith('ara-'):
+            # logging.debug("Merge starting for "+str(mesg.pk))
+            # new_merged = utils.merge_received(parent_pk,message_to_merge['message'], agent_name)
+            # logging.debug("Merge complete for "+str(new_merged.pk))
+            # utils.post_process(new_merged.data,new_merged.pk, agent_name)
+            # logging.debug("Post processing done for "+str(new_merged.pk))
+            utils.merge_and_post_process.apply_async((parent_pk,message_to_merge['message'],agent_name))
+        logger.info("post async call")
+    else:
+        logging.debug("Skipping merge and post for "+str(mesg.pk)+
+                      " because the contributing message is in state: "+str(mesg.code))
+
 
 @shared_task(name="catch_timeout")
 def catch_timeout_async():
