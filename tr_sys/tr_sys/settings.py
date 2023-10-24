@@ -48,7 +48,6 @@ INSTALLED_APPS = [
     'tr_ara_explanatory_exp.explanatory_exp_app.AppConfig',
     'tr_ara_improving.improving_app.AppConfig',
     'tr_ara_ncats.ncats_app.AppConfig',
-    'tr_ara_robokop.robokop_app.AppConfig',
     'tr_ara_unsecret.unsecret_app.AppConfig',
     'tr_ara_wfr.wfr_app.AppConfig',
     'tr_kp_genetics.genetics_app.AppConfig',
