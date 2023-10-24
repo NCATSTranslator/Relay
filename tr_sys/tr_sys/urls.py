@@ -56,7 +56,6 @@ patterns = [
     re_path(ExplanatoryExpApp.regex_path, include(ExplanatoryExpApp.name)),
     re_path(ImprovingApp.regex_path, include(ImprovingApp.name)),
     re_path(NCATSApp.regex_path, include(NCATSApp.name)),
-    re_path(RobokopApp.regex_path, include(RobokopApp.name)),
     re_path(AragornExpApp.regex_path, include(AragornExpApp.name)),
     re_path(WfrApp.regex_path, include(WfrApp.name)),
     re_path(IceesKgApp.regex_path, include(IceesKgApp.name)),
