@@ -575,6 +575,7 @@ def post_process(data,key, agent_name):
         results = get_safe(data,"message","results")
         if results is not None:
             new_res=scoring.compute_from_results(results)
+            data['message']['results']=new_res
             logging.info("scoring succeeded")
         else:
             logging.error('results from appraiser returns None, cant do the scoring')
