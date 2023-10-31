@@ -856,6 +856,7 @@ def canonize(curies):
         "curies":curies,
         "conflate":True
     }
+    logging.info('the normalizer_URL is %s' % NORMALIZER_URL)
     r = requests.post(NORMALIZER_URL,json.dumps(j))
     rj=r.json()
     return rj
