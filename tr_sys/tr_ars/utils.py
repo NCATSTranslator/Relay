@@ -1199,11 +1199,11 @@ def merge_received(parent_pk,message_to_merge, agent_name, counter=0):
             return new_merged_message
         except Exception as e:
             logging.exception("problem with merging for %s :" % agent_name)
-            raise e
             #If anything goes wrong, we at least need to unlock the semaphore
             #TODO make some actual proper Exception handling here.
             parent.merge_semaphore=False
             parent.save()
+            logging.info("return  empty dict for merged results")
             return {}
     else:
         #If there is currently a merge happening, we wait until it finishes to do our merge
