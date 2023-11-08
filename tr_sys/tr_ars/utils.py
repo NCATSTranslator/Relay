@@ -296,9 +296,9 @@ def mergeMessagesRecursive(mergedMessage,messageList,pk):
                             result["normalized_score"]= sum(ns) / len(ns)
         except Exception as e:
             logging.debug(e.__traceback__)
-
-        mergedMessage.status='Done'
-        mergedMessage.code = 200
+        if mergedMessage is not None:
+            mergedMessage.status='Done'
+            mergedMessage.code = 200
         return mergedMessage
     else:
         currentMessage = messageList.pop()
