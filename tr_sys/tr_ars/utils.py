@@ -299,6 +299,8 @@ def mergeMessagesRecursive(mergedMessage,messageList,pk):
         if mergedMessage is not None:
             mergedMessage.status='Done'
             mergedMessage.code = 200
+        else:
+            logging.info(f'Merged Message was NoneType for : {pk}')
         return mergedMessage
     else:
         currentMessage = messageList.pop()
