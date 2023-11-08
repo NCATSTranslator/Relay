@@ -286,14 +286,11 @@ def mergeMessagesRecursive(mergedMessage,messageList,pk):
     if len(messageList)==0:
         try:
             results = mergedMessage.getResults()
-            logging.info('the type of results for mergedMessage.getResults class %s' % (type(results)))
             if results is not None:
                 logging.info(f'Averaing normalized scores for {pk}')
                 try:
                     results = results.getRaw()
-                    logging.info('the type of results for results.getRaw class %s' % (type(results)))
                     for result in results:
-                        logging.info('result.keys are: %s' % (result.keys()))
                         if "normalized_score" in result.keys():
                             ns = result["normalized_score"]
                             if isinstance(ns,list) and len(ns)>0:
@@ -606,8 +603,8 @@ def merge_and_post_process(parent_pk,message_to_merge, agent_name):
         merged = merge_received(parent_pk,message_to_merge, agent_name)
         post_process(merged.data,merged.id, agent_name)
     except Exception as e:
-        logging.debug("Problem with merger or post processing for agent %s pk: %s " % (agent_name, (parent_pk)))
         logging.exception("error in merger or post processing")
+        logging.info("Problem with merger or post processing for agent %s pk: %s " % (agent_name, (parent_pk)))
         merged.status='E'
         merged.code = 422
         merged.save()
@@ -1200,8 +1197,8 @@ def merge_received(parent_pk,message_to_merge, agent_name, counter=0):
             parent.save()
             return new_merged_message
         except Exception as e:
+            logging.exception("problem with merging for %s :" % agent_name)
             raise e
-            logging.exception("problem with merging for %s :" % agent_name) 
             #If anything goes wrong, we at least need to unlock the semaphore
             #TODO make some actual proper Exception handling here.
             parent.merge_semaphore=False
