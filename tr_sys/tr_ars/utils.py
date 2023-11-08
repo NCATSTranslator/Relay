@@ -288,12 +288,15 @@ def mergeMessagesRecursive(mergedMessage,messageList,pk):
             results = mergedMessage.getResults()
             if results is not None:
                 logging.info(f'Averaing normalized scores for {pk}')
-                results = results.getRaw()
-                for result in results:
-                    if "normalized_score" in result.keys():
-                        ns = result["normalized_score"]
-                        if isinstance(ns,list) and len(ns)>0:
-                            result["normalized_score"]= sum(ns) / len(ns)
+                try:
+                    results = results.getRaw()
+                    for result in results:
+                        if "normalized_score" in result.keys():
+                            ns = result["normalized_score"]
+                            if isinstance(ns,list) and len(ns)>0:
+                                result["normalized_score"]= sum(ns) / len(ns)
+                except Exception as e:
+                    logging.debug(e.__traceback__)
         except Exception as e:
             logging.debug(e.__traceback__)
 
@@ -499,7 +502,7 @@ def sharedResultsJson(sharedResultsMap):
 
 def pre_merge_process(data,key, agent_name,inforesid):
     mesg=Message.objects.get(pk = key)
-    logging.info("Pre node norm for"+str(key))
+    logging.info("Pre node norm for "+str(key))
     try:
         scrub_null_attributes(data)
     except Exception as e:
@@ -533,10 +536,10 @@ def pre_merge_process(data,key, agent_name,inforesid):
 def post_process(data,key, agent_name):
     code =200
     mesg=Message.objects.get(pk = key)
-    logging.info("Pre node annotation for "+str(key))
+    logging.info("Pre node annotation for agent %s pk: %s" % (agent_name, str(key)))
     try:
         annotate_nodes(mesg,data,agent_name)
-        logging.info("node annotation successful")
+        logging.info("node annotation successful for agent %s" % agent_name)
     except Exception as e:
         post_processing_error(mesg,data,"Error in annotation of nodes")
         logging.error("Error with node annotations for "+str(key))
@@ -596,7 +599,7 @@ def merge_and_post_process(parent_pk,message_to_merge, agent_name):
         merged = merge_received(parent_pk,message_to_merge, agent_name)
         post_process(merged.data,merged.id, agent_name)
     except Exception as e:
-        logging.debug("Problem with merger or post processeing for %s " % str(parent_pk))
+        logging.debug("Problem with merger or post processing for agent %s pk: %s " % (agent_name, (parent_pk)))
         logging.exception("error in merger or post processing")
         merged.status='E'
         merged.code = 422
@@ -681,6 +684,7 @@ def annotate_nodes(mesg,data,agent_name):
 
         json_data = json.dumps(nodes_message)
         try:
+            logging.info('posting data to the annotator URL %s' % ANNOTATOR_URL)
             r = requests.post(ANNOTATOR_URL,data=json_data,headers=headers)
             rj=r.json()
             logging.info('the response status for agent %s node annotator is: %s' % (agent_name,r.status_code))
@@ -1136,7 +1140,7 @@ def merge(pk,merged_pk):
 def merge_received(parent_pk,message_to_merge, agent_name, counter=0):
     parent = Message.objects.get(pk=parent_pk)
     current_merged_pk=parent.merged_version_id
-    logging.info("Beginning merge for "+str(current_merged_pk))
+    logging.info("Beginning merge for agent %s with pk: %s" %(agent_name,str(current_merged_pk)))
     #to_merge_message= Message.objects.get(pk=pk_to_merge)
     #to_merge_message_dict=get_safe(to_merge_message.to_dict(),"fields","data","message")
     t_to_merge_message=TranslatorMessage(message_to_merge)
@@ -1165,6 +1169,7 @@ def merge_received(parent_pk,message_to_merge, agent_name, counter=0):
                 print()
             #If not, we make the newcomer the current "merged" Message
             else:
+                logging.info("first merge done on agent: %s" % agent_name)
                 merged = t_to_merge_message
 
 

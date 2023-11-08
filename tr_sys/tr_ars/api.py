@@ -432,6 +432,7 @@ def message(req, key):
                 #message_to_merge =utils.get_safe(data,"message")
                 message_to_merge = data
                 agent_name = str(mesg.actor.agent.name)
+                logger.info("Running pre_merge_process for agent %s with %s" % (agent_name, len(res)))
                 utils.pre_merge_process(message_to_merge,key, agent_name, inforesid)
                 if mesg.data and 'results' in mesg.data and mesg.data['results'] != None and len(mesg.data['results']) > 0:
                     mesg = Message.create(name=mesg.name, status=status, actor=mesg.actor, ref=mesg)
@@ -439,10 +440,10 @@ def message(req, key):
                 mesg.code = code
                 mesg.data = data
                 mesg.save()
-                logging.info("pre async call")
+                logger.info("pre async call for agent %s" % agent_name)
                 if agent_name.startswith('ara-'):
                     utils.merge_and_post_process.apply_async((parent_pk,message_to_merge['message'],agent_name))
-                logging.info("post async call")
+                logger.info("post async call for agent %s" % agent_name)
 
 
                 # create child message if this one already has results
