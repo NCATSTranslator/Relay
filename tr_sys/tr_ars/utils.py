@@ -299,9 +299,11 @@ def mergeMessagesRecursive(mergedMessage,messageList,pk):
                     logging.debug(e.__traceback__)
         except Exception as e:
             logging.debug(e.__traceback__)
-
-        mergedMessage.status='Done'
-        mergedMessage.code = 200
+        if mergedMessage is not None:
+            mergedMessage.status='Done'
+            mergedMessage.code = 200
+        else:
+            logging.info(f'Merged Message was NoneType for : {pk}')
         return mergedMessage
     else:
         currentMessage = messageList.pop()
