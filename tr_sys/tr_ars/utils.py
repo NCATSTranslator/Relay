@@ -286,15 +286,20 @@ def mergeMessagesRecursive(mergedMessage,messageList,pk):
     if len(messageList)==0:
         try:
             results = mergedMessage.getResults()
+            logging.info('the type of results for mergedMessage.getResults class %s' % (type(results)))
             if results is not None:
                 logging.info(f'Averaing normalized scores for {pk}')
                 try:
                     results = results.getRaw()
+                    logging.info('the type of results for results.getRaw class %s' % (type(results)))
                     for result in results:
+                        logging.info('result.keys are: %s' % (result.keys()))
                         if "normalized_score" in result.keys():
                             ns = result["normalized_score"]
                             if isinstance(ns,list) and len(ns)>0:
                                 result["normalized_score"]= sum(ns) / len(ns)
+                        else:
+                            logging.info('there is no normalized_score in result.keys()')
                 except Exception as e:
                     logging.debug(e.__traceback__)
         except Exception as e:
