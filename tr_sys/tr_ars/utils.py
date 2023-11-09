@@ -282,7 +282,8 @@ def mergeMessages(messageList,pk):
 
 def mergeMessagesRecursive(mergedMessage,messageList,pk):
     #need to clean things up and average our normalized scores now that they're all in
-    logging.info(f'Merging : {pk} recursively.  Currently {str(len(messageList))} messages left in the queue')
+    logging.info(f'Merging new pk: {pk} recursively.  Currently {str(len(messageList))} messages left in the queue')
+    logging.info(f'Current messages list in the queue: {messageList}')
     if len(messageList)==0:
         try:
             results = mergedMessage.getResults()
@@ -295,8 +296,6 @@ def mergeMessagesRecursive(mergedMessage,messageList,pk):
                             ns = result["normalized_score"]
                             if isinstance(ns,list) and len(ns)>0:
                                 result["normalized_score"]= sum(ns) / len(ns)
-                            else:
-                                logging.info("ns type is: %s" % type(ns))
                         else:
                             logging.info('there is no normalized_score in result.keys()')
                 except Exception as e:
@@ -1147,7 +1146,7 @@ def merge(pk,merged_pk):
 def merge_received(parent_pk,message_to_merge, agent_name, counter=0):
     parent = Message.objects.get(pk=parent_pk)
     current_merged_pk=parent.merged_version_id
-    logging.info("Beginning merge for agent %s with pk: %s" %(agent_name,str(current_merged_pk)))
+    logging.info("Beginning merge for agent %s with current_pk: %s" %(agent_name,str(current_merged_pk)))
     #to_merge_message= Message.objects.get(pk=pk_to_merge)
     #to_merge_message_dict=get_safe(to_merge_message.to_dict(),"fields","data","message")
     t_to_merge_message=TranslatorMessage(message_to_merge)
@@ -1200,7 +1199,7 @@ def merge_received(parent_pk,message_to_merge, agent_name, counter=0):
             else:
                 parent.merged_versions_list.append(pk_infores_merge)
             parent.save()
-            logging.info("returning new_merged_message to be post processed")
+            logging.info("returning new_merged_message to be post processed with pk: %s" % str(new_merged_message.pk))
             return new_merged_message
         except Exception as e:
             logging.exception("problem with merging for %s :" % agent_name)
