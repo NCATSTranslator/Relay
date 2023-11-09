@@ -295,9 +295,12 @@ def mergeMessagesRecursive(mergedMessage,messageList,pk):
                             ns = result["normalized_score"]
                             if isinstance(ns,list) and len(ns)>0:
                                 result["normalized_score"]= sum(ns) / len(ns)
+                            else:
+                                logging.info("ns type is: %s" % type(ns))
                         else:
                             logging.info('there is no normalized_score in result.keys()')
                 except Exception as e:
+                    print(e)
                     logging.debug(e.__traceback__)
         except Exception as e:
             logging.debug(e.__traceback__)
@@ -1178,10 +1181,11 @@ def merge_received(parent_pk,message_to_merge, agent_name, counter=0):
 
 
             merged_dict = merged.to_dict()
-            logging.info('the keys for merged_dict are %s' % merged_dict.keys())
-            new_merged_message.data=merged_dict
+            logging.info('the keys for merged_dict are %s' % merged_dict['message'].keys())
+            new_merged_message.data = merged_dict
             new_merged_message.status='R'
             new_merged_message.code=202
+            logging.info("saving the new_merged_message with data: %s" % str(new_merged_message.data))
             new_merged_message.save()
 
             #Now that we're done, we unlock update the merged_version on the parent, unlock it, and save
@@ -1196,6 +1200,7 @@ def merge_received(parent_pk,message_to_merge, agent_name, counter=0):
             else:
                 parent.merged_versions_list.append(pk_infores_merge)
             parent.save()
+            logging.info("returning new_merged_message to be post processed")
             return new_merged_message
         except Exception as e:
             logging.exception("problem with merging for %s :" % agent_name)
