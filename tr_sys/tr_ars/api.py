@@ -440,10 +440,10 @@ def message(req, key):
                 mesg.code = code
                 mesg.data = data
                 mesg.save()
-                logger.info("pre async call for agent %s" % agent_name)
                 if agent_name.startswith('ara-'):
+                    logger.info("pre async call for agent %s" % agent_name)
                     utils.merge_and_post_process.apply_async((parent_pk,message_to_merge['message'],agent_name))
-                logger.info("post async call for agent %s" % agent_name)
+                    logger.info("post async call for agent %s" % agent_name)
 
 
                 # create child message if this one already has results
