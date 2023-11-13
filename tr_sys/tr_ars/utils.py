@@ -1181,6 +1181,7 @@ def merge_received(parent_pk,message_to_merge, agent_name, counter=0):
 
             merged_dict = merged.to_dict()
             logging.info('the keys for merged_dict are %s' % merged_dict['message'].keys())
+            logging.info('fields of new_merged_message %s' % (new_merged_message.__dict__))
             new_merged_message.data = merged_dict
             new_merged_message.status='R'
             new_merged_message.code=202
