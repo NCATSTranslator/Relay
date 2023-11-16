@@ -620,6 +620,7 @@ def remove_blocked(mesg, blocklist=None):
     data=mesg.data
     results = get_safe(data,"message","results")
     to_remove = []
+    removed_ids=[]
     for result in results:
         node_bindings = get_safe(result,"node_bindings")
         if node_bindings is not None:
@@ -629,10 +630,13 @@ def remove_blocked(mesg, blocklist=None):
                     the_id = get_safe(c,"id")
                 if the_id in blocklist:
                     to_remove.append(result)
+                    removed_ids.append(the_id)
+
     for removal in to_remove:
         results.remove(removal)
     blocked_version.data=data
     blocked_version.save()
+    logging.info('Removing results containing the following %s from PK: %s' % (str(removed_ids), str(blocked_version.id)))
     return str(blocked_version.id)
 
 def scrub_null_attributes(data):
