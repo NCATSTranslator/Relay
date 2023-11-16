@@ -611,6 +611,39 @@ def merge_and_post_process(parent_pk,message_to_merge, agent_name):
         merged.code = 422
         merged.save()
 
+def remove_blocked(mesg, blocklist=None):
+    if blocklist is None:
+        path = os.path.join(os.path.dirname(__file__), "..", "..", "config", "blocklist.json")
+        f = open(path)
+        blocklist = json.load(f)
+    blocked_version = createMessage(get_ars_actor())
+    data=mesg.data
+    results = get_safe(data,"message","results")
+    nodes = get_safe(data,"message","knowledge_graph","nodes")
+    to_remove = []
+    removed_ids=[]
+    removed_nodes=[]
+    for result in results:
+        node_bindings = get_safe(result,"node_bindings")
+        if node_bindings is not None:
+            for k in node_bindings.keys():
+                nb=node_bindings[k]
+                for c in nb:
+                    the_id = get_safe(c,"id")
+                if the_id in blocklist:
+                    to_remove.append(result)
+                    if the_id not in removed_ids:
+                        removed_ids.append(the_id)
+    for rid in removed_ids:
+        removed_nodes.append(nodes[rid])
+    for removal in to_remove:
+        results.remove(removal)
+    blocked_version.status='D'
+    blocked_version.code=200
+    blocked_version.data=data
+    blocked_version.save()
+    logging.info('Removing results containing the following %s from PK: %s' % (str(removed_ids), str(blocked_version.id)))
+    return (str(blocked_version.id),removed_nodes,to_remove)
 
 def scrub_null_attributes(data):
     nodes = get_safe(data,"message","knowledge_graph","nodes")
