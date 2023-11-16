@@ -745,8 +745,14 @@ def timeoutTest(req,time=300):
     if req.method == 'POST':
         time.sleep(time)
     else:
-        pass
+        utils.remove_blocked()
 
+def block(req,key):
+    if req.method == 'GET':
+        mesg=Message.objects.get(pk=key)
+        mid=utils.remove_blocked(mesg)
+        return redirect('/ars/api/messages/'+str(mid))
+    return HttpResponse
 
 def retain(req, key):
     if req.method == 'GET':
@@ -803,6 +809,7 @@ apipatterns = [
     re_path(r'^timeoutTest/?$', timeoutTest, name='ars-timeout'),
     path('merge/<uuid:key>', merge, name='ars-merge'),
     path('retain/<uuid:key>', retain, name='ars-retain'),
+    path('block/<uuid:key>', block, name='ars-block'),
     path('latest_pk/<int:n>', latest_pk, name='ars-latestPK'),
     path('post_process/<uuid:key>', post_process, name='ars-post_process_debug')
 
