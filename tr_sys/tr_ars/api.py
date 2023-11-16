@@ -750,9 +750,16 @@ def timeoutTest(req,time=300):
 def block(req,key):
     if req.method == 'GET':
         mesg=Message.objects.get(pk=key)
-        mid=utils.remove_blocked(mesg)
-        return redirect('/ars/api/messages/'+str(mid))
-    return HttpResponse
+        report=utils.remove_blocked(mesg)
+        httpjson = {
+            "pk":report[0],
+            "blocked_nodes":report[1],
+            "removed_results":report[2]
+
+        }
+        #return redirect('/ars/api/messages/'+str(blocked_id))
+        return HttpResponse(json.dumps(httpjson, indent=2),
+                            content_type='application/json', status=200)
 
 def retain(req, key):
     if req.method == 'GET':
