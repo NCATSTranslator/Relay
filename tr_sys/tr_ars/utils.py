@@ -556,6 +556,14 @@ def post_process(data,key, agent_name):
         scrub_null_attributes(data)
     except Exception as e:
         logging.info("Problem with the second scrubbing of null attributes")
+    logging.info("pre blocklist for "+str(key))
+    try:
+        remove_blocked(mesg)
+    except Exception as e:
+        logging.info(e.__cause__)
+        logging.info("Problem with block list removal")
+
+
     try:
         appraise(mesg,data,agent_name)
         logging.info("appraiser successful")
@@ -620,30 +628,87 @@ def remove_blocked(mesg, blocklist=None):
     data=mesg.data
     results = get_safe(data,"message","results")
     nodes = get_safe(data,"message","knowledge_graph","nodes")
-    to_remove = []
+    edges = get_safe(data,"message","knowledge_graph","edges")
+    aux_graphs = get_safe(data,"message","auxiliary_graphs")
     removed_ids=[]
     removed_nodes=[]
-    for result in results:
-        node_bindings = get_safe(result,"node_bindings")
-        if node_bindings is not None:
-            for k in node_bindings.keys():
-                nb=node_bindings[k]
-                for c in nb:
-                    the_id = get_safe(c,"id")
-                if the_id in blocklist:
-                    to_remove.append(result)
-                    if the_id not in removed_ids:
-                        removed_ids.append(the_id)
-    for rid in removed_ids:
-        removed_nodes.append(nodes[rid])
-    for removal in to_remove:
-        results.remove(removal)
+
+    #The set of ids of nodes that need to be removed is the intersection of the Nodes keys and the blocklist
+    if nodes is not None:
+        nodes_to_remove= list(set(blocklist) & set(nodes.keys()))
+        #We remove those nodes first from the knowledge graph
+        for node in nodes_to_remove:
+            removed_nodes.append(nodes[node])
+            del nodes[node]
+
+        #Then we find any edges that have them as a subject or object and remove those
+        edges_to_remove=[]
+        for edge_id, edge in edges.items():
+            if edge['subject'] in nodes_to_remove or edge['object'] in nodes_to_remove:
+                edges_to_remove.append(edge_id)
+        for edge_id in edges_to_remove:
+            del edges[edge_id]
+
+        if aux_graphs is not None:
+            aux_graphs_to_remove=[]
+            for aux_id, aux_graph in aux_graphs.items():
+                edges = get_safe(aux_graph,"edges")
+                overlap = list(set(edges) & set(nodes_to_remove))
+                if len(overlap)>0:
+                    aux_graphs_to_remove.append(aux_id)
+            for aux_id in aux_graphs_to_remove:
+                del aux_graphs[aux_id]
+        #We do the same for results
+        if results is not None:
+            results_to_remove = []
+            for result in results:
+                node_bindings = get_safe(result,"node_bindings")
+                if node_bindings is not None:
+                    for k in node_bindings.keys():
+                        nb=node_bindings[k]
+                        for c in nb:
+                            the_id = get_safe(c,"id")
+                        if the_id in nodes_to_remove:
+                            results_to_remove.append(result)
+
+                analyses=get_safe(result,"analyses")
+                if analyses is not None:
+                    analyses_to_remove=[]
+                    for analysis in analyses:
+                        edge_bindings = get_safe(analysis,"edge_bindings")
+                        if edge_bindings is not None:
+                            for edge_id,bindings in edge_bindings.items():
+                                bindings_to_remove=[]
+                                for binding in bindings:
+                                    if binding['id'] in edges_to_remove:
+                                        if(len(bindings)>1):
+                                            bindings_to_remove.append(binding)
+                                        else:
+                                            analyses_to_remove.append(analysis)
+                                for br in bindings_to_remove:
+                                    bindings.remove(br)
+
+                        support_graphs=get_safe(analysis,"support_graphs")
+                        support_graphs_to_remove=[]
+                        if support_graphs is not None and len(support_graphs)>0:
+                            for sg in support_graphs:
+                                if sg in edges_to_remove:
+                                    support_graphs_to_remove.append(sg)
+                            for sg in support_graphs_to_remove:
+                                support_graphs.remove(sg)
+                    for analysis in analyses_to_remove:
+                        analyses.remove(analysis)
+
+            for result in results_to_remove:
+              results.remove(result)
+
+
     blocked_version.status='D'
     blocked_version.code=200
     blocked_version.data=data
     blocked_version.save()
-    logging.info('Removing results containing the following %s from PK: %s' % (str(removed_ids), str(blocked_version.id)))
-    return (str(blocked_version.id),removed_nodes,to_remove)
+    logging.info('Removing results containing the following %s from PK: %s' % (str(nodes_to_remove), str(blocked_version.id)))
+    return (str(blocked_version.id),removed_nodes,results_to_remove)
 
 def scrub_null_attributes(data):
     nodes = get_safe(data,"message","knowledge_graph","nodes")
