@@ -556,7 +556,7 @@ def post_process(data,key, agent_name):
         scrub_null_attributes(data)
     except Exception as e:
         logging.info("Problem with the second scrubbing of null attributes")
-
+    logging.info("pre blocklist for "+str(key))
     try:
         remove_blocked(mesg)
     except Exception as e:
@@ -707,7 +707,7 @@ def remove_blocked(mesg, blocklist=None):
     blocked_version.code=200
     blocked_version.data=data
     blocked_version.save()
-    logging.info('Removing results containing the following %s from PK: %s' % (str(removed_ids), str(blocked_version.id)))
+    logging.info('Removing results containing the following %s from PK: %s' % (str(nodes_to_remove), str(blocked_version.id)))
     return (str(blocked_version.id),removed_nodes,results_to_remove)
 
 def scrub_null_attributes(data):
