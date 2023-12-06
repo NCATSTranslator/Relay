@@ -606,6 +606,9 @@ def merge_and_post_process(parent_pk,message_to_merge, agent_name):
             parent = Message.objects.select_for_update().get(pk=parent_pk)
             merged = merge_received(parent,message_to_merge, agent_name)
             if merged is not None:
+                json_merged = json.dumps(merged.data, indent=4)
+                with open(str(parent_pk)+'_'+agent_name+"_merged.json", "w") as outfile:
+                    outfile.write(json_merged)
                 logging.info('merged data for agent %s with pk %s is returned & ready to be preprocessed' % (agent_name, str(merged.id)))
                 post_process(merged.data,merged.id, agent_name)
         parent.save()
@@ -731,7 +734,7 @@ def annotate_nodes(mesg,data,agent_name):
         json_data = json.dumps(nodes_message)
         try:
             logging.info('posting data to the annotator URL %s' % ANNOTATOR_URL)
-            with open(str(mesg.pk)+'_'+agent_name+"_merged.json", "w") as outfile:
+            with open(str(mesg.pk)+'_'+agent_name+"_KG_nodes_annotator.json", "w") as outfile:
                 outfile.write(json_data)
             r = requests.post(ANNOTATOR_URL,data=json_data,headers=headers)
             r.raise_for_status()
