@@ -653,7 +653,7 @@ def remove_blocked(mesg, blocklist=None):
             aux_graphs_to_remove=[]
             for aux_id, aux_graph in aux_graphs.items():
                 edges = get_safe(aux_graph,"edges")
-                overlap = list(set(edges) & set(nodes_to_remove))
+                overlap = list(set(edges) & set(edges_to_remove))
                 if len(overlap)>0:
                     aux_graphs_to_remove.append(aux_id)
             for aux_id in aux_graphs_to_remove:
@@ -698,9 +698,12 @@ def remove_blocked(mesg, blocklist=None):
                                 support_graphs.remove(sg)
                     for analysis in analyses_to_remove:
                         analyses.remove(analysis)
-
+                    if len(analysis)<1:
+                        #if removing the bad analyses leaves us with a result that would have none, we remove the result
+                        results_to_remove.append(result)
             for result in results_to_remove:
               results.remove(result)
+
 
 
     blocked_version.status='D'
