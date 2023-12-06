@@ -731,6 +731,8 @@ def annotate_nodes(mesg,data,agent_name):
         json_data = json.dumps(nodes_message)
         try:
             logging.info('posting data to the annotator URL %s' % ANNOTATOR_URL)
+            with open(str(mesg.pk)+'_'+agent_name+"_merged.json", "w") as outfile:
+                outfile.write(json_data)
             r = requests.post(ANNOTATOR_URL,data=json_data,headers=headers)
             r.raise_for_status()
             rj=r.json()
