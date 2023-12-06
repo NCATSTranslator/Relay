@@ -612,6 +612,7 @@ def merge_and_post_process(parent_pk,message_to_merge, agent_name):
         transaction.commit()
     except Exception as e:
         logging.info("Problem with merger or post processing for agent %s pk: %s " % (agent_name, (parent_pk)))
+        logging.info(e, exc_info=True)
         logging.info('error message %s' % str(e))
         merged.status='E'
         merged.code = 422
@@ -749,6 +750,7 @@ def annotate_nodes(mesg,data,agent_name):
         except Exception as e:
             logging.info('node annotation internal error msg is for agent %s with pk: %s is  %s' % (agent_name,str(mesg.pk),str(e)))
             logging.exception("error in node annotation internal function")
+
             raise e
         #else:
          #   with open(str(mesg.actor)+".json", "w") as outfile:
@@ -815,12 +817,14 @@ def decorate_edges_with_infores(data,inforesid):
                     #then we add it, be it primary or aggregator
                     edge['sources'].append(self_source)
 
+
 def post_processing_error(mesg,data,text):
     mesg.status = 'E'
     mesg.code = 206
-    log_tuple=(text,
-               mesg.updated_at,
-               "WARNING")
+    log_tuple=[text,
+               (mesg.updated_at).strftime('%H:%M:%S'),
+               "WARNING"]
+    logging.info(f'the log_tuple is %s'% log_tuple)
     add_log_entry(data,log_tuple)
 
 def add_log_entry(data, log_tuple):
@@ -829,9 +833,9 @@ def add_log_entry(data, log_tuple):
     #timestamp
     #level
     log_entry={
-        "message":log_tuple(0),
-        "timestamp":log_tuple(1),
-        "level":log_tuple(2)
+        "message":log_tuple[0],
+        "timestamp":log_tuple[1],
+        "level":log_tuple[2]
     }
     if 'logs' in data.keys():
         data['logs'].append(log_entry)
