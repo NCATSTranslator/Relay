@@ -31,7 +31,8 @@ ARS_ACTOR = {
 }
 
 NORMALIZER_URL=os.getenv("TR_NORMALIZER") if os.getenv("TR_NORMALIZER") is not None else "https://nodenormalization-sri.renci.org/1.4/get_normalized_nodes"
-ANNOTATOR_URL=os.getenv("TR_ANNOTATOR") if os.getenv("TR_ANNOTATOR") is not None else "https://biothings.ci.transltr.io/annotator/"
+#ANNOTATOR_URL=os.getenv("TR_ANNOTATOR") if os.getenv("TR_ANNOTATOR") is not None else "https://biothings.ci.transltr.io/annotator/"
+ANNOTATOR_URL=os.getenv("TR_ANNOTATOR") if os.getenv("TR_ANNOTATOR") is not None else "https://biothings.ncats.io/annotator/"
 APPRAISER_URL=os.getenv("TR_APPRAISE") if os.getenv("TR_APPRAISE") is not None else "http://localhost:9096/get_appraisal"
 
 
@@ -606,11 +607,10 @@ def merge_and_post_process(parent_pk,message_to_merge, agent_name):
             parent = Message.objects.select_for_update().get(pk=parent_pk)
             merged = merge_received(parent,message_to_merge, agent_name)
             if merged is not None:
-                json_merged = json.dumps(merged.data, indent=4)
-                with open(str(parent_pk)+'_'+agent_name+"_merged.json", "w") as outfile:
-                    outfile.write(json_merged)
                 logging.info('merged data for agent %s with pk %s is returned & ready to be preprocessed' % (agent_name, str(merged.id)))
                 post_process(merged.data,merged.id, agent_name)
+        parent.code = 200
+        parent.status = 'D'
         parent.save()
         transaction.commit()
     except Exception as e:
@@ -734,8 +734,8 @@ def annotate_nodes(mesg,data,agent_name):
         json_data = json.dumps(nodes_message)
         try:
             logging.info('posting data to the annotator URL %s' % ANNOTATOR_URL)
-            with open(str(mesg.pk)+'_'+agent_name+"_KG_nodes_annotator.json", "w") as outfile:
-                outfile.write(json_data)
+            # with open(str(mesg.pk)+'_'+agent_name+"_KG_nodes_annotator.json", "w") as outfile:
+            #     outfile.write(json_data)
             r = requests.post(ANNOTATOR_URL,data=json_data,headers=headers)
             r.raise_for_status()
             rj=r.json()
