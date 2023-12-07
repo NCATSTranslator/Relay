@@ -4,7 +4,7 @@ import logging
 import traceback
 import os
 from datetime import time
-
+from django.db import transaction
 import requests
 import statistics
 from .api import get_ars_actor, get_or_create_actor
@@ -31,7 +31,8 @@ ARS_ACTOR = {
 }
 
 NORMALIZER_URL=os.getenv("TR_NORMALIZER") if os.getenv("TR_NORMALIZER") is not None else "https://nodenormalization-sri.renci.org/1.4/get_normalized_nodes"
-ANNOTATOR_URL=os.getenv("TR_ANNOTATOR") if os.getenv("TR_ANNOTATOR") is not None else "https://biothings.ci.transltr.io/annotator/"
+#ANNOTATOR_URL=os.getenv("TR_ANNOTATOR") if os.getenv("TR_ANNOTATOR") is not None else "https://biothings.ci.transltr.io/annotator/"
+ANNOTATOR_URL=os.getenv("TR_ANNOTATOR") if os.getenv("TR_ANNOTATOR") is not None else "https://biothings.ncats.io/annotator/"
 APPRAISER_URL=os.getenv("TR_APPRAISE") if os.getenv("TR_APPRAISE") is not None else "http://localhost:9096/get_appraisal"
 
 
@@ -545,13 +546,13 @@ def post_process(data,key, agent_name):
     logging.info("Pre node annotation for agent %s pk: %s" % (agent_name, str(key)))
     try:
         annotate_nodes(mesg,data,agent_name)
-        logging.info("node annotation successful for agent %s" % agent_name)
+        logging.info("node annotation successful for agent %s and pk: %s" % (agent_name, str(key)))
     except Exception as e:
         post_processing_error(mesg,data,"Error in annotation of nodes")
         logging.error("Error with node annotations for "+str(key))
         logging.exception("problem with node annotation post process function")
         raise e
-    logging.info("pre appraiser for "+str(key))
+    logging.info("pre appraiser for agent %s and pk %s"%(agent_name, str(key)))
     try:
         scrub_null_attributes(data)
     except Exception as e:
@@ -566,7 +567,7 @@ def post_process(data,key, agent_name):
 
     try:
         appraise(mesg,data,agent_name)
-        logging.info("appraiser successful")
+        logging.info("appraiser successful for agent %s and pk %s" % (agent_name, str(key)))
     except Exception as e:
         code = 422
         results = get_safe(data,"message","results")
@@ -593,7 +594,7 @@ def post_process(data,key, agent_name):
         if results is not None:
             new_res=scoring.compute_from_results(results)
             data['message']['results']=new_res
-            logging.info("scoring succeeded")
+            logging.info("scoring succeeded for agent %s and pk %s" % (agent_name, key))
         else:
             logging.error('results from appraiser returns None, cant do the scoring')
         print()
@@ -608,13 +609,22 @@ def post_process(data,key, agent_name):
 
 @shared_task(name="merge_and_post_process")
 def merge_and_post_process(parent_pk,message_to_merge, agent_name):
-    #logging.debug("Starting merge for "+str(mesg.pk))
+    logging.info(f"Starting merge for %s with parent PK: %s"% (agent_name,parent_pk))
     try:
-        merged = merge_received(parent_pk,message_to_merge, agent_name)
-        post_process(merged.data,merged.id, agent_name)
+        with transaction.atomic():
+            parent = Message.objects.select_for_update().get(pk=parent_pk)
+            merged = merge_received(parent,message_to_merge, agent_name)
+            if merged is not None:
+                logging.info('merged data for agent %s with pk %s is returned & ready to be preprocessed' % (agent_name, str(merged.id)))
+                post_process(merged.data,merged.id, agent_name)
+        parent.code = 200
+        parent.status = 'D'
+        parent.save()
+        transaction.commit()
     except Exception as e:
-        logging.exception("error in merger or post processing")
         logging.info("Problem with merger or post processing for agent %s pk: %s " % (agent_name, (parent_pk)))
+        logging.info(e, exc_info=True)
+        logging.info('error message %s' % str(e))
         merged.status='E'
         merged.code = 422
         merged.save()
@@ -792,7 +802,10 @@ def annotate_nodes(mesg,data,agent_name):
         json_data = json.dumps(nodes_message)
         try:
             logging.info('posting data to the annotator URL %s' % ANNOTATOR_URL)
+            # with open(str(mesg.pk)+'_'+agent_name+"_KG_nodes_annotator.json", "w") as outfile:
+            #     outfile.write(json_data)
             r = requests.post(ANNOTATOR_URL,data=json_data,headers=headers)
+            r.raise_for_status()
             rj=r.json()
             logging.info('the response status for agent %s node annotator is: %s' % (agent_name,r.status_code))
             if r.status_code==200:
@@ -808,7 +821,9 @@ def annotate_nodes(mesg,data,agent_name):
             else:
                 post_processing_error(mesg,data,"Error in annotation of nodes")
         except Exception as e:
+            logging.info('node annotation internal error msg is for agent %s with pk: %s is  %s' % (agent_name,str(mesg.pk),str(e)))
             logging.exception("error in node annotation internal function")
+
             raise e
         #else:
          #   with open(str(mesg.actor)+".json", "w") as outfile:
@@ -875,12 +890,14 @@ def decorate_edges_with_infores(data,inforesid):
                     #then we add it, be it primary or aggregator
                     edge['sources'].append(self_source)
 
+
 def post_processing_error(mesg,data,text):
     mesg.status = 'E'
     mesg.code = 206
-    log_tuple=(text,
-               mesg.updated_at,
-               "WARNING")
+    log_tuple=[text,
+               (mesg.updated_at).strftime('%H:%M:%S'),
+               "WARNING"]
+    logging.info(f'the log_tuple is %s'% log_tuple)
     add_log_entry(data,log_tuple)
 
 def add_log_entry(data, log_tuple):
@@ -889,9 +906,9 @@ def add_log_entry(data, log_tuple):
     #timestamp
     #level
     log_entry={
-        "message":log_tuple(0),
-        "timestamp":log_tuple(1),
-        "level":log_tuple(2)
+        "message":log_tuple[0],
+        "timestamp":log_tuple[1],
+        "level":log_tuple[2]
     }
     if 'logs' in data.keys():
         data['logs'].append(log_entry)
@@ -1244,8 +1261,7 @@ def merge(pk,merged_pk):
     mergedComplete.save()
 
 @app.task(name="merge_received")
-def merge_received(parent_pk,message_to_merge, agent_name, counter=0):
-    parent = Message.objects.get(pk=parent_pk)
+def merge_received(parent,message_to_merge, agent_name, counter=0):
     current_merged_pk=parent.merged_version_id
     logging.info("Beginning merge for agent %s with current_pk: %s" %(agent_name,str(current_merged_pk)))
     #to_merge_message= Message.objects.get(pk=pk_to_merge)
@@ -1255,6 +1271,7 @@ def merge_received(parent_pk,message_to_merge, agent_name, counter=0):
     if not parent.merge_semaphore:
         logging.info("merge semaphore False for "+str(current_merged_pk))
         new_merged_message = createMessage(get_ars_actor())
+        logging.info("the merged_pk for agent %s is %s" % (agent_name, str(new_merged_message.pk)))
         new_merged_message.save()
         #Since we've started a merge, we lock the parent PK for the duration (this is a soft lock)
         parent.merge_semaphore=True
@@ -1282,11 +1299,9 @@ def merge_received(parent_pk,message_to_merge, agent_name, counter=0):
 
             merged_dict = merged.to_dict()
             logging.info('the keys for merged_dict are %s' % merged_dict['message'].keys())
-            logging.info('fields of new_merged_message %s' % (new_merged_message.__dict__))
             new_merged_message.data = merged_dict
             new_merged_message.status='R'
             new_merged_message.code=202
-            logging.info("saving the new_merged_message with data: %s" % str(new_merged_message.data))
             new_merged_message.save()
 
             #Now that we're done, we unlock update the merged_version on the parent, unlock it, and save
@@ -1317,9 +1332,9 @@ def merge_received(parent_pk,message_to_merge, agent_name, counter=0):
             logging.debug("Merged_version locked for %s.  Attempt %s:" % (agent_name, str(counter)))
             sleeptime.sleep(5)
             counter = counter + 1
-            merge_received(parent_pk,message_to_merge,agent_name,counter)
+            merge_received(parent,message_to_merge,agent_name,counter)
         else:
-            logging.debug("Failed to merge "+str(parent_pk))
+            logging.debug("Failed to merge for agent %s "% agent_name)
 
 
 def hop_level_filter(results, hop_limit):
