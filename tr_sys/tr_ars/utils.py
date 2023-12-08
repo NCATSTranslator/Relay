@@ -863,11 +863,13 @@ def normalize_nodes(data,agent_name,key):
 
 def decorate_edges_with_infores(data,inforesid):
     edges = get_safe(data,"message","knowledge_graph","edges")
+    if inforesid is None:
+        inforesid="infores:unknown"
     self_source= {
         "resource_id": inforesid,
         "resource_role": "primary_knowledge_source",
         "source_record_urls": None,
-        "upstream_resource_ids": None
+        "upstream_resource_ids": []
     }
     if edges is not None:
         for key, edge in edges.items():
