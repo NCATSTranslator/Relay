@@ -601,6 +601,7 @@ def post_process(data,key, agent_name):
 
 @shared_task(name="merge_and_post_process")
 def merge_and_post_process(parent_pk,message_to_merge, agent_name):
+
     logging.info(f"Starting merge for %s with parent PK: %s"% (agent_name,parent_pk))
     try:
         with transaction.atomic():
@@ -672,6 +673,10 @@ def scrub_null_attributes(data):
                 while None in edgeAttributes:
                     edgeAttributes.remove(None)
 
+            edgeSources=get_safe(edgeStuff, "sources")
+            for edge_source in edgeSources:
+                if edge_source["resource_id"] is None or edge_source["upstream_resource_ids"] is None:
+                    edgeSources.remove(edge_source)
 
 
 def appraise(mesg,data, agent_name,retry_counter=0):
