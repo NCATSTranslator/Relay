@@ -215,6 +215,7 @@ def trace_message(req, key):
             'message': str(mesg.id),
             'status': dict(Message.STATUS)[mesg.status],
             'code':mesg.code,
+            'retain': mesg.retain,
             'timestamp': str(mesg.timestamp),
             'actor': {
                 'pk': mesg.actor.pk,
@@ -760,21 +761,21 @@ def block(req,key):
         #return redirect('/ars/api/messages/'+str(blocked_id))
         return HttpResponse(json.dumps(httpjson, indent=2),
                             content_type='application/json', status=200)
-
+@csrf_exempt
 def retain(req, key):
-    if req.method == 'GET':
-        mesg=Message.objects.get(pk=key)
-        if str(mesg.actor.agent.name) == 'ars-default-agent':
-            mesg.retain = True
-            mesg.save()
+
+    mesg=Message.objects.get(pk=key)
+    if str(mesg.actor.agent.name) == 'ars-default-agent':
+        mesg.retain = True
+        mesg.save()
+    else:
+        if mesg.ref_id is not None:
+            parent_mesg = Message.objects.get(pk=mesg.ref_id)
+            parent_mesg.retain = True
+            parent_mesg.save()
+            return HttpResponse('retained the message for parent pk: %s' % mesg.ref_id)
         else:
-            if mesg.ref_id is not None:
-                parent_mesg = Message.objects.get(pk=mesg.ref_id)
-                parent_mesg.retain = True
-                parent_mesg.save()
-                return HttpResponse('retained the message for parent pk: %s' % mesg.ref_id)
-            else:
-                logger.error('pk: %s doesnt have a parent level pk' % key)
+            logger.error('pk: %s doesnt have a parent level pk' % key)
     return HttpResponse('retained the message for parent pk: %s' % key)
 
 def merge(req, key):
