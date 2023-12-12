@@ -743,7 +743,9 @@ def scrub_null_attributes(data):
 
             edgeSources=get_safe(edgeStuff, "sources")
             for edge_source in edgeSources:
-                if edge_source["resource_id"] is None or edge_source["upstream_resource_ids"] is None:
+                if 'resource_id' in edge_source.keys() and edge_source["resource_id"] is None:
+                    edgeSources.remove(edge_source)
+                elif 'upstream_resource_ids' in edge_source.keys() and edge_source["upstream_resource_ids"] is None:
                     edgeSources.remove(edge_source)
 
 
