@@ -188,13 +188,14 @@ def catch_timeout_async():
     messages = Message.objects.filter(timestamp__gt=time_threshold,timestamp__lt=max_time, status__in='R').values_list('actor','id','timestamp','updated_at')
     for mesg in messages:
         mpk=mesg[0]
+        id = mesg[1]
         actor = Agent.objects.get(pk=mpk)
         logging.info(f'actor: {actor} id: {mesg[1]} timestamp: {mesg[2]} updated_at {mesg[3]}')
 
         if actor.name == 'ars-default-agent':
             continue
         else:
-            logger.info(f'for actor: {actor.name}, and pk {str(mpk)} the status is still "Running" after 5 min, setting code to 598')
+            logger.info(f'for actor: {actor.name}, and pk {str(id)} the status is still "Running" after 5 min, setting code to 598')
             message = Message.objects.get(pk=mesg[1])
             message.code = 598
             message.status = 'E'

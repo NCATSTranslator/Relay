@@ -552,11 +552,12 @@ def post_process(data,key, agent_name):
         logging.error("Error with node annotations for "+str(key))
         logging.exception("problem with node annotation post process function")
         raise e
-    logging.info("pre appraiser for agent %s and pk %s"%(agent_name, str(key)))
+    logging.info("pre scrub null for agent %s and pk %s" % (agent_name, str(key)))
     try:
         scrub_null_attributes(data)
     except Exception as e:
         logging.info("Problem with the second scrubbing of null attributes")
+    logging.info("pre appraiser for agent %s and pk %s" % (agent_name, str(key)))
     try:
         appraise(mesg,data,agent_name)
         logging.info("appraiser successful for agent %s and pk %s" % (agent_name, str(key)))
@@ -607,12 +608,6 @@ def merge_and_post_process(parent_pk,message_to_merge, agent_name):
         with transaction.atomic():
             parent = Message.objects.select_for_update().get(pk=parent_pk)
             merged = merge_received(parent,message_to_merge, agent_name)
-            if merged is not None:
-                logging.info('merged data for agent %s with pk %s is returned & ready to be preprocessed' % (agent_name, str(merged.id)))
-                post_process(merged.data,merged.id, agent_name)
-        parent.code = 200
-        parent.status = 'D'
-        parent.save()
         transaction.commit()
     except Exception as e:
         logging.info("Problem with merger or post processing for agent %s pk: %s " % (agent_name, (parent_pk)))
@@ -621,6 +616,13 @@ def merge_and_post_process(parent_pk,message_to_merge, agent_name):
         merged.status='E'
         merged.code = 422
         merged.save()
+    if merged is not None:
+       logging.info('merged data for agent %s with pk %s is returned & ready to be preprocessed' % (agent_name, str(merged.id)))
+       post_process(merged.data,merged.id, agent_name)
+
+    parent.code = 200
+    parent.status = 'D'
+    parent.save()
 
 def remove_blocked(mesg, blocklist=None):
     if blocklist is None:
@@ -676,8 +678,10 @@ def scrub_null_attributes(data):
             edgeSources=get_safe(edgeStuff, "sources")
             for edge_source in edgeSources:
                 if 'resource_id' in edge_source.keys() and edge_source["resource_id"] is None:
+                    logging.info('found Null in resource_id : %s' % (edge_source["resource_id"]))
                     edgeSources.remove(edge_source)
                 elif 'upstream_resource_ids' in edge_source.keys() and edge_source["upstream_resource_ids"] is None:
+                    logging.info('found Null in upstream_resource_ids : %s' % (edge_source["upstream_resource_ids"]))
                     edgeSources.remove(edge_source)
 
 
