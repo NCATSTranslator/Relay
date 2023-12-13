@@ -886,12 +886,19 @@ def decorate_edges_with_infores(data,inforesid):
             if 'sources' not in edge.keys() or edge['sources'] is None or len(edge['sources'])==0:
                 edge['sources']=[self_source]
             else:
+                bad_sources=[]
                 for source in edge['sources']:
+                    if 'resource_id' not in source.keys():
+                        bad_sources.append(source)
+                        #if the source is no good, we don't need to do anything else with it.
+                        continue
                     if source['resource_id']==inforesid:
                         has_self=True
 
                     if source['resource_role']=="primary_knowledge_source":
                         has_primary=True
+                for source in bad_sources:
+                    edge['sources'].remove(source)
                 if not has_self:
                     #if we already have a primary knowledge source but not our self, we add ourself as an aggregator
                     if has_primary:
