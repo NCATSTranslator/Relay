@@ -3,7 +3,7 @@ import json
 import logging
 import traceback
 import os
-from datetime import time
+from datetime import time, datetime
 from django.db import transaction
 import requests
 import statistics
@@ -735,6 +735,7 @@ def scrub_null_attributes(data):
                     nodeAttributes.remove(None)
 
     if edges is not None:
+        bad_sources = []
         for edgeId, edgeStuff in edges.items():
             edgeAttributes =get_safe(edgeStuff,"attributes")
             if edgeAttributes is not None:
@@ -742,13 +743,31 @@ def scrub_null_attributes(data):
                     edgeAttributes.remove(None)
 
             edgeSources=get_safe(edgeStuff, "sources")
+            sources_to_remove = {}
             for edge_source in edgeSources:
-                if 'resource_id' in edge_source.keys() and edge_source["resource_id"] is None:
-                    logging.info('found Null in resource_id : %s' % (edge_source["resource_id"]))
-                    edgeSources.remove(edge_source)
+                if 'resource_id' not in edge_source.keys() or edge_source["resource_id"] is None:
+                    logging.info('found Null in resource_id : %s' % (edge_source))
+                    if edgeId not in sources_to_remove.keys():
+                        sources_to_remove[edgeId]=[edge_source]
+                    else:
+                        sources_to_remove[edgeId].append(edge_source)
                 elif 'upstream_resource_ids' in edge_source.keys() and edge_source["upstream_resource_ids"] is None:
-                    logging.info('found Null in upstream_resource_ids : %s' % (edge_source["upstream_resource_ids"]))
-                    edgeSources.remove(edge_source)
+                    logging.info('found Null in upstream_resource_ids : %s' % (edge_source))
+                    if edgeId not in sources_to_remove.keys():
+                        sources_to_remove[edgeId]=[edge_source]
+                    else:
+                        sources_to_remove[edgeId].append(edge_source)
+            if len(sources_to_remove)>0:
+                bad_sources.append(sources_to_remove)
+            for key, sources in sources_to_remove.items():
+                for source in sources:
+                    edgeSources.remove(source)
+        log_tuple =(
+            "Removed the following bad sources: "+ str(bad_sources),
+            str(datetime.now()),
+            "DEBUG"
+        )
+        add_log_entry(data,log_tuple)
 
 
 def appraise(mesg,data, agent_name,retry_counter=0):
@@ -887,18 +906,11 @@ def decorate_edges_with_infores(data,inforesid):
                 edge['sources']=[self_source]
             else:
                 for source in edge['sources']:
-                    bad_sources=[]
-                    if 'resource_id' not in source.keys():
-                        bad_sources.append(source)
-                        #if the source is no good, we don't need to do anything else with it.
-                        continue
                     if source['resource_id']==inforesid:
                         has_self=True
 
                     if source['resource_role']=="primary_knowledge_source":
                         has_primary=True
-                for source in bad_sources:
-                    edge['sources'].remove(source)
                 if not has_self:
                     #if we already have a primary knowledge source but not our self, we add ourself as an aggregator
                     if has_primary:
