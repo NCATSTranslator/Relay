@@ -751,8 +751,8 @@ def scrub_null_attributes(data):
                         sources_to_remove[edgeId]=[edge_source]
                     else:
                         sources_to_remove[edgeId].append(edge_source)
-                elif 'upstream_resource_id' not in edge_source.keys() or 'upstream_resource_ids' in edge_source.keys() and edge_source["upstream_resource_ids"] is None\
-                        or edge_source["upstream_resource_ids"]is [None]:
+                elif 'upstream_resource_id' not in edge_source.keys() or ('upstream_resource_ids' in edge_source.keys() and edge_source["upstream_resource_ids"] is None)\
+                        or edge_source["upstream_resource_ids"] is [None]:
                     logging.info('found Null in upstream_resource_ids : %s' % (edge_source))
                     if edgeId not in sources_to_remove.keys():
                         sources_to_remove[edgeId]=[edge_source]
@@ -763,11 +763,11 @@ def scrub_null_attributes(data):
             for key, sources in sources_to_remove.items():
                 for source in sources:
                     edgeSources.remove(source)
-        log_tuple =(
+        log_tuple =[
             "Removed the following bad sources: "+ str(bad_sources),
-            str(datetime.now()),
+            datetime.now().strftime('%H:%M:%S'),
             "DEBUG"
-        )
+        ]
         add_log_entry(data,log_tuple)
 
 
