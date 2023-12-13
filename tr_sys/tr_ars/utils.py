@@ -886,8 +886,8 @@ def decorate_edges_with_infores(data,inforesid):
             if 'sources' not in edge.keys() or edge['sources'] is None or len(edge['sources'])==0:
                 edge['sources']=[self_source]
             else:
+                bad_sources=[]
                 for source in edge['sources']:
-                    bad_sources=[]
                     if 'resource_id' not in source.keys():
                         bad_sources.append(source)
                         #if the source is no good, we don't need to do anything else with it.
