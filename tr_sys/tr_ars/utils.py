@@ -752,11 +752,8 @@ def scrub_null_attributes(data):
                         sources_to_remove[edgeId].append(edge_source)
                 if 'upstream_resource_ids' not in edge_source.keys() or ('upstream_resource_ids' in edge_source.keys() and edge_source["upstream_resource_ids"] is None):
                     logging.info('found Null in upstream_resource_ids : %s' % (edge_source))
-                    if edgeId not in sources_to_remove.keys():
-                        sources_to_remove[edgeId]=[edge_source]
-                    else:
-                        sources_to_remove[edgeId].append(edge_source)
-                if 'upstream_resource_ids' in edge_source.keys():
+                    edge_source["upstream_resource_ids"]=[]
+                if 'upstream_resource_ids' in edge_source.keys() and isinstance(edge_source['upstream_resource_ids'], list):
                     while None in edge_source["upstream_resource_ids"]:
                         edge_source["upstream_resource_ids"].remove(None)
 
