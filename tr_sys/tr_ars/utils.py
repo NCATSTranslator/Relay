@@ -558,7 +558,7 @@ def post_process(data,key, agent_name):
         logging.info("Problem with the second scrubbing of null attributes")
     logging.info("pre blocklist for "+str(key))
     try:
-        remove_blocked(mesg)
+        remove_blocked(mesg, data)
     except Exception as e:
         logging.info(e.__cause__)
         logging.info("Problem with block list removal")
@@ -629,13 +629,13 @@ def merge_and_post_process(parent_pk,message_to_merge, agent_name):
     parent.status = 'D'
     parent.save()
 
-def remove_blocked(mesg, blocklist=None):
+def remove_blocked(mesg, data, blocklist=None):
     if blocklist is None:
         path = os.path.join(os.path.dirname(__file__), "..", "..", "config", "blocklist.json")
         f = open(path)
         blocklist = json.load(f)
-    blocked_version = createMessage(get_ars_actor())
-    data=mesg.data
+    #blocked_version = createMessage(get_ars_actor())
+    #data=mesg.data
     results = get_safe(data,"message","results")
     nodes = get_safe(data,"message","knowledge_graph","nodes")
     edges = get_safe(data,"message","knowledge_graph","edges")
@@ -715,13 +715,19 @@ def remove_blocked(mesg, blocklist=None):
               results.remove(result)
 
 
+    logging.info('Removing results containing the following %s from PK: %s' % (str(nodes_to_remove), str(mesg.id)))
+    log_tuple =[
+        "Removed the following bad nodes: "+ str(removed_nodes),
+        datetime.now().strftime('%H:%M:%S'),
+        "DEBUG"
+    ]
+    add_log_entry(data,log_tuple)
+    #mesg.status='D'
+    #mesg.code=200
+    mesg.data=data
+    mesg.save()
 
-    blocked_version.status='D'
-    blocked_version.code=200
-    blocked_version.data=data
-    blocked_version.save()
-    logging.info('Removing results containing the following %s from PK: %s' % (str(nodes_to_remove), str(blocked_version.id)))
-    return (str(blocked_version.id),removed_nodes,results_to_remove)
+    return (str(mesg.id),removed_nodes,results_to_remove)
 
 def scrub_null_attributes(data):
     nodes = get_safe(data,"message","knowledge_graph","nodes")
@@ -773,7 +779,7 @@ def scrub_null_attributes(data):
 def appraise(mesg,data, agent_name,retry_counter=0):
     headers = {'Content-type': 'application/json', 'Accept': 'text/plain'}
     json_data = json.dumps(data)
-    logging.info('sending data for agent: %s to APPRIASER URL: %s' % (agent_name, APPRAISER_URL))
+    logging.info('sending data for agent: %s to APPRAISER URL: %s' % (agent_name, APPRAISER_URL))
     try:
         with requests.post(APPRAISER_URL,data=json_data,headers=headers, stream=True) as r:
             logging.debug("Appraiser being called at: "+APPRAISER_URL)
