@@ -424,7 +424,7 @@ def message(req, key):
                                     % (str(len(res)), str(key)),status=409)
             if mesg.status=='E':
                 return HttpResponse("Response received but Message is already in state "+str(mesg.code)+". Response rejected\n",status=400)
-            if res is not None and len(res)>0:
+            if res is not None and len(res)>=0:
                 mesg.result_count = len(res)
                 scorestat = utils.ScoreStatCalc(res)
                 mesg.result_stat = scorestat
