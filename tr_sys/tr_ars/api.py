@@ -447,7 +447,6 @@ def message(req, key):
                     utils.merge_and_post_process.apply_async((parent_pk,message_to_merge['message'],agent_name))
                     logger.info("post async call for agent %s" % agent_name)
 
-
                 # create child message if this one already has results
                 if mesg.data and 'results' in mesg.data and mesg.data['results'] != None and len(mesg.data['results']) > 0:
                     mesg = Message.create(name=mesg.name, status=status, actor=mesg.actor, ref=mesg)
@@ -456,6 +455,11 @@ def message(req, key):
                 mesg.data = data
                 mesg.save()
 
+            if len(res) == 0:
+                mesg.result_count = 0
+                mesg.code = code
+                mesg.status = status
+                mesg.save()
 
             return HttpResponse(json.dumps(mesg.to_dict(), indent=2),
                                 status=201)

@@ -661,12 +661,6 @@ def merge_and_post_process(parent_pk,message_to_merge, agent_name, counter=0):
             merged.code = 422
             merged.save()
 
-
-
-
-
-
-
 def remove_blocked(mesg, data, blocklist=None):
     if blocklist is None:
         path = os.path.join(os.path.dirname(__file__), "..", "..", "config", "blocklist.json")
@@ -794,12 +788,14 @@ def scrub_null_attributes(data):
                         sources_to_remove[edgeId]=[edge_source]
                     else:
                         sources_to_remove[edgeId].append(edge_source)
+
                 if 'upstream_resource_ids' not in edge_source.keys() or ('upstream_resource_ids' in edge_source.keys() and edge_source["upstream_resource_ids"] is None):
                     #logging.info('found Null in upstream_resource_ids : %s' % (edge_source))
                     edge_source["upstream_resource_ids"]=[]
                 if 'upstream_resource_ids' in edge_source.keys() and isinstance(edge_source['upstream_resource_ids'], list):
                     while None in edge_source["upstream_resource_ids"]:
                         edge_source["upstream_resource_ids"].remove(None)
+
 
             if len(sources_to_remove)>0:
                 bad_sources.append(sources_to_remove)
