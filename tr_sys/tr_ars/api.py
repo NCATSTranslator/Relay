@@ -420,8 +420,9 @@ def message(req, key):
             logging.info('received msg from agent: %s with parent pk: %s' % (str(inforesid), str(mesg.ref_id)))
             if mesg.result_count is not None and mesg.result_count >0:
                 return HttpResponse('ARS already has a response with: %s results for pk %s \nWe are temporarily '
-                                    'disallowing subsequent updates to PKs which already have results\n'
-                                    % (str(len(res)), str(key)),status=409)
+                                   'disallowing subsequent updates to PKs which already have results\n'
+                                   % (str(len(res)), str(key)),status=409)
+                
             if mesg.status=='E':
                 return HttpResponse("Response received but Message is already in state "+str(mesg.code)+". Response rejected\n",status=400)
             if res is not None and len(res)>0:
@@ -755,7 +756,7 @@ def timeoutTest(req,time=300):
 def block(req,key):
     if req.method == 'GET':
         mesg=Message.objects.get(pk=key)
-        report=utils.remove_blocked(mesg)
+        report=utils.remove_blocked(mesg,mesg.data)
         httpjson = {
             "pk":report[0],
             "blocked_nodes":report[1],
