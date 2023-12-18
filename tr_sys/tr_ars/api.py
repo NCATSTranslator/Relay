@@ -422,7 +422,7 @@ def message(req, key):
                 return HttpResponse('ARS already has a response with: %s results for pk %s \nWe are temporarily '
                                    'disallowing subsequent updates to PKs which already have results\n'
                                    % (str(len(res)), str(key)),status=409)
-                
+
             if mesg.status=='E':
                 return HttpResponse("Response received but Message is already in state "+str(mesg.code)+". Response rejected\n",status=400)
             if res is not None and len(res)>0:
