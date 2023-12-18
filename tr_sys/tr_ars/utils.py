@@ -620,8 +620,6 @@ def merge_and_post_process(parent_pk,message_to_merge, agent_name, counter=0):
     with transaction.atomic():
         parent = Message.objects.select_for_update().get(pk=parent_pk)
         lock_state = lock_merge(parent)
-        if counter == 0:
-            lock_state = True
     transaction.commit()
     logging.info(f"After atomic transaction for %s with parent PK: %s"% (agent_name,parent_pk))
 
