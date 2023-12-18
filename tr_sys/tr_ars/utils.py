@@ -604,30 +604,70 @@ def post_process(data,key, agent_name):
     mesg.code=code
     mesg.data = data
     mesg.save()
+def lock_merge(message):
+    pass
+    if message.merge_semaphore is True:
+        return True
+    else:
+        message.merge_semaphore=True
+        return False
 
 @shared_task(name="merge_and_post_process")
-def merge_and_post_process(parent_pk,message_to_merge, agent_name):
+def merge_and_post_process(parent_pk,message_to_merge, agent_name, counter=0):
 
     logging.info(f"Starting merge for %s with parent PK: %s"% (agent_name,parent_pk))
-    try:
-        with transaction.atomic():
-            parent = Message.objects.select_for_update().get(pk=parent_pk)
-            merged = merge_received(parent,message_to_merge, agent_name)
-        transaction.commit()
-    except Exception as e:
-        logging.info("Problem with merger or post processing for agent %s pk: %s " % (agent_name, (parent_pk)))
-        logging.info(e, exc_info=True)
-        logging.info('error message %s' % str(e))
-        merged.status='E'
-        merged.code = 422
-        merged.save()
-    if merged is not None:
-       logging.info('merged data for agent %s with pk %s is returned & ready to be preprocessed' % (agent_name, str(merged.id)))
-       post_process(merged.data,merged.id, agent_name)
+    logging.info(f"Before atomic transaction for %s with parent PK: %s"% (agent_name,parent_pk))
+    with transaction.atomic():
+        parent = Message.objects.select_for_update().get(pk=parent_pk)
+        lock_state = lock_merge(parent)
+        if counter == 0:
+            lock_state = True
+    transaction.commit()
+    logging.info(f"After atomic transaction for %s with parent PK: %s"% (agent_name,parent_pk))
 
-    parent.code = 200
-    parent.status = 'D'
-    parent.save()
+    if lock_state is False:
+        try:
+            logging.info(f"Before merging for %s with parent PK: %s"% (agent_name,parent_pk))
+            merged = merge_received(parent,message_to_merge, agent_name)
+            logging.info(f"After merging for %s with parent PK: %s"% (agent_name,parent_pk))
+        except Exception as e:
+            logging.info("Problem with merger for agent %s pk: %s " % (agent_name, (parent_pk)))
+            logging.info(e, exc_info=True)
+            logging.info('error message %s' % str(e))
+            if merged is not None:
+                merged.status='E'
+                merged.code = 422
+                merged.save()
+
+    else:
+        #If there is currently a merge happening, we wait until it finishes to do our merge
+        if counter < 5:
+            logging.debug("Merged_version locked for %s.  Attempt %s:" % (agent_name, str(counter)))
+            sleeptime.sleep(5)
+            counter = counter + 1
+            merge_and_post_process(parent_pk,message_to_merge, agent_name, counter)
+        else:
+            logging.debug("Merging failed for %s %s" % (agent_name, str(parent_pk)))
+
+    if merged is not None:
+        try:
+            logging.info('merged data for agent %s with pk %s is returned & ready to be preprocessed' % (agent_name, str(merged.id)))
+            post_process(merged.data,merged.id, agent_name)
+            logging.info('post processing complete for agent %s with pk %s is returned & ready to be preprocessed' % (agent_name, str(merged.id)))
+
+        except Exception as e:
+            logging.info("Problem with post processing for agent %s pk: %s " % (agent_name, (parent_pk)))
+            logging.info(e, exc_info=True)
+            logging.info('error message %s' % str(e))
+            merged.status='E'
+            merged.code = 422
+            merged.save()
+
+
+
+
+
+
 
 def remove_blocked(mesg, data, blocklist=None):
     if blocklist is None:
@@ -751,13 +791,13 @@ def scrub_null_attributes(data):
             sources_to_remove = {}
             for edge_source in edgeSources:
                 if 'resource_id' not in edge_source.keys() or edge_source["resource_id"] is None:
-                    logging.info('found Null in resource_id : %s' % (edge_source))
+                    #logging.info('found Null in resource_id : %s' % (edge_source))
                     if edgeId not in sources_to_remove.keys():
                         sources_to_remove[edgeId]=[edge_source]
                     else:
                         sources_to_remove[edgeId].append(edge_source)
                 if 'upstream_resource_ids' not in edge_source.keys() or ('upstream_resource_ids' in edge_source.keys() and edge_source["upstream_resource_ids"] is None):
-                    logging.info('found Null in upstream_resource_ids : %s' % (edge_source))
+                    #logging.info('found Null in upstream_resource_ids : %s' % (edge_source))
                     edge_source["upstream_resource_ids"]=[]
                 if 'upstream_resource_ids' in edge_source.keys() and isinstance(edge_source['upstream_resource_ids'], list):
                     while None in edge_source["upstream_resource_ids"]:
@@ -1304,74 +1344,63 @@ def merge_received(parent,message_to_merge, agent_name, counter=0):
     #to_merge_message= Message.objects.get(pk=pk_to_merge)
     #to_merge_message_dict=get_safe(to_merge_message.to_dict(),"fields","data","message")
     t_to_merge_message=TranslatorMessage(message_to_merge)
-
-    if not parent.merge_semaphore:
-        logging.info("merge semaphore False for "+str(current_merged_pk))
-        new_merged_message = createMessage(get_ars_actor())
-        logging.info("the merged_pk for agent %s is %s" % (agent_name, str(new_merged_message.pk)))
-        new_merged_message.save()
-        #Since we've started a merge, we lock the parent PK for the duration (this is a soft lock)
-        parent.merge_semaphore=True
-        parent.save()
-        try:
-            #If at least one merger has already occurred, we merge the newcomer into that
-            if current_merged_pk is not None :
-                current_merged_message=Message.objects.get(pk=current_merged_pk)
-                current_message_dict = get_safe(current_merged_message.to_dict(),"fields","data","message")
-                t_current_merged_message=TranslatorMessage(current_message_dict)
-                if current_message_dict is not None:
-                    merged=mergeMessages([
-                        t_current_merged_message,
-                        t_to_merge_message,
-                    ],
-                    str(new_merged_message.pk))
-                else:
-                    logging.error(f'current message dictionary returns none')
-                print()
-            #If not, we make the newcomer the current "merged" Message
+    new_merged_message = createMessage(get_ars_actor())
+    logging.info("the merged_pk for agent %s is %s" % (agent_name, str(new_merged_message.pk)))
+    new_merged_message.save()
+    # #Since we've started a merge, we lock the parent PK for the duration (this is a soft lock)
+    # parent.merge_semaphore=True
+    # parent.save()
+    try:
+        #If at least one merger has already occurred, we merge the newcomer into that
+        if current_merged_pk is not None :
+            current_merged_message=Message.objects.get(pk=current_merged_pk)
+            current_message_dict = get_safe(current_merged_message.to_dict(),"fields","data","message")
+            t_current_merged_message=TranslatorMessage(current_message_dict)
+            if current_message_dict is not None:
+                merged=mergeMessages([
+                    t_current_merged_message,
+                    t_to_merge_message,
+                ],
+                str(new_merged_message.pk))
             else:
-                logging.info("first merge done on agent: %s" % agent_name)
-                merged = t_to_merge_message
-
-
-            merged_dict = merged.to_dict()
-            logging.info('the keys for merged_dict are %s' % merged_dict['message'].keys())
-            new_merged_message.data = merged_dict
-            new_merged_message.status='R'
-            new_merged_message.code=202
-            new_merged_message.save()
-
-            #Now that we're done, we unlock update the merged_version on the parent, unlock it, and save
-            parent.merged_version=new_merged_message
-            parent.merge_semaphore=False
-            #Need to do this because JSONFields in Django can't have a default (of [] in this case).
-            #So, it starts as None/null
-            new_merged_message_id_string=str(new_merged_message.id)
-            pk_infores_merge = (new_merged_message_id_string, agent_name)
-            if parent.merged_versions_list is None:
-                parent.merged_versions_list=[pk_infores_merge]
-            else:
-                parent.merged_versions_list.append(pk_infores_merge)
-            parent.save()
-            logging.info("returning new_merged_message to be post processed with pk: %s" % str(new_merged_message.pk))
-            return new_merged_message
-        except Exception as e:
-            logging.exception("problem with merging for %s :" % agent_name)
-            #If anything goes wrong, we at least need to unlock the semaphore
-            #TODO make some actual proper Exception handling here.
-            parent.merge_semaphore=False
-            parent.save()
-            logging.info("return  empty dict for merged results")
-            return {}
-    else:
-        #If there is currently a merge happening, we wait until it finishes to do our merge
-        if counter < 5:
-            logging.debug("Merged_version locked for %s.  Attempt %s:" % (agent_name, str(counter)))
-            sleeptime.sleep(5)
-            counter = counter + 1
-            merge_received(parent,message_to_merge,agent_name,counter)
+                logging.error(f'current message dictionary returns none')
+            print()
+        #If not, we make the newcomer the current "merged" Message
         else:
-            logging.debug("Failed to merge for agent %s "% agent_name)
+            logging.info("first merge done on agent: %s" % agent_name)
+            merged = t_to_merge_message
+
+
+        merged_dict = merged.to_dict()
+        logging.info('the keys for merged_dict are %s' % merged_dict['message'].keys())
+        new_merged_message.data = merged_dict
+        new_merged_message.status='R'
+        new_merged_message.code=202
+        new_merged_message.save()
+
+        #Now that we're done, we unlock update the merged_version on the parent, unlock it, and save
+        parent.merged_version=new_merged_message
+        parent.merge_semaphore=False
+        #Need to do this because JSONFields in Django can't have a default (of [] in this case).
+        #So, it starts as None/null
+        new_merged_message_id_string=str(new_merged_message.id)
+        pk_infores_merge = (new_merged_message_id_string, agent_name)
+        if parent.merged_versions_list is None:
+            parent.merged_versions_list=[pk_infores_merge]
+        else:
+            parent.merged_versions_list.append(pk_infores_merge)
+        parent.save()
+        logging.info("returning new_merged_message to be post processed with pk: %s" % str(new_merged_message.pk))
+        return new_merged_message
+    except Exception as e:
+        logging.exception("problem with merging for %s :" % agent_name)
+        #If anything goes wrong, we at least need to unlock the semaphore
+        #TODO make some actual proper Exception handling here.
+        parent.merge_semaphore=False
+        parent.save()
+        logging.info("return  empty dict for merged results")
+        return {}
+
 
 
 def hop_level_filter(results, hop_limit):
