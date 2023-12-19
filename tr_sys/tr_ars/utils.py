@@ -748,8 +748,12 @@ def remove_blocked(mesg, data, blocklist=None):
 
 
     logging.info('Removing results containing the following %s from PK: %s' % (str(nodes_to_remove), str(mesg.id)))
+    node_string=""
+    for node in removed_nodes:
+        if "name" in node.keys():
+            node_string.append(node['name'])
     log_tuple =[
-        'Removed the following bad nodes: '+ json.dumps(removed_nodes,indent=4),
+        'Removed the following bad nodes: '+ node_string,
         datetime.now().strftime('%H:%M:%S'),
         "DEBUG"
     ]
