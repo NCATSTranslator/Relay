@@ -627,6 +627,7 @@ def merge_and_post_process(parent_pk,message_to_merge, agent_name, counter=0):
         try:
             logging.info(f"Before merging for %s with parent PK: %s"% (agent_name,parent_pk))
             merged = merge_received(parent,message_to_merge, agent_name)
+            parent.merge_semaphore=False
             logging.info(f"After merging for %s with parent PK: %s"% (agent_name,parent_pk))
         except Exception as e:
             logging.info("Problem with merger for agent %s pk: %s " % (agent_name, (parent_pk)))
@@ -753,7 +754,7 @@ def remove_blocked(mesg, data, blocklist=None):
         datetime.now().strftime('%H:%M:%S'),
         "DEBUG"
     ]
-    add_log_entry(data,log_tuple)
+    #add_log_entry(data,log_tuple)
     #mesg.status='D'
     #mesg.code=200
     mesg.data=data
@@ -807,7 +808,7 @@ def scrub_null_attributes(data):
             datetime.now().strftime('%H:%M:%S'),
             "DEBUG"
         ]
-        add_log_entry(data,log_tuple)
+        #add_log_entry(data,log_tuple)
 
 
 def appraise(mesg,data, agent_name,retry_counter=0):
@@ -1374,7 +1375,7 @@ def merge_received(parent,message_to_merge, agent_name, counter=0):
 
         #Now that we're done, we unlock update the merged_version on the parent, unlock it, and save
         parent.merged_version=new_merged_message
-        parent.merge_semaphore=False
+        #parent.merge_semaphore=False
         #Need to do this because JSONFields in Django can't have a default (of [] in this case).
         #So, it starts as None/null
         new_merged_message_id_string=str(new_merged_message.id)
