@@ -619,7 +619,9 @@ def merge_and_post_process(parent_pk,message_to_merge, agent_name, counter=0):
     logging.info(f"Before atomic transaction for %s with parent PK: %s"% (agent_name,parent_pk))
     with transaction.atomic():
         parent = Message.objects.select_for_update().get(pk=parent_pk)
+        logging.info("the merge semaphore for agent %s is %s"% (agent_name, parent.merge_semaphore))
         lock_state = lock_merge(parent)
+        logging.info("the lock state for agent %s is %s" % (agent_name, lock_state))
     transaction.commit()
     logging.info(f"After atomic transaction for %s with parent PK: %s"% (agent_name,parent_pk))
 
