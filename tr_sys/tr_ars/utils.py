@@ -610,6 +610,7 @@ def lock_merge(message):
         return True
     else:
         message.merge_semaphore=True
+        message.save(update_fields=['merge_semaphore'])
         return False
 
 @shared_task(name="merge_and_post_process")
