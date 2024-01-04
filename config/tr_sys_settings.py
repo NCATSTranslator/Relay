@@ -117,9 +117,9 @@ DATABASES = {
         'PASSWORD': 'aocaik7Peib2eiquoosh',
         'HOST': 'arsdb',
         'PORT': '3306',
-        'CONN_MAX_AGE': 3600,
-        'CONN_HEALTH_CHECKS': True,
-        'max_allowed_packet': 1073741824,
+        'OPTIONS': {
+            'read_default_file': '/etc/mysql/my.cnf',
+        },
     }
 }
 DJANGO_LOG_LEVEL=DEBUG
