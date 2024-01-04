@@ -117,9 +117,6 @@ DATABASES = {
         'PASSWORD': 'aocaik7Peib2eiquoosh',
         'HOST': 'arsdb',
         'PORT': '3306',
-        'OPTIONS': {
-            'read_default_file': '/etc/mysql/my.cnf',
-        },
     }
 }
 DJANGO_LOG_LEVEL=DEBUG
