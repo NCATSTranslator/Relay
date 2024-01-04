@@ -117,6 +117,9 @@ DATABASES = {
         'PASSWORD': 'aocaik7Peib2eiquoosh',
         'HOST': 'arsdb',
         'PORT': '3306',
+        'CONN_MAX_AGE': 3600,
+        'CONN_HEALTH_CHECKS': True,
+        'max_allowed_packet': 1073741824,
     }
 }
 DJANGO_LOG_LEVEL=DEBUG
@@ -211,5 +214,3 @@ CELERY_BROKER_URL = 'pyamqp://rabbitmq:5672'
 
 USE_CELERY = True
 DEFAULT_HOST = 'http://arsserver:8000'
-
-max_allowed_packet=1073741824
