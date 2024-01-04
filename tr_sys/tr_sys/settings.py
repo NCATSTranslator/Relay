@@ -125,6 +125,9 @@ DATABASES = {
         'PASSWORD': '',
         'HOST': 'localhost',   # Or an IP Address that your DB is hosted on
         'PORT': '3306',
+        'CONN_MAX_AGE': 3600,
+        'CONN_HEALTH_CHECKS': True,
+        'max_allowed_packet': 1073741824,
     }
 }
 DJANGO_LOG_LEVEL = 'DEBUG'
@@ -219,7 +222,6 @@ CELERY_IMPORTS = [
 ]
 # Other important shared settings
 DATA_UPLOAD_MAX_MEMORY_SIZE=1073741824
-max_allowed_packet=1073741824
 CELERY_TASK_ALWAYS_EAGER=False
 
 USE_CELERY = True
