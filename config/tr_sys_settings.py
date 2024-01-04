@@ -211,3 +211,5 @@ CELERY_BROKER_URL = 'pyamqp://rabbitmq:5672'
 
 USE_CELERY = True
 DEFAULT_HOST = 'http://arsserver:8000'
+
+max_allowed_packet=1073741824

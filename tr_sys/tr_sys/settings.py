@@ -219,6 +219,7 @@ CELERY_IMPORTS = [
 ]
 # Other important shared settings
 DATA_UPLOAD_MAX_MEMORY_SIZE=1073741824
+max_allowed_packet=1073741824
 CELERY_TASK_ALWAYS_EAGER=False
 
 USE_CELERY = True
