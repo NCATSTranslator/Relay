@@ -208,6 +208,7 @@ CELERY_CACHE_BACKEND = 'django-cache'
 CELERY_BROKER_URL = 'pyamqp://rabbitmq:5672'
 
 # Other important shared settings
+DATA_UPLOAD_MAX_MEMORY_SIZE=1073741824
 
 USE_CELERY = True
 DEFAULT_HOST = 'http://arsserver:8000'
