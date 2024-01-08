@@ -124,7 +124,12 @@ def submit(req):
                             content_type='application/json', status=201)
     except Exception as e:
         logger.error("Unexpected error 10: {}".format(traceback.format_exception(type(e), e, e.__traceback__)))
-        return HttpResponse('Content is not JSON', status=400)
+        logging.info(e, exc_info=True)
+        logging.info('error message %s' % str(e))
+        logging.info(e.__cause__)
+        logging.error(type(e).__name__)
+        logging.error(e.args)
+        return HttpResponse(str(e.__cause__), status=400)
 
 @csrf_exempt
 def messages(req):
