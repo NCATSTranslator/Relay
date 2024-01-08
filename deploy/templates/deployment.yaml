@@ -27,6 +27,9 @@ spec:
             - name: config-vol
               mountPath: /ars/tr_sys/tr_sys/settings.py
               subPath: settings.py
+            - name: config-vol1
+              mountPath: /etc/mysql/my.cnf
+              subPath: mysql.py
           env:
             - name: TR_ENV
               value: {{ .Values.arsserver.env.TR_ENV }}
@@ -89,5 +92,11 @@ spec:
             items:
               - key: settings.py
                 path: settings.py
+        - name: config-vol1
+          configMap:
+            name: {{ .Values.appname }}-config-1
+            items:
+              - key: mysql.py
+                path: mysql.py
       restartPolicy: Always
       
