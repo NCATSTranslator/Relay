@@ -29,7 +29,7 @@ spec:
               subPath: settings.py
             - name: config-vol1
               mountPath: /etc/mysql/my.cnf
-              subPath: mysql.py
+              subPath: mysql.cnf
           env:
             - name: TR_ENV
               value: {{ .Values.arsserver.env.TR_ENV }}
@@ -96,7 +96,7 @@ spec:
           configMap:
             name: {{ .Values.appname }}-config-1
             items:
-              - key: mysql.py
-                path: mysql.py
+              - key: mysql.cnf
+                path: mysql.cnf
       restartPolicy: Always
       
