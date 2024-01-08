@@ -210,7 +210,7 @@ CELERY_CACHE_BACKEND = 'django-cache'
 CELERY_BROKER_URL = 'pyamqp://0.0.0.0:5672'
 BROKER_URL = 'pyamqp://0.0.0.0:5672'
 # Other important shared settings
-DATA_UPLOAD_MAX_MEMORY_SIZE = '1073741824'
+DATA_UPLOAD_MAX_MEMORY_SIZE=1073741824
 
 USE_CELERY = True
 DEFAULT_HOST = 'http://ars.ci.transltr.io'
