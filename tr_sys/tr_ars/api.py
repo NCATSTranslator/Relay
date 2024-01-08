@@ -129,7 +129,7 @@ def submit(req):
         logging.info(e.__cause__)
         logging.error(type(e).__name__)
         logging.error(e.args)
-        return HttpResponse('failing due to %s' % e.__cause__, status=400)
+        return HttpResponse('failing due to %s with the message %s' % (e.__cause__, str(e)), status=400)
 
 @csrf_exempt
 def messages(req):
