@@ -25,7 +25,7 @@ spec:
             - containerPort: {{ .Values.arsserver.containerPort }}
           volumeMounts:
             - name: config-vol
-              mountPath: /ars/tr_sys/tr_sys/tr_sys_settings.py
+              mountPath: /ars/tr_sys/tr_sys/settings.py
               subPath: settings.py
           env:
             - name: TR_ENV
