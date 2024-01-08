@@ -47,7 +47,7 @@ spec:
           args: ["-c", "wait-for localhost:5672 -t 30 && wait-for localhost:8000 -t 60 -- /bin/bash /ars/config/start_celery.sh"]
           volumeMounts:
             - name: config-vol
-              mountPath: /ars/tr_sys/tr_sys/settings.py
+              mountPath: /ars/tr_sys/tr_sys/tr_sys_settings.py
               subPath: settings.py
           env:
             - name: TR_APPRAISE
