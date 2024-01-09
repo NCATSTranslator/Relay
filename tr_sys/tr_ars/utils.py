@@ -1386,7 +1386,7 @@ def merge_received(parent,message_to_merge, agent_name, counter=0):
             parent.merged_versions_list=[pk_infores_merge]
         else:
             parent.merged_versions_list.append(pk_infores_merge)
-        parent.save()
+        parent.save(update_fields=['merge_semaphore','merged_versions_list', 'merged_version'])
         logging.info("returning new_merged_message to be post processed with pk: %s" % str(new_merged_message.pk))
         return new_merged_message
     except Exception as e:
