@@ -1273,12 +1273,18 @@ def normalizeScores(results):
                             if analysis['score'] is not None:
                                 temp_score.append(analysis['score'])
                             else:
-                                logging.error("Analyses score field is null")
+                                logging.error("Analyses score field is null, setting it to zero")
+                                analysis['score']=0
+                                temp_score.append(analysis['score'])
+
                     score = statistics.mean(temp_score)
 
                 elif len(res['analyses']) == 1:
                     if 'score' in res['analyses'][0]:
-                        score = res['analyses'][0]['score']
+                        if res['analyses'][0]['score'] is not None:
+                            score = res['analyses'][0]['score']
+                        else:
+                            score = 0
                     else:
                         logging.debug('Result doesnt have score field')
                         score = None
