@@ -1270,7 +1270,10 @@ def normalizeScores(results):
                     temp_score = []
                     for analysis in res['analyses']:
                         if 'score' in analysis.keys():
-                            temp_score.append(analysis['score'])
+                            if analysis['score'] is not None:
+                                temp_score.append(analysis['score'])
+                            else:
+                                logging.error("Analyses score field is null")
                     score = statistics.mean(temp_score)
 
                 elif len(res['analyses']) == 1:
