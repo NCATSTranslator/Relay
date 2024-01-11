@@ -117,10 +117,6 @@ DATABASES = {
         'PASSWORD': 'aocaik7Peib2eiquoosh',
         'HOST': 'arsdb',
         'PORT': '3306',
-        'CONN_MAX_AGE': 3600,
-        'OPTIONS': {
-            'read_default_file': '/etc/mysql/my.cnf',
-        },
     }
 }
 DJANGO_LOG_LEVEL=DEBUG
@@ -205,12 +201,14 @@ STATICFILES_DIRS = (
     os.path.join(BASE_DIR, "static"),
 )
 
+# Celery settings
+
 CELERY_RESULT_BACKEND = 'django-db'
 CELERY_CACHE_BACKEND = 'django-cache'
-CELERY_BROKER_URL = 'pyamqp://0.0.0.0:5672'
-BROKER_URL = 'pyamqp://0.0.0.0:5672'
+CELERY_BROKER_URL = 'pyamqp://rabbitmq:5672'
+
 # Other important shared settings
 DATA_UPLOAD_MAX_MEMORY_SIZE=1073741824
 
 USE_CELERY = True
-DEFAULT_HOST = 'http://ars.ci.transltr.io'
+DEFAULT_HOST = 'http://arsserver:8000'
