@@ -78,7 +78,8 @@ pipeline {
                 configFileProvider([
                     configFile(fileId: 'values-ci.yaml', targetLocation: 'deploy/values-ncats.yaml'),
                     configFile(fileId: 'prepare.sh', targetLocation: 'deploy/prepare.sh'),
-                    configFile(fileId: 'ars-settings.py', targetLocation: 'deploy/configs/settings.py')
+                    configFile(fileId: 'ars-settings.py', targetLocation: 'deploy/configs/settings.py'),
+                    configFile(fileId: 'mysql.cnf', targetLocation: 'deploy/configs/mysql.cnf')
                 ]){
                     script {
                         sh '''
