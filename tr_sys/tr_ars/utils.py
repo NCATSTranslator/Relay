@@ -1270,12 +1270,21 @@ def normalizeScores(results):
                     temp_score = []
                     for analysis in res['analyses']:
                         if 'score' in analysis.keys():
-                            temp_score.append(analysis['score'])
+                            if analysis['score'] is not None:
+                                temp_score.append(analysis['score'])
+                            else:
+                                logging.error("Analyses score field is null, setting it to zero")
+                                analysis['score']=0
+                                temp_score.append(analysis['score'])
+
                     score = statistics.mean(temp_score)
 
                 elif len(res['analyses']) == 1:
                     if 'score' in res['analyses'][0]:
-                        score = res['analyses'][0]['score']
+                        if res['analyses'][0]['score'] is not None:
+                            score = res['analyses'][0]['score']
+                        else:
+                            score = 0
                     else:
                         logging.debug('Result doesnt have score field')
                         score = None
@@ -1386,7 +1395,7 @@ def merge_received(parent,message_to_merge, agent_name, counter=0):
             parent.merged_versions_list=[pk_infores_merge]
         else:
             parent.merged_versions_list.append(pk_infores_merge)
-        parent.save()
+        parent.save(update_fields=['merge_semaphore','merged_versions_list', 'merged_version'])
         logging.info("returning new_merged_message to be post processed with pk: %s" % str(new_merged_message.pk))
         return new_merged_message
     except Exception as e:
