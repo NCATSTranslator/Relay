@@ -2,7 +2,7 @@ import copy
 import json
 import logging
 import traceback
-import os
+import os, sys
 from datetime import time, datetime
 from django.db import transaction
 import requests
@@ -16,6 +16,7 @@ from tr_sys.celery import app
 import typing
 import time as sleeptime
 import re
+from objsize import get_deep_size
 from .scoring import compute_from_results
 from collections import Counter
 
@@ -666,6 +667,7 @@ def merge_and_post_process(parent_pk,message_to_merge, agent_name, counter=0):
 
 def remove_blocked(mesg, data, blocklist=None):
     try:
+        logging.info("Getting the length of the dictionary in {} bytes".format(get_deep_size(data)))
         if blocklist is None:
             path = os.path.join(os.path.dirname(__file__), "..", "..", "config", "blocklist.json")
             f = open(path)

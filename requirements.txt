@@ -18,3 +18,4 @@ scipy
 django-celery-beat
 statistics
 sympy
+objsize
