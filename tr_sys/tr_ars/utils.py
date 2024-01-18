@@ -1067,7 +1067,8 @@ def canonize(curies):
     tuple_list=[]
     j ={
         "curies":curies,
-        "conflate":True
+        "conflate":True,
+        "drug_chemical_conflate":True
     }
     logging.info('the normalizer_URL is %s' % NORMALIZER_URL)
     r = requests.post(NORMALIZER_URL,json.dumps(j))
