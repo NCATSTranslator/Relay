@@ -84,7 +84,7 @@ pipeline {
                     script {
                         sh '''
                         aws --region ${AWS_REGION} eks update-kubeconfig --name ${KUBERNETES_BLUE_CLUSTER_NAME}
-                        cd deploy && kubectl delete ars -n ars && /bin/bash prepare.sh && /bin/bash deploy.sh 
+                        cd deploy && kubectl delete deployment ars -n ars && /bin/bash prepare.sh && /bin/bash deploy.sh 
                         '''
                     }
                 }
