@@ -145,7 +145,7 @@ LOGGING = {
         'file': {
             'level': 'ERROR',
             'class': 'logging.FileHandler',
-            'filename': '/etc/mysql/mysql.log',
+            'filename': '/var/log/mysql/mysql.log',
         }
     },
     'root': {
