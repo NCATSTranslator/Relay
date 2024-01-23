@@ -145,7 +145,7 @@ LOGGING = {
         'file': {
             'level': 'ERROR',
             'class': 'logging.FileHandler',
-            'filename': '/etc/mysql/django.log',
+            'filename': '/etc/mysql/mysql.log',
         }
     },
     'root': {
