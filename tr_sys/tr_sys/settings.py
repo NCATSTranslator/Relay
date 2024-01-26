@@ -141,11 +141,6 @@ LOGGING = {
         'console': {
             'class': 'logging.StreamHandler',
             'formatter': 'simple'
-        },
-        'file': {
-            'level': 'ERROR',
-            'class': 'logging.FileHandler',
-            'filename': '/etc/mysql/mysql.log',
         }
     },
     'root': {
@@ -153,11 +148,6 @@ LOGGING = {
         'level': 'DEBUG',
     },
      'loggers': {
-         'django.db.backends': {
-             'handlers': ['file'],
-             'level': 'ERROR',
-             'propagate': True,
-         },
         'tr_ars.tasks': {
             'level': 'DEBUG',
             'handlers': ['console'],
