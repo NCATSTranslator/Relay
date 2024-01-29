@@ -746,7 +746,7 @@ def remove_blocked(mesg, data, blocklist=None):
                                     support_graphs.remove(sg)
                         for analysis in analyses_to_remove:
                             analyses.remove(analysis)
-                        if len(analysis)<1:
+                        if len(analyses)<1:
                             #if removing the bad analyses leaves us with a result that would have none, we remove the result
                             results_to_remove.append(result)
                 for result in results_to_remove:
