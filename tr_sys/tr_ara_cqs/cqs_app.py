@@ -3,10 +3,10 @@ from django.urls import path, include
 from tr_ars.default_ars_app.api import *
 
 class AppConfig(ARSAppConfig):
-    name = 'tr_ara_aragorn.aragorn_app' # must be dot path for module
-    actors = [make_actorconf('infores:aragorn', 'runquery', ['general', 'workflow'],
+    name = 'tr_ara_cqs.cqs_app' # must be dot path for module
+    actors = [make_actorconf('infores:cqs', 'runquery', ['general', 'workflow'],
                             'asyncquery')] # tuple of remote, name, channel
-    app_path = 'ara-aragorn'
+    app_path = 'ara-cqs'
     regex_path = '^' + app_path + '/'
 
 ### code below this line is required, but doesn't require updating in most cases

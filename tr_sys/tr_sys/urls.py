@@ -33,6 +33,7 @@ from tr_ara_aragorn_exp.aragorn_exp_app import AppConfig as AragornExpApp
 from tr_ara_unsecret.unsecret_app import AppConfig as UnsecretApp
 from tr_ara_wfr.wfr_app import AppConfig as WfrApp
 from tr_ara_explanatory_exp.explanatory_exp_app import AppConfig as ExplanatoryExpApp
+from tr_ara_cqs.cqs_app import AppConfig as CqsApp
 from tr_kp_genetics.genetics_app import AppConfig as GeneticsApp
 from tr_kp_molecular.molecular_app import AppConfig as MolecularApp
 from tr_kp_cam.cam_app import AppConfig as CamApp
@@ -58,6 +59,7 @@ patterns = [
     re_path(NCATSApp.regex_path, include(NCATSApp.name)),
     re_path(AragornExpApp.regex_path, include(AragornExpApp.name)),
     re_path(WfrApp.regex_path, include(WfrApp.name)),
+    re_path(CqsApp.regex_path, include(CqsApp.name)),
     re_path(IceesKgApp.regex_path, include(IceesKgApp.name)),
     re_path(UnsecretApp.regex_path, include(UnsecretApp.name)),
     re_path(GeneticsApp.regex_path, include(GeneticsApp.name)),
