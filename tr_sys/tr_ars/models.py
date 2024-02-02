@@ -3,7 +3,7 @@ from django.db import models
 from django.utils import timezone
 from django.core import serializers
 import uuid, logging, json
-
+import gzip
 logger = logging.getLogger(__name__)
 
 # Create your models here.
@@ -79,7 +79,8 @@ class Message(ARSModel):
     actor = models.ForeignKey(Actor, null=False, on_delete=models.CASCADE)
     timestamp = models.DateTimeField(auto_now_add=True,db_index=True)
     updated_at = models.DateTimeField(auto_now=True)
-    data = models.JSONField('data payload', null=True)
+    #data = models.JSONField('data payload', null=True)
+    data = models.BinaryField('data payload', null=True)
     url = models.URLField('location of data', max_length=256, null=True)
     ref = models.ForeignKey('self', null=True, blank=True,
                             on_delete=models.CASCADE)
@@ -95,6 +96,60 @@ class Message(ARSModel):
     def __str__(self):
         return "message[%s]{name:%s, status:%s}" % (self.id,
                                                     self.name, self.status)
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Decompress the compressed data when initializing the model instance
+        if self.data:
+            self.original_data = self.decompress_dict()
+        else:
+            self.original_data = {}
+
+    def save(self, *args, **kwargs):
+        # Compress the data before saving
+        if self.original_data:
+            self.save_compressed_dict(self.original_data)
+            self.original_data = {}  # Clear original data to avoid redundancy
+
+        super().save(*args, **kwargs)
+
+    def save_compressed_dict(self, data):
+        try:
+            # Convert dictionary to JSON string
+            json_data = json.dumps(data)
+
+            # Compress JSON string using gzip
+            compressed_data = gzip.compress(json_data.encode('utf-8'))
+
+            # Save compressed data to the model field
+            self.data = compressed_data
+        except Exception as e:
+            print("Error compressing data:", e)
+
+    def decompress_dict(self):
+        try:
+            #check to see if you are dealing with dictionary or compressed data?
+            if isinstance(self.data, dict):
+                original_data = self.data
+            elif isinstance(self.data, (bytes, bytearray)):
+                if self.data.startswith(b'\x1f\x8b'):
+                    # Decompress the compressed data
+                    decompressed_data = gzip.decompress(self.data)
+
+                    # Convert decompressed bytes to JSON string
+                    json_data = decompressed_data.decode('utf-8')
+
+                    # Convert JSON string back to dictionary
+                    original_data = json.loads(json_data)
+                else:
+                    # Convert plain text bytes to JSON string
+                    json_data = self.data.decode('utf-8')
+                    # Convert JSON string back to dictionary
+                    original_data = json.loads(json_data)
+
+            return original_data
+        except Exception as e:
+            print("Error decompressing data:", e)
+            return {}
     @classmethod
     def create(self, *args, **kwargs):
         # convert status long name to code for saving
@@ -112,6 +167,8 @@ class Message(ARSModel):
                 for elem in Message.STATUS:
                     if elem[0] == jsonobj['fields']['status']:
                         jsonobj['fields']['status'] = elem[1]
+            if 'data' in jsonobj['fields'] and jsonobj['fields']['data'] is not None:
+                jsonobj['fields']['data'] = self.decompress_dict()
         return jsonobj
 
 

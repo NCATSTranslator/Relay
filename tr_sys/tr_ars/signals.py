@@ -1,3 +1,5 @@
+import gzip
+
 from django.db.models.signals import post_save, pre_save
 from django.dispatch import receiver
 import sys, logging
@@ -5,6 +7,7 @@ from .models import Actor, Agent, Message, Channel
 from .pubsub import send_messages
 from .utils import get_safe
 logger = logging.getLogger(__name__)
+import gzip
 
 @receiver(post_save, sender=Actor)
 def actor_post_save(sender, instance, **kwargs):
@@ -38,6 +41,9 @@ def message_post_save(sender, instance, **kwargs):
         else:
             allow_tools=[]
             deny_tools=[]
+    else:
+        allow_tools=[]
+        deny_tools=[]
 
     if message.status == 'R':
         message.code = 202

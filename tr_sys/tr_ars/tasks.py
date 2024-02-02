@@ -51,6 +51,8 @@ def send_message(actor_dict, mesg_dict, timeout=300):
     query_endpoint = (endpoint if endpoint is not None else "") + (("?"+params) if params is not None else "")
 
     try:
+        with open('improving-res.json', 'w') as outfile:
+            outfile.write(json.dumps(data))
         r = requests.post(url, json=data, timeout=timeout)
         logger.debug('%d: receive message from actor %s...\n%s.\n'
                      % (r.status_code, url, str(r.text)[:500]))
@@ -121,7 +123,8 @@ def send_message(actor_dict, mesg_dict, timeout=300):
                 #Whether we did any additional processing or not, we need to save what we have
                 mesg.code = status_code
                 mesg.status = status
-                mesg.data = rdata
+                mesg.save_compressed_dict(rdata)
+                #mesg.data = rdata
                 mesg.url = url
                 mesg.save()
                 logger.debug('+++ message saved: %s' % (mesg.pk))
@@ -142,7 +145,8 @@ def send_message(actor_dict, mesg_dict, timeout=300):
                         rdata['logs'].append(key+": "+r.headers[key])
             mesg.code = status_code
             mesg.status = status
-            mesg.data = rdata
+            mesg.save_compressed_dict(data)
+            #mesg.data = rdata
             mesg.url = url
             mesg.save()
             logger.debug('+++ message saved: %s' % (mesg.pk))
@@ -155,7 +159,8 @@ def send_message(actor_dict, mesg_dict, timeout=300):
         status = 'E'
         mesg.code = status_code
         mesg.status = status
-        mesg.data = rdata
+        mesg.save_compressed_dict(data)
+        #mesg.data = rdata
         mesg.url = url
         mesg.save()
         logger.debug('+++ message saved: %s' % (mesg.pk))
@@ -171,7 +176,8 @@ def send_message(actor_dict, mesg_dict, timeout=300):
             # logging.debug("Post processing done for "+str(new_merged.pk))
             parent = Message.objects.get(pk=parent_pk)
             logging.info(f'parent merged_versions_list before going into merge&post-process for pk: %s are %s' % (parent_pk,parent.merged_versions_list))
-            utils.merge_and_post_process.apply_async((parent_pk,message_to_merge['message'],agent_name))
+            utils.merge_and_post_process(parent_pk,message_to_merge['message'],agent_name)
+            #utils.merge_and_post_process.apply_async((parent_pk,message_to_merge['message'],agent_name))
             logger.info("post async call for agent %s" % agent_name)
     else:
         logging.debug("Skipping merge and post for "+str(mesg.pk)+

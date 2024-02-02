@@ -603,7 +603,8 @@ def post_process(data,key, agent_name):
         raise e
     mesg.status='D'
     mesg.code=code
-    mesg.data = data
+    mesg.save_compressed_dict(data)
+    #mesg.data = data
     mesg.save()
 def lock_merge(message):
     pass
@@ -654,7 +655,8 @@ def merge_and_post_process(parent_pk,message_to_merge, agent_name, counter=0):
     if merged is not None:
         try:
             logging.info('merged data for agent %s with pk %s is returned & ready to be preprocessed' % (agent_name, str(merged.id)))
-            post_process(merged.data,merged.id, agent_name)
+            merged_data = merged.decompress_dict()
+            post_process(merged_data,merged.id, agent_name)
             logging.info('post processing complete for agent %s with pk %s is returned & ready to be preprocessed' % (agent_name, str(merged.id)))
 
         except Exception as e:
@@ -708,7 +710,7 @@ def remove_blocked(mesg, data, blocklist=None):
                     del aux_graphs[aux_id]
             #We do the same for results
             if results is not None:
-                results_to_remove = []
+                results_to_remove = set()
                 for result in results:
                     node_bindings = get_safe(result,"node_bindings")
                     if node_bindings is not None:
@@ -717,7 +719,7 @@ def remove_blocked(mesg, data, blocklist=None):
                             for c in nb:
                                 the_id = get_safe(c,"id")
                             if the_id in nodes_to_remove:
-                                results_to_remove.append(result)
+                                    results_to_remove.append(result)
 
                     analyses=get_safe(result,"analyses")
                     if analyses is not None:
@@ -1328,9 +1330,9 @@ def getChildrenFromParent(pk):
 
 def createMessage(actor):
 
-    message = Message.create(code=202, status='Running', data={},
+    message = Message.create(code=202, status='Running',
                              actor=actor)
-    message.save()
+    #message.save()
     return message
 
 
@@ -1372,6 +1374,7 @@ def merge_received(parent,message_to_merge, agent_name, counter=0):
         #If at least one merger has already occurred, we merge the newcomer into that
         if current_merged_pk is not None :
             current_merged_message=Message.objects.get(pk=current_merged_pk)
+            #current_merged_decomp_message = current_merged_message.decompress_json()
             current_message_dict = get_safe(current_merged_message.to_dict(),"fields","data","message")
             t_current_merged_message=TranslatorMessage(current_message_dict)
             if current_message_dict is not None:
@@ -1391,7 +1394,8 @@ def merge_received(parent,message_to_merge, agent_name, counter=0):
 
         merged_dict = merged.to_dict()
         logging.info('the keys for merged_dict are %s' % merged_dict['message'].keys())
-        new_merged_message.data = merged_dict
+        new_merged_message.save_compressed_dict(merged_dict)
+        # new_merged_message.data = merged_dict
         new_merged_message.status='R'
         new_merged_message.code=202
         new_merged_message.save()
