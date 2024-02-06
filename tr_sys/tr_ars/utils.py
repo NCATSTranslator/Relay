@@ -716,7 +716,7 @@ def remove_blocked(mesg, data, blocklist=None):
                             nb=node_bindings[k]
                             for c in nb:
                                 the_id = get_safe(c,"id")
-                            if the_id in nodes_to_remove:
+                            if the_id in nodes_to_remove and result not in results_to_remove:
                                 results_to_remove.append(result)
 
                     analyses=get_safe(result,"analyses")
@@ -746,7 +746,7 @@ def remove_blocked(mesg, data, blocklist=None):
                                     support_graphs.remove(sg)
                         for analysis in analyses_to_remove:
                             analyses.remove(analysis)
-                        if len(analyses)<1:
+                        if len(analyses)<1 and result not in results_to_remove:
                             #if removing the bad analyses leaves us with a result that would have none, we remove the result
                             results_to_remove.append(result)
                 for result in results_to_remove:
