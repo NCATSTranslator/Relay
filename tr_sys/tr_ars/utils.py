@@ -720,7 +720,7 @@ def remove_blocked(mesg, data, blocklist=None):
                             for c in nb:
                                 the_id = get_safe(c,"id")
                             if the_id in nodes_to_remove and result not in results_to_remove:
-                                    results_to_remove.append(result)
+                                results_to_remove.append(result)
 
                     analyses=get_safe(result,"analyses")
                     if analyses is not None:
