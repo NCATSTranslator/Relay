@@ -710,7 +710,7 @@ def remove_blocked(mesg, data, blocklist=None):
                     del aux_graphs[aux_id]
             #We do the same for results
             if results is not None:
-                results_to_remove = set()
+                results_to_remove = []
                 for result in results:
                     node_bindings = get_safe(result,"node_bindings")
                     if node_bindings is not None:
@@ -718,7 +718,7 @@ def remove_blocked(mesg, data, blocklist=None):
                             nb=node_bindings[k]
                             for c in nb:
                                 the_id = get_safe(c,"id")
-                            if the_id in nodes_to_remove:
+                            if the_id in nodes_to_remove and result not in results_to_remove:
                                     results_to_remove.append(result)
 
                     analyses=get_safe(result,"analyses")
@@ -748,11 +748,11 @@ def remove_blocked(mesg, data, blocklist=None):
                                     support_graphs.remove(sg)
                         for analysis in analyses_to_remove:
                             analyses.remove(analysis)
-                        if len(analyses)<1:
+                        if len(analyses)<1 and result not in results_to_remove:
                             #if removing the bad analyses leaves us with a result that would have none, we remove the result
                             results_to_remove.append(result)
                 for result in results_to_remove:
-                  results.remove(result)
+                    results.remove(result)
 
 
         logging.info('Removing results containing the following %s from PK: %s' % (str(nodes_to_remove), str(mesg.id)))

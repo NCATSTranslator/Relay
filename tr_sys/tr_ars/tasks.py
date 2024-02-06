@@ -51,8 +51,6 @@ def send_message(actor_dict, mesg_dict, timeout=300):
     query_endpoint = (endpoint if endpoint is not None else "") + (("?"+params) if params is not None else "")
 
     try:
-        with open('improving-res.json', 'w') as outfile:
-            outfile.write(json.dumps(data))
         r = requests.post(url, json=data, timeout=timeout)
         logger.debug('%d: receive message from actor %s...\n%s.\n'
                      % (r.status_code, url, str(r.text)[:500]))
@@ -145,7 +143,7 @@ def send_message(actor_dict, mesg_dict, timeout=300):
                         rdata['logs'].append(key+": "+r.headers[key])
             mesg.code = status_code
             mesg.status = status
-            mesg.save_compressed_dict(data)
+            mesg.save_compressed_dict(rdata)
             #mesg.data = rdata
             mesg.url = url
             mesg.save()
@@ -159,7 +157,7 @@ def send_message(actor_dict, mesg_dict, timeout=300):
         status = 'E'
         mesg.code = status_code
         mesg.status = status
-        mesg.save_compressed_dict(data)
+        mesg.save_compressed_dict(rdata)
         #mesg.data = rdata
         mesg.url = url
         mesg.save()

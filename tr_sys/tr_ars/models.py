@@ -100,6 +100,7 @@ class Message(ARSModel):
         super().__init__(*args, **kwargs)
         # Decompress the compressed data when initializing the model instance
         if self.data:
+            logger.info('Decompressing the compressed data at __init__')
             self.original_data = self.decompress_dict()
         else:
             self.original_data = {}
@@ -107,6 +108,7 @@ class Message(ARSModel):
     def save(self, *args, **kwargs):
         # Compress the data before saving
         if self.original_data:
+            logger.info('Compressing the data at save call')
             self.save_compressed_dict(self.original_data)
             self.original_data = {}  # Clear original data to avoid redundancy
 
@@ -114,6 +116,7 @@ class Message(ARSModel):
 
     def save_compressed_dict(self, data):
         try:
+            logger.info('compressing the data')
             # Convert dictionary to JSON string
             json_data = json.dumps(data)
 
@@ -127,6 +130,7 @@ class Message(ARSModel):
 
     def decompress_dict(self):
         try:
+            logger.info('decompressing the data')
             #check to see if you are dealing with dictionary or compressed data?
             if isinstance(self.data, dict):
                 original_data = self.data
@@ -153,6 +157,7 @@ class Message(ARSModel):
     @classmethod
     def create(self, *args, **kwargs):
         # convert status long name to code for saving
+        logger.info('creating Message model instance')
         if 'status' in kwargs:
             for elem in Message.STATUS:
                 if elem[1] == kwargs['status']:
@@ -160,6 +165,7 @@ class Message(ARSModel):
         return Message(*args, **kwargs)
 
     def to_dict(self):
+        logger.info('running to_dict call on message object')
         jsonobj = ARSModel.to_dict(self)
         # convert status code to long name for display
         if 'fields' in jsonobj:

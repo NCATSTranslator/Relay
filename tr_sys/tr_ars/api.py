@@ -443,21 +443,13 @@ def message(req, key):
                 utils.pre_merge_process(message_to_merge,key, agent_name, inforesid)
                 if mesg.data and 'results' in mesg.data and mesg.data['results'] != None and len(mesg.data['results']) > 0:
                     mesg = Message.create(name=mesg.name, status=status, actor=mesg.actor, ref=mesg)
-                mesg.status = status
-                mesg.code = code
-                mesg.save_compressed_dict(data)
-                #mesg.data = data
-                mesg.save()
+
                 if agent_name.startswith('ara-'):
                     logger.info("pre async call for agent %s" % agent_name)
                     utils.merge_and_post_process(parent_pk,message_to_merge['message'],agent_name)
                     #utils.merge_and_post_process.apply_async((parent_pk,message_to_merge['message'],agent_name))
                     logger.info("post async call for agent %s" % agent_name)
 
-                # create child message if this one already has results
-                mesg_data = mesg.decompress_dict()
-                if mesg_data and 'results' in mesg_data['message'] and mesg_data['message']['results'] != None and len(mesg_data['message']['results']) > 0:
-                    mesg = Message.create(name=mesg.name, status=status, actor=mesg.actor, ref=mesg)
                 mesg.status = status
                 mesg.code = code
                 mesg.save_compressed_dict(data)
