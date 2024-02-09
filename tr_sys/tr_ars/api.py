@@ -181,31 +181,34 @@ def trace_message_deepfirst(node):
     children = Message.objects.filter(ref__pk=node['message'])
     logger.debug('%s: %d children' % (node['message'], len(children)))
     for child in children:
-        channel_names=[]
-        for ch in child.actor.channel:
-            channel_names.append(ch['fields']['name'])
-        n = {
-            'message': str(child.id),
-            'status': dict(Message.STATUS)[child.status],
-            'parent' : str(node['message']),
-            'result_count' : str(child.result_count),
-            'result_stat' : child.result_stat,
-            #This cast to Int shouldn't be necessary, but it is coming through as Str in the CI environment despite
-            #having the same code base deployed there as in environments where it is working correctly
-            'code': int(child.code),
-            'actor': {
-                'pk': child.actor.pk,
-                'inforesid': child.actor.inforesid,
-                #'channel': child.actor.channel.name,
-                'channel': channel_names,
-                'agent': child.actor.agent.name,
-                'path': child.actor.path
-            },
-            'result_count': child.result_count,
-            'children': []
-        }
-        trace_message_deepfirst(n)
-        node['children'].append(n)
+        if child.actor.inforesid == 'ARS':
+            pass
+        else:
+            channel_names=[]
+            for ch in child.actor.channel:
+                channel_names.append(ch['fields']['name'])
+            n = {
+                'message': str(child.id),
+                'status': dict(Message.STATUS)[child.status],
+                'parent' : str(node['message']),
+                'result_count' : str(child.result_count),
+                'result_stat' : child.result_stat,
+                #This cast to Int shouldn't be necessary, but it is coming through as Str in the CI environment despite
+                #having the same code base deployed there as in environments where it is working correctly
+                'code': int(child.code),
+                'actor': {
+                    'pk': child.actor.pk,
+                    'inforesid': child.actor.inforesid,
+                    #'channel': child.actor.channel.name,
+                    'channel': channel_names,
+                    'agent': child.actor.agent.name,
+                    'path': child.actor.path
+                },
+                'result_count': child.result_count,
+                'children': []
+            }
+            trace_message_deepfirst(n)
+            node['children'].append(n)
 
 
 def trace_message(req, key):
@@ -216,6 +219,27 @@ def trace_message(req, key):
         for ch in mesg.actor.channel:
             channel_names.append(ch['fields']['name'])
         qc = utils.get_safe(mesg.to_dict(),"fields","data","message","query_graph")
+        n_merged={}
+        if mesg.code == 200:
+            merged_pk = str(mesg.merged_version_id)
+            logger.info('the last merged pk is %s'% merged_pk)
+            if merged_pk is not None:
+                merged_msg = Message.objects.get(pk=merged_pk)
+                merged_dict = merged_msg.to_dict()
+                results = utils.get_safe(merged_dict,"fields", "data", "message","results")
+                n_merged = {
+                    'message': merged_pk,
+                    'status': dict(Message.STATUS)[merged_msg.status],
+                    'parent': str(mesg.id),
+                    'result_count': len(results),
+                    'result_stat': utils.ScoreStatCalc(results),
+                    'code': int(merged_msg.code),
+                    'actor': {
+                        'pk': merged_msg.actor_id,
+                        'inforesid': merged_msg.actor.inforesid,
+                        'agent': merged_msg.actor.agent.name
+                    },
+                }
         tree = {
             'message': str(mesg.id),
             'status': dict(Message.STATUS)[mesg.status],
@@ -237,6 +261,8 @@ def trace_message(req, key):
             #'query_graph':mesg.data.query_graph,
             'children': []
         }
+        if n_merged:
+            tree['children'].append(n_merged)
         trace_message_deepfirst(tree)
         return HttpResponse(json.dumps(tree, indent=2),
                             content_type='application/json',

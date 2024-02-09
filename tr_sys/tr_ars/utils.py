@@ -1328,11 +1328,11 @@ def getChildrenFromParent(pk):
             messageList.append(Message.objects.get(pk=childPk))
     return messageList
 
-def createMessage(actor):
+def createMessage(actor,parent_pk):
 
-    message = Message.create(code=202, status='Running',
-                             actor=actor)
-    #message.save()
+    message = Message.create(code=202, status='Running', data={},
+                             actor=actor, ref=Message.objects.get(pk=parent_pk))
+    message.save()
     return message
 
 
@@ -1364,7 +1364,7 @@ def merge_received(parent,message_to_merge, agent_name, counter=0):
     #to_merge_message= Message.objects.get(pk=pk_to_merge)
     #to_merge_message_dict=get_safe(to_merge_message.to_dict(),"fields","data","message")
     t_to_merge_message=TranslatorMessage(message_to_merge)
-    new_merged_message = createMessage(get_ars_actor())
+    new_merged_message = createMessage(get_ars_actor(),str(parent.pk))
     logging.info("the merged_pk for agent %s is %s" % (agent_name, str(new_merged_message.pk)))
     new_merged_message.save()
     # #Since we've started a merge, we lock the parent PK for the duration (this is a soft lock)
