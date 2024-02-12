@@ -99,8 +99,8 @@ class Message(ARSModel):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         # Decompress the compressed data when initializing the model instance
-        if self.data:
-            logger.info('Decompressing the compressed data at __init__')
+        if self.data and self.data is not None:
+            logger.info('Decompressing the compressed data at __init__ with pk: %s'% str(self.pk))
             self.original_data = self.decompress_dict()
         else:
             self.original_data = {}
@@ -116,7 +116,7 @@ class Message(ARSModel):
 
     def save_compressed_dict(self, data):
         try:
-            logger.info('compressing the data')
+            logger.info('compressing the data with pk: %s' % str(self.pk))
             # Convert dictionary to JSON string
             json_data = json.dumps(data)
 
@@ -130,11 +130,11 @@ class Message(ARSModel):
 
     def decompress_dict(self):
         try:
-            logger.info('decompressing the data')
             #check to see if you are dealing with dictionary or compressed data?
             if isinstance(self.data, dict):
                 original_data = self.data
-            elif isinstance(self.data, (bytes, bytearray)):
+            elif isinstance(self.data, (bytes, bytearray)) and self.data is not None:
+                #logger.info('decompressing the data if binary %s'% str(self.pk))
                 if self.data.startswith(b'\x1f\x8b'):
                     # Decompress the compressed data
                     decompressed_data = gzip.decompress(self.data)
@@ -165,7 +165,7 @@ class Message(ARSModel):
         return Message(*args, **kwargs)
 
     def to_dict(self):
-        logger.info('running to_dict call on message object')
+        logger.info('running to_dict call on message object with pk %s'% str(self.pk))
         jsonobj = ARSModel.to_dict(self)
         # convert status code to long name for display
         if 'fields' in jsonobj:

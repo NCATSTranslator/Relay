@@ -17,6 +17,7 @@ import typing
 import time as sleeptime
 import re
 from objsize import get_deep_size
+from django.shortcuts import get_object_or_404
 from .scoring import compute_from_results
 from collections import Counter
 
@@ -508,7 +509,7 @@ def sharedResultsJson(sharedResultsMap):
     return results
 
 def pre_merge_process(data,key, agent_name,inforesid):
-    mesg=Message.objects.get(pk = key)
+    mesg = get_object_or_404(Message.objects.filter(pk=key))
     logging.info("Pre node norm for "+str(key))
     try:
         scrub_null_attributes(data)
@@ -542,7 +543,7 @@ def pre_merge_process(data,key, agent_name,inforesid):
 
 def post_process(data,key, agent_name):
     code =200
-    mesg=Message.objects.get(pk = key)
+    mesg = get_object_or_404(Message.objects.filter(pk=key))
     logging.info("Pre node annotation for agent %s pk: %s" % (agent_name, str(key)))
     try:
         annotate_nodes(mesg,data,agent_name)
@@ -621,7 +622,7 @@ def merge_and_post_process(parent_pk,message_to_merge, agent_name, counter=0):
     logging.info(f"Starting merge for %s with parent PK: %s"% (agent_name,parent_pk))
     logging.info(f"Before atomic transaction for %s with parent PK: %s"% (agent_name,parent_pk))
     with transaction.atomic():
-        parent = Message.objects.select_for_update().get(pk=parent_pk)
+        parent = get_object_or_404(Message.objects.select_for_update().filter(pk=parent_pk))
         logging.info("the merge semaphore for agent %s is %s"% (agent_name, parent.merge_semaphore))
         lock_state = lock_merge(parent)
         logging.info("the lock state for agent %s is %s" % (agent_name, lock_state))
@@ -764,7 +765,8 @@ def remove_blocked(mesg, data, blocklist=None):
         #add_log_entry(data,log_tuple)
         #mesg.status='D'
         #mesg.code=200
-        mesg.data=data
+        mesg.save_compressed_dict(data)
+        #mesg.data=data
         mesg.save()
 
         return (str(mesg.id),removed_nodes,results_to_remove)
@@ -1325,13 +1327,13 @@ def getChildrenFromParent(pk):
     if children is not None:
         for child in children:
             childPk=child.id
-            messageList.append(Message.objects.get(pk=childPk))
+            messageList.append(get_object_or_404(Message.objects.filter(pk=childPk)))
     return messageList
 
 def createMessage(actor,parent_pk):
 
-    message = Message.create(code=202, status='Running', data={},
-                             actor=actor, ref=Message.objects.get(pk=parent_pk))
+    message = Message.create(code=202, status='Running',
+                             actor=actor, ref=get_object_or_404(Message.objects.filter(pk=parent_pk)))
     message.save()
     return message
 
@@ -1339,7 +1341,7 @@ def createMessage(actor,parent_pk):
 @app.task(name="merge")
 def merge(pk,merged_pk):
     messageList= getChildrenFromParent(pk)
-    mergedComplete = Message.objects.get(pk=merged_pk)
+    mergedComplete = get_object_or_404(Message.objects.filter(pk=merged_pk))
 
     newList =[]
     for message in messageList:
@@ -1373,7 +1375,7 @@ def merge_received(parent,message_to_merge, agent_name, counter=0):
     try:
         #If at least one merger has already occurred, we merge the newcomer into that
         if current_merged_pk is not None :
-            current_merged_message=Message.objects.get(pk=current_merged_pk)
+            current_merged_message=get_object_or_404(Message.objects.filter(pk=current_merged_pk))
             #current_merged_decomp_message = current_merged_message.decompress_json()
             current_message_dict = get_safe(current_merged_message.to_dict(),"fields","data","message")
             t_current_merged_message=TranslatorMessage(current_message_dict)

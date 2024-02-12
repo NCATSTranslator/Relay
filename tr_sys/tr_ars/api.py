@@ -1,7 +1,7 @@
 from django.http import HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.core import serializers
-from django.shortcuts import redirect
+from django.shortcuts import redirect, get_object_or_404
 from django.urls import path, re_path, include, reverse
 from django.utils import timezone
 from tr_ars import utils
@@ -138,7 +138,7 @@ def messages(req):
     if req.method == 'GET':
         response = []
         for mesg in  Message.objects.order_by('-timestamp')[:10]:
-            response.append(Message.objects.get(pk=mesg.pk).to_dict())
+            response.append(get_object_or_404(Message.objects.filter(pk=mesg.pk)).to_dict())
         return HttpResponse(json.dumps(response),
                             content_type='application/json', status=200)
     elif req.method == 'POST':
@@ -158,7 +158,7 @@ def messages(req):
                 mesg.url = data['url']
             if 'ref' in data and data['ref'] != None:
                 rid = int(data['ref'])
-                mesg.ref = Message.objects.get(pk=rid)
+                mesg.ref = get_object_or_404(Message.objects.filter(pk=rid))
             mesg.save()
             return HttpResponse(json.dumps(mesg.to_dict(), indent=2),
                                 status=201)
@@ -214,7 +214,7 @@ def trace_message_deepfirst(node):
 def trace_message(req, key):
     logger.debug("entering trace_message")
     try:
-        mesg = Message.objects.get(pk=key)
+        mesg = get_object_or_404(Message.objects.filter(pk=key))
         channel_names=[]
         for ch in mesg.actor.channel:
             channel_names.append(ch['fields']['name'])
@@ -224,7 +224,7 @@ def trace_message(req, key):
             merged_pk = str(mesg.merged_version_id)
             logger.info('the last merged pk is %s'% merged_pk)
             if merged_pk is not None:
-                merged_msg = Message.objects.get(pk=merged_pk)
+                merged_msg = get_object_or_404(Message.objects.filter(pk=merged_pk))
                 merged_dict = merged_msg.to_dict()
                 results = utils.get_safe(merged_dict,"fields", "data", "message","results")
                 n_merged = {
@@ -323,7 +323,7 @@ def filter_message_deepfirst(rdata, filter, arg):
     return rdata, final_result_count
 
 def filter_message(key, filter_arg_list):
-    mesg = Message.objects.get(pk=key)
+    mesg = get_object_or_404(Message.objects.filter(pk=key))
     if str(mesg.actor.agent.name) == 'ars-default-agent':
         new_mesg = Message.create(actor=get_default_actor(), code=200, status='Done')
         new_id=new_mesg.pk
@@ -338,7 +338,7 @@ def filter_message(key, filter_arg_list):
                     filter_type = fil[0]
                     filter_value = fil[1]
                     rdata, final_result_count = filter_message_deepfirst(rdata, filter_type, filter_value)
-                child_mesg = Message.create(actor=Actor.objects.get(pk=int(child.actor_id)), ref=Message.objects.get(pk=new_mesg.pk), code=200, status='Done')
+                child_mesg = Message.create(actor=Actor.objects.get(pk=int(child.actor_id)), ref=get_object_or_404(Message.objects.filter(pk=new_mesg.pk)), code=200, status='Done')
                 child_mesg.result_count = final_result_count
                 child_mesg.data= rdata
                 child_mesg.save()
@@ -419,7 +419,7 @@ def message(req, key):
         if req.GET.get('trace', False):
             return trace_message(req, key)
         try:
-            mesg = Message.objects.get(pk=key)
+            mesg = get_object_or_404(Message.objects.filter(pk=key))
             actor = Actor.objects.get(pk=mesg.actor_id)
             mesg.name = actor.agent.name
             mesg_dict = mesg.to_dict()
@@ -438,8 +438,7 @@ def message(req, key):
             data = json.loads(req.body)
             #if 'query_graph' not in data or 'knowledge_graph' not in data or 'results' not in data:
             #    return HttpResponse('Not a valid Translator API json', status=400)
-
-            mesg = Message.objects.get(pk = key)
+            mesg = get_object_or_404(Message.objects.filter(pk=key))
             status = 'D'
             code = 200
             if 'tr_ars.message.status' in req.headers:
@@ -472,21 +471,16 @@ def message(req, key):
 
                 if agent_name.startswith('ara-'):
                     logger.info("pre async call for agent %s" % agent_name)
-                    utils.merge_and_post_process(parent_pk,message_to_merge['message'],agent_name)
-                    #utils.merge_and_post_process.apply_async((parent_pk,message_to_merge['message'],agent_name))
+                    #utils.merge_and_post_process(parent_pk,message_to_merge['message'],agent_name)
+                    utils.merge_and_post_process.apply_async((parent_pk,message_to_merge['message'],agent_name))
                     logger.info("post async call for agent %s" % agent_name)
 
-                mesg.status = status
-                mesg.code = code
-                mesg.save_compressed_dict(data)
-                #mesg.data = data
-                mesg.save()
-
-            if len(res) == 0:
+            mesg.status = status
+            mesg.code = code
+            mesg.save_compressed_dict(data)
+            if len(res) == 0 and res is not None:
                 mesg.result_count = 0
-                mesg.code = code
-                mesg.status = status
-                mesg.save()
+            mesg.save()
 
             return HttpResponse(json.dumps(mesg.to_dict(), indent=2),
                                 status=201)
@@ -783,7 +777,7 @@ def timeoutTest(req,time=300):
 
 def block(req,key):
     if req.method == 'GET':
-        mesg=Message.objects.get(pk=key)
+        mesg = get_object_or_404(Message.objects.filter(pk=key))
         report=utils.remove_blocked(mesg,mesg.data)
         httpjson = {
             "pk":report[0],
@@ -797,13 +791,13 @@ def block(req,key):
 @csrf_exempt
 def retain(req, key):
 
-    mesg=Message.objects.get(pk=key)
+    mesg = get_object_or_404(Message.objects.filter(pk=key))
     if str(mesg.actor.agent.name) == 'ars-default-agent':
         mesg.retain = True
         mesg.save()
     else:
         if mesg.ref_id is not None:
-            parent_mesg = Message.objects.get(pk=mesg.ref_id)
+            parent_mesg = get_object_or_404(Message.objects.filter(pk=mesg.ref_id))
             parent_mesg.retain = True
             parent_mesg.save()
             return HttpResponse('retained the message for parent pk: %s' % mesg.ref_id)
@@ -815,7 +809,7 @@ def merge(req, key):
     logger.debug("Beginning merge for %s " % key)
     if req.method == 'GET':
         logger.debug("Beginning merge for %s " % key)
-        parent=Message.objects.get(pk=key)
+        parent = get_object_or_404(Message.objects.filter(pk=key))
         merged_message=utils.createMessage(get_ars_actor())
         mid=merged_message.id
         merged_message.data=parent.data
@@ -826,7 +820,7 @@ def merge(req, key):
 def post_process(req, key):
     if req.method=='GET':
         logger.debug("Beginning debugging post_process for %s " % key)
-        mesg=Message.objects.get(pk=key)
+        mesg = get_object_or_404(Message.objects.filter(pk=key))
         data = mesg.data
         actor_name = mesg.actor
         utils.post_process(data,key,actor_name)
