@@ -667,7 +667,7 @@ def merge_and_post_process(parent_pk,message_to_merge, agent_name, counter=0):
 
 def remove_blocked(mesg, data, blocklist=None):
     try:
-        logging.info("Getting the length of the dictionary in {} bytes".format(get_deep_size(data)))
+        #logging.info("Getting the length of the dictionary in {} bytes".format(get_deep_size(data)))
         if blocklist is None:
             path = os.path.join(os.path.dirname(__file__), "..", "..", "config", "blocklist.json")
             f = open(path)
@@ -752,14 +752,18 @@ def remove_blocked(mesg, data, blocklist=None):
                 for result in results_to_remove:
                   results.remove(result)
 
+        list_of_names = []
+        for node in removed_nodes:
+            if "name" in node.keys():
+                list_of_names.append(node["name"])
 
         logging.info('Removing results containing the following %s from PK: %s' % (str(nodes_to_remove), str(mesg.id)))
         log_tuple =[
-            'Removed the following bad nodes: '+ json.dumps(removed_nodes,indent=4),
+            'Removed the following bad nodes: '+ str(list_of_names),
             datetime.now().strftime('%H:%M:%S'),
             "DEBUG"
         ]
-        #add_log_entry(data,log_tuple)
+        add_log_entry(data,log_tuple)
         #mesg.status='D'
         #mesg.code=200
         mesg.data=data

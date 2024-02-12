@@ -18,6 +18,7 @@ infores:improving-agent: https://ia.ci.transltr.io/api/v1.3
 infores:example: http://transltr.io:7073
 infores:unsecret-agent: https://medikanren-trapi.ci.transltr.io
 infores:workflow-runner: https://translator-workflow-runner.renci.org
+infores:cqs: https://cqs-dev.apps.renci.org/v0.2/asyncquery
 infores:automat-cam-kp: https://automat.ci.transltr.io/cam-kp/1.4
 infores:connections-hypothesis: http://chp.thayer.dartmouth.edu
 infores:cohd: https://cohd.io/api

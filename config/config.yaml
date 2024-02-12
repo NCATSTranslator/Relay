@@ -46,6 +46,9 @@ httpclients:
   infores:workflow-runner:
     endpoint: query 
     params:
+  infores:cqs:
+    endpoint: asyncquery
+    params:
   infores:automat-cam-kp:
     endpoint: query 
     params: limit=100
