@@ -223,7 +223,7 @@ def trace_message(req, key):
         if mesg.code == 200:
             merged_pk = str(mesg.merged_version_id)
             logger.info('the last merged pk is %s'% merged_pk)
-            if merged_pk is not None:
+            if merged_pk is not None and merged_pk != 'None':
                 merged_msg = Message.objects.get(pk=merged_pk)
                 merged_dict = merged_msg.to_dict()
                 results = utils.get_safe(merged_dict,"fields", "data", "message","results")
