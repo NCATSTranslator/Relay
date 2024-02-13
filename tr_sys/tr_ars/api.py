@@ -228,7 +228,7 @@ def trace_message(req, key):
                 merged_dict = merged_msg.to_dict()
                 results = utils.get_safe(merged_dict,"fields", "data", "message","results")
                 n_merged = {
-                    'message': merged_pk,
+                    'message': str(merged_pk),
                     'status': dict(Message.STATUS)[merged_msg.status],
                     'parent': str(mesg.id),
                     'result_count': len(results),
