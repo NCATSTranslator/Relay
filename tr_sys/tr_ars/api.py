@@ -239,6 +239,7 @@ def trace_message(req, key):
                         'inforesid': merged_msg.actor.inforesid,
                         'agent': merged_msg.actor.agent.name
                     },
+                    'children': []
                 }
         tree = {
             'message': str(mesg.id),

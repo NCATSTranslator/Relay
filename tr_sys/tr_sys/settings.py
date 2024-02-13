@@ -50,7 +50,7 @@ INSTALLED_APPS = [
     'tr_ara_ncats.ncats_app.AppConfig',
     'tr_ara_unsecret.unsecret_app.AppConfig',
     'tr_ara_wfr.wfr_app.AppConfig',
-    'tr_ara_cqs.cqs_app.AppConfig'
+    'tr_ara_cqs.cqs_app.AppConfig',
     'tr_kp_genetics.genetics_app.AppConfig',
     'tr_kp_molecular.molecular_app.AppConfig',
     'tr_kp_cam.cam_app.AppConfig',
