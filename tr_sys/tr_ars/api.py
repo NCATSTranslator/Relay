@@ -406,9 +406,9 @@ def latest_pk(req, n):
             if actor.agent.name == 'ars-default-agent':
                 actor_id = actor.id
 
-        mesg_list = Message.objects.filter(actor=actor_id).order_by('-timestamp')[:n]
+        mesg_list = Message.objects.values('actor','timestamp','id').filter(actor=actor_id).order_by('-timestamp')[:n]
         for mesg in mesg_list:
-            response[f'latest_{n}_pks'].append(str(mesg.pk))
+            response[f'latest_{n}_pks'].append(str(mesg['id']))
 
         return HttpResponse(json.dumps(response, indent=2),
                             status=200)
