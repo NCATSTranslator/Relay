@@ -793,18 +793,35 @@ def block(req,key):
 def retain(req, key):
 
     mesg=Message.objects.get(pk=key)
-    if str(mesg.actor.agent.name) == 'ars-default-agent':
-        mesg.retain = True
-        mesg.save()
-    else:
-        if mesg.ref_id is not None:
-            parent_mesg = Message.objects.get(pk=mesg.ref_id)
-            parent_mesg.retain = True
-            parent_mesg.save()
-            return HttpResponse('retained the message for parent pk: %s' % mesg.ref_id)
+    json_response={
+        "success":False,
+        "parent_pk":str(mesg.id)
+    }
+    try:
+        if str(mesg.actor.agent.name) == 'ars-default-agent':
+            mesg.retain = True
+            mesg.save()
+            json_response["success"]=True
         else:
-            logger.error('pk: %s doesnt have a parent level pk' % key)
-    return HttpResponse('retained the message for parent pk: %s' % key)
+            if mesg.ref_id is not None:
+                parent_mesg = Message.objects.get(pk=mesg.ref_id)
+                parent_mesg.retain = True
+                parent_mesg.save()
+                json_response["success"]=True
+                return HttpResponse(json.dumps(json_response, indent=2),
+                                    content_type='application/json', status=200)
+            else:
+                logger.error('pk: %s doesnt have a parent level pk' % key)
+                json_response["success"]=False
+                return HttpResponse(json.dumps(json_response, indent=2),
+                                    content_type='application/json', status=200)
+        return HttpResponse(json.dumps(json_response, indent=2),
+                            content_type='application/json', status=200)
+    except Exception as e:
+        logger.error('failed to retain %s' % key)
+        json_response["success"]=False
+        return HttpResponse(json.dumps(json_response, indent=2),
+                            content_type='application/json', status=200)
 
 def merge(req, key):
     logger.debug("Beginning merge for %s " % key)
