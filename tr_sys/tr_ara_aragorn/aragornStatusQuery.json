@@ -1,1 +1,0 @@
-{"message": {"query_graph": {"nodes": {"n0": {"ids": ["MONDO:0004979"], "categories": ["biolink:Disease"]}, "n1": {"categories": ["biolink:ChemicalSubstance"]}}, "edges": {"e01": {"predicates": ["biolink:correlated_with"], "object": "n1", "subject": "n0"}}}}}
