@@ -534,7 +534,7 @@ def pre_merge_process(data,key, agent_name,inforesid):
         raise e
     logging.info("Normalizing scores for "+str(key))
     try:
-        normalize_scores(mesg,data,key,agent_name)
+        normalize_scores(data,key,agent_name)
     except Exception as e:
         post_processing_error(mesg,data,"Error in ARS score normalization")
         logging.exception("Error in ARS score normalization")
@@ -604,6 +604,8 @@ def post_process(data,key, agent_name):
         raise e
     mesg.status='D'
     mesg.code=code
+    mesg.result_count = len(new_res)
+    mesg.result_stat = ScoreStatCalc(new_res)
     mesg.save_compressed_dict(data)
     #mesg.data = data
     mesg.save()
@@ -613,7 +615,7 @@ def lock_merge(message):
         return True
     else:
         message.merge_semaphore=True
-        message.save(update_fields=['merge_semaphore'])
+        message.save()
         return False
 
 @shared_task(name="merge_and_post_process")
@@ -632,8 +634,9 @@ def merge_and_post_process(parent_pk,message_to_merge, agent_name, counter=0):
     if lock_state is False:
         try:
             logging.info(f"Before merging for %s with parent PK: %s"% (agent_name,parent_pk))
-            merged = merge_received(parent,message_to_merge, agent_name)
+            merged, parent = merge_received(parent,message_to_merge, agent_name)
             logging.info(f"After merging for %s with parent PK: %s"% (agent_name,parent_pk))
+            parent.save()
         except Exception as e:
             logging.info("Problem with merger for agent %s pk: %s " % (agent_name, (parent_pk)))
             logging.info(e, exc_info=True)
@@ -921,7 +924,7 @@ def annotate_nodes(mesg,data,agent_name):
            # post_processing_error(mesg,data,"Error in annotation of nodes")
 
 
-def normalize_scores(mesg,data,key, agent_name):
+def normalize_scores(data,key, agent_name):
     res=get_safe(data,"message","results")
     if res is not None:
         if len(res)>0:
@@ -1417,9 +1420,9 @@ def merge_received(parent,message_to_merge, agent_name, counter=0):
             parent.merged_versions_list=[pk_infores_merge]
         else:
             parent.merged_versions_list.append(pk_infores_merge)
-        parent.save(update_fields=['merge_semaphore','merged_versions_list', 'merged_version'])
+        parent.save()
         logging.info("returning new_merged_message to be post processed with pk: %s" % str(new_merged_message.pk))
-        return new_merged_message
+        return new_merged_message, parent
     except Exception as e:
         logging.exception("problem with merging for %s :" % agent_name)
         #If anything goes wrong, we at least need to unlock the semaphore

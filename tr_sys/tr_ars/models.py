@@ -98,10 +98,9 @@ class Message(ARSModel):
                                                     self.name, self.status)
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # Decompress the compressed data when initializing the model instance
+        # # Decompress the compressed data when initializing the model instance
         if self.data and self.data is not None:
-            logger.info('Decompressing the compressed data at __init__ with pk: %s'% str(self.pk))
-            self.original_data = self.decompress_dict()
+            self.original_data = self.data
         else:
             self.original_data = {}
 
@@ -116,15 +115,19 @@ class Message(ARSModel):
 
     def save_compressed_dict(self, data):
         try:
-            logger.info('compressing the data with pk: %s' % str(self.pk))
-            # Convert dictionary to JSON string
-            json_data = json.dumps(data)
+            if isinstance(data, (bytes, bytearray)) and data is not None:
+                logger.info('data already compressed, no action needed')
+                self.data = data
+            else:
+                logger.info('compressing the data with pk: %s' % str(self.pk))
+                # Convert dictionary to JSON string
+                json_data = json.dumps(data)
 
-            # Compress JSON string using gzip
-            compressed_data = gzip.compress(json_data.encode('utf-8'))
+                # Compress JSON string using gzip
+                compressed_data = gzip.compress(json_data.encode('utf-8'))
 
-            # Save compressed data to the model field
-            self.data = compressed_data
+                # Save compressed data to the model field
+                self.data = compressed_data
         except Exception as e:
             print("Error compressing data:", e)
 
