@@ -53,10 +53,11 @@ def message_post_save(sender, instance, **kwargs):
             for child in children:
                 if child.status not in ['D', 'S', 'E', 'U']:
                     finished = False
-                if child.actor.agent.name == 'ars-ars-agent':
-                    merge_count += 1
-                else:
-                    orig_count += 1
+                if child.status == 'D' and child.actor.agent.name.startswith('ar') and (child.result_count is not None and child.result_count > 0):
+                    if child.actor.agent.name == 'ars-ars-agent':
+                        merge_count += 1
+                    else:
+                        orig_count += 1
 
             if finished and merge_count == orig_count:
                 pmessage.status = 'D'
