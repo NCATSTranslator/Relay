@@ -243,6 +243,7 @@ def trace_message(req, key):
             'code':mesg.code,
             'retain': mesg.retain,
             'timestamp': str(mesg.timestamp),
+            'updated_at': str(mesg.updated_at),
             'actor': {
                 'pk': mesg.actor.pk,
                 'inforesid': mesg.actor.inforesid,

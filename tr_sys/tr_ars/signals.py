@@ -48,11 +48,17 @@ def message_post_save(sender, instance, **kwargs):
             children = Message.objects.filter(ref__pk=pmessage.pk)
             logger.debug('%s: %d children' % (pmessage.pk, len(children)))
             finished = True
+            merge_count=0
+            orig_count=0
             for child in children:
                 if child.status not in ['D', 'S', 'E', 'U']:
                     finished = False
+                if child.actor.agent.name == 'ars-ars-agent':
+                    merge_count += 1
+                else:
+                    orig_count += 1
 
-            if finished:
+            if finished and merge_count == orig_count:
                 pmessage.status = 'D'
                 pmessage.code = 200
                 pmessage.save()
