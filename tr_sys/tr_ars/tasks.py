@@ -183,7 +183,7 @@ def catch_timeout_async():
     now =timezone.now()
     logging.info(f'Checking timeout at {now}')
     time_threshold = now - timezone.timedelta(minutes=10)
-    max_time = time_threshold+timezone.timedelta(minutes=9)
+    max_time = time_threshold+timezone.timedelta(minutes=5)
 
     messages = Message.objects.filter(timestamp__gt=time_threshold,timestamp__lt=max_time, status__in='R').values_list('actor','id','timestamp','updated_at')
     for mesg in messages:
