@@ -183,7 +183,7 @@ def catch_timeout_async():
     now =timezone.now()
     logging.info(f'Checking timeout at {now}')
     time_threshold = now - timezone.timedelta(minutes=10)
-    max_time = time_threshold+timezone.timedelta(minutes=9)
+    max_time = time_threshold+timezone.timedelta(minutes=5)
 
     messages = Message.objects.filter(timestamp__gt=time_threshold,timestamp__lt=max_time, status__in='R').values_list('actor','id','timestamp','updated_at')
     for mesg in messages:
@@ -191,6 +191,7 @@ def catch_timeout_async():
         id = mesg[1]
         actor = Agent.objects.get(pk=mpk)
         logging.info(f'actor: {actor} id: {mesg[1]} timestamp: {mesg[2]} updated_at {mesg[3]}')
+
         #exempting parents and merged_versions from timing out
         if actor.name == 'ars-default-agent' or actor.name =='ars-ars-agent':
             continue
