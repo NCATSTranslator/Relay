@@ -604,7 +604,13 @@ def post_process(data,key, agent_name):
     mesg.status='D'
     mesg.code=code
     mesg.data = data
-    mesg.save()
+    try:
+        mesg.save()
+    except Exception as e:
+        mesg.status ='E'
+        mesg.code=422
+        logging.error("Final save failed for agent %s and pk %s" % (agent_name, key))
+        mesg.save(update_fields=["status","code"])
 def lock_merge(message):
     pass
     if message.merge_semaphore is True:
@@ -692,6 +698,7 @@ def remove_blocked(mesg, data, blocklist=None):
             #Then we find any edges that have them as a subject or object and remove those
             edges_to_remove=[]
             for edge_id, edge in edges.items():
+
                 if edge['subject'] in nodes_to_remove or edge['object'] in nodes_to_remove:
                     edges_to_remove.append(edge_id)
             for edge_id in edges_to_remove:
@@ -700,6 +707,7 @@ def remove_blocked(mesg, data, blocklist=None):
             if aux_graphs is not None:
                 aux_graphs_to_remove=[]
                 for aux_id, aux_graph in aux_graphs.items():
+
                     edges = get_safe(aux_graph,"edges")
                     overlap = list(set(edges) & set(edges_to_remove))
                     if len(overlap)>0:
@@ -716,8 +724,10 @@ def remove_blocked(mesg, data, blocklist=None):
                             nb=node_bindings[k]
                             for c in nb:
                                 the_id = get_safe(c,"id")
+
                             if the_id in nodes_to_remove and result not in results_to_remove:
                                 results_to_remove.append(result)
+
 
                     analyses=get_safe(result,"analyses")
                     if analyses is not None:
@@ -835,13 +845,62 @@ def appraise(mesg,data, agent_name,retry_counter=0):
     try:
         with requests.post(APPRAISER_URL,data=json_data,headers=headers, stream=True) as r:
             logging.debug("Appraiser being called at: "+APPRAISER_URL)
+            logging.debug("TESTING")
             logging.info('the response for agent %s to appraiser code is: %s' % (agent_name, r.status_code))
             if r.status_code==200:
                 rj = r.json()
-                #for now, just update the whole message, but we could be more precise/efficient
                 logging.debug("Updating message with appraiser data for agent %s and pk %s " % (agent_name, str(mesg.id)))
-                data['message']['results']=rj['message']['results']
+
+                #There are some instance in which Appraiser drops a result for some reason.  So, we can't directly take
+                #what they return. Instead, we merge the two as we would during the normal merge process
+                # if len(data['message']['results'])!=len(rj['message']['results']):
+                #     diff = len(data['message']['results'])-len(rj['message']['results'])
+                #     logging.debug("Appraiser dropped %s results for agent %s and pk %s " % (str(diff),agent_name, str(mesg.id)))
+                #     data['message']['results']=mergeDicts(data['message']['results'],rj['message']['results'])
+
+
+                ##TEST CODE TO REMOVE
+                before = data['message']['results']
+                after= rj['message']['results']
+                #
+                # before_nodes = set()
+                # for result in before:
+                #     node_bindings = get_safe(result,"node_bindings")
+                #     if node_bindings is not None:
+                #         for k in node_bindings.keys():
+                #             nb=node_bindings[k]
+                #             for c in nb:
+                #                 the_id = get_safe(c,"id")
+                #                 before_nodes.add(the_id)
+                #
+                # after_nodes = set()
+                # for result in after:
+                #     node_bindings = get_safe(result,"node_bindings")
+                #     if node_bindings is not None:
+                #         for k in node_bindings.keys():
+                #             nb=node_bindings[k]
+                #             for c in nb:
+                #                 the_id = get_safe(c,"id")
+                #                 after_nodes.add(the_id)
+                # before_only = before_nodes-after_nodes
+                # after_only = after_nodes-before_nodes
+                # logging.debug("Before only "+str(before_only))
+                # logging.debug("After only "+str(after_only))
+
+
+                logging.debug("printing appraiser results")
+                with open('after.json', 'w') as f:
+                    json.dump(after, f)
+
+                logging.debug("printing before results")
+                with open('before.json', 'w') as f:
+                    json.dump(before, f)
+                ##TEST CODE TO REMOVE
+
+
                 logging.debug("Updating message with appraiser data complete for "+str(mesg.id))
+                #data['message']['results']=mergeDicts(data['message']['results'],rj['message']['results'])
+
             else:
                 retry_counter +=1
                 logging.debug("Received Error state from appraiser for agent %s and pk %s  Code %s Attempt %s" % (agent_name,str(mesg.id),str(r.status_code),str(retry_counter)))
