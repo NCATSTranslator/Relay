@@ -192,8 +192,8 @@ def catch_timeout_async():
         actor = Agent.objects.get(pk=mpk)
         logging.info(f'actor: {actor} id: {mesg[1]} timestamp: {mesg[2]} updated_at {mesg[3]}')
 
-        #exempting parents and merged_versions from timing out
-        if actor.name == 'ars-default-agent' or actor.name =='ars-ars-agent':
+        #exempting parents from timing out
+        if actor.name == 'ars-default-agent':
             continue
         else:
             logging.info(f'for actor: {actor.name}, and pk {str(id)} the status is still "Running" after 5 min, setting code to 598')
