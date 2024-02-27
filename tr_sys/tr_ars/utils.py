@@ -4,7 +4,7 @@ import logging
 import traceback
 import os, sys
 from datetime import time, datetime
-from django.db import transaction
+from django.db import transaction, DatabaseError
 import requests
 import statistics
 from .api import get_ars_actor, get_or_create_actor
@@ -601,16 +601,20 @@ def post_process(data,key, agent_name):
         post_processing_error(mesg,data,"Error in f-score calculation")
         logging.exception("Error in f-score calculation")
         raise e
-    mesg.status='D'
-    mesg.code=code
-    mesg.data = data
+
     try:
-        mesg.save()
-    except Exception as e:
+        mesg.status='D'
+        mesg.code=200
+        mesg.data = data
+        logging.debug("Time before save")
+        with transaction.atomic():
+            mesg.save()
+        logging.debug("Time after save")
+    except DatabaseError as e:
         mesg.status ='E'
         mesg.code=422
-        logging.error("Final save failed for agent %s and pk %s" % (agent_name, key))
-        mesg.save(update_fields=["status","code"])
+        logging.error("Final save failed")
+        mesg.save(update_fields=['status','code'])
 def lock_merge(message):
     pass
     if message.merge_semaphore is True:
@@ -859,47 +863,10 @@ def appraise(mesg,data, agent_name,retry_counter=0):
                 #     data['message']['results']=mergeDicts(data['message']['results'],rj['message']['results'])
 
 
-                ##TEST CODE TO REMOVE
-                before = data['message']['results']
-                after= rj['message']['results']
-                #
-                # before_nodes = set()
-                # for result in before:
-                #     node_bindings = get_safe(result,"node_bindings")
-                #     if node_bindings is not None:
-                #         for k in node_bindings.keys():
-                #             nb=node_bindings[k]
-                #             for c in nb:
-                #                 the_id = get_safe(c,"id")
-                #                 before_nodes.add(the_id)
-                #
-                # after_nodes = set()
-                # for result in after:
-                #     node_bindings = get_safe(result,"node_bindings")
-                #     if node_bindings is not None:
-                #         for k in node_bindings.keys():
-                #             nb=node_bindings[k]
-                #             for c in nb:
-                #                 the_id = get_safe(c,"id")
-                #                 after_nodes.add(the_id)
-                # before_only = before_nodes-after_nodes
-                # after_only = after_nodes-before_nodes
-                # logging.debug("Before only "+str(before_only))
-                # logging.debug("After only "+str(after_only))
-
-
-                logging.debug("printing appraiser results")
-                with open('after.json', 'w') as f:
-                    json.dump(after, f)
-
-                logging.debug("printing before results")
-                with open('before.json', 'w') as f:
-                    json.dump(before, f)
-                ##TEST CODE TO REMOVE
 
 
                 logging.debug("Updating message with appraiser data complete for "+str(mesg.id))
-                #data['message']['results']=mergeDicts(data['message']['results'],rj['message']['results'])
+                data['message']['results']=mergeDicts(data['message']['results'],rj['message']['results'])
 
             else:
                 retry_counter +=1
