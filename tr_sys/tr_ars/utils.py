@@ -849,25 +849,13 @@ def appraise(mesg,data, agent_name,retry_counter=0):
     try:
         with requests.post(APPRAISER_URL,data=json_data,headers=headers, stream=True) as r:
             logging.debug("Appraiser being called at: "+APPRAISER_URL)
-            logging.debug("TESTING")
             logging.info('the response for agent %s to appraiser code is: %s' % (agent_name, r.status_code))
             if r.status_code==200:
                 rj = r.json()
+                #for now, just update the whole message, but we could be more precise/efficient
                 logging.debug("Updating message with appraiser data for agent %s and pk %s " % (agent_name, str(mesg.id)))
-
-                #There are some instance in which Appraiser drops a result for some reason.  So, we can't directly take
-                #what they return. Instead, we merge the two as we would during the normal merge process
-                # if len(data['message']['results'])!=len(rj['message']['results']):
-                #     diff = len(data['message']['results'])-len(rj['message']['results'])
-                #     logging.debug("Appraiser dropped %s results for agent %s and pk %s " % (str(diff),agent_name, str(mesg.id)))
-                #     data['message']['results']=mergeDicts(data['message']['results'],rj['message']['results'])
-
-
-
-
+                data['message']['results']=rj['message']['results']
                 logging.debug("Updating message with appraiser data complete for "+str(mesg.id))
-                data['message']['results']=mergeDicts(data['message']['results'],rj['message']['results'])
-
             else:
                 retry_counter +=1
                 logging.debug("Received Error state from appraiser for agent %s and pk %s  Code %s Attempt %s" % (agent_name,str(mesg.id),str(r.status_code),str(retry_counter)))
