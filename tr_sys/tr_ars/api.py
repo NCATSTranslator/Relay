@@ -795,11 +795,11 @@ def retain_all(parent_mesg, json_response):
 
     if parent_mesg.status != 'R':
         parent_mesg.retain = True
-        parent_mesg.save()
+        parent_mesg.save(update_fields=['retain'])
         children = Message.objects.filter(ref__pk=parent_mesg.pk)
         for child in children:
             child.retain = True
-            child.save()
+            child.save(update_fields=['retain'])
         json_response["success"]=True
         json_response["parent_pk"]= str(parent_mesg.id)
     else:
