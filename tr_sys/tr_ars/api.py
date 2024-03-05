@@ -790,22 +790,44 @@ def block(req,key):
         #return redirect('/ars/api/messages/'+str(blocked_id))
         return HttpResponse(json.dumps(httpjson, indent=2),
                             content_type='application/json', status=200)
+
+def retain_all(parent_mesg, json_response):
+
+    if parent_mesg.status != 'R':
+        parent_mesg.retain = True
+        parent_mesg.save()
+        children = Message.objects.filter(ref__pk=parent_mesg.pk)
+        for child in children:
+            child.retain = True
+            child.save()
+        json_response["success"]=True
+        json_response["parent_pk"]= str(parent_mesg.id)
+    else:
+        json_response["parent_pk"]= str(parent_mesg.id)
+        json_response["description"] = 'PK still running'
+
+    return json_response
 @csrf_exempt
 def retain(req, key):
 
     mesg=Message.objects.get(pk=key)
+    json_response={
+        "success":False
+    }
     if str(mesg.actor.agent.name) == 'ars-default-agent':
-        mesg.retain = True
-        mesg.save()
+
+        json_response = retain_all(mesg, json_response)
+
+    elif mesg.ref_id is not None:
+        parent_mesg = Message.objects.get(pk=mesg.ref_id)
+        json_response = retain_all(parent_mesg,json_response)
+
     else:
-        if mesg.ref_id is not None:
-            parent_mesg = Message.objects.get(pk=mesg.ref_id)
-            parent_mesg.retain = True
-            parent_mesg.save()
-            return HttpResponse('retained the message for parent pk: %s' % mesg.ref_id)
-        else:
-            logger.error('pk: %s doesnt have a parent level pk' % key)
-    return HttpResponse('retained the message for parent pk: %s' % key)
+        json_response["description"] = 'Invalid PK'
+
+    return HttpResponse(json.dumps(json_response, indent=2),
+                            content_type='application/json', status=200)
+
 
 def merge(req, key):
     logger.debug("Beginning merge for %s " % key)
