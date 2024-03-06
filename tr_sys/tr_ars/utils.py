@@ -605,6 +605,8 @@ def post_process(data,key, agent_name):
     try:
         mesg.status='D'
         mesg.code=200
+        mesg.result_count = len(new_res)
+        mesg.result_stat = ScoreStatCalc(new_res)
         mesg.data = data
         logging.debug("Time before save")
         with transaction.atomic():
