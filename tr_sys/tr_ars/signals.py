@@ -77,11 +77,11 @@ def message_post_save(sender, instance, **kwargs):
                 if child.status not in ['D', 'S', 'E', 'U']:
                     finished = False
                     logger.debug('+++ Parent message %s not Done because of child: %s in state %s' % (str(pmessage.id),str(child.id),str(child.status)))
-        if finished:
-            logger.debug('+++ Parent message Done for: %s \n Attempting save' % (str(pmessage.id)))
-            pmessage.status = 'D'
-            pmessage.code = 200
-            pmessage.save()
+            if finished:
+                logger.debug('+++ Parent message Done for: %s \n Attempting save' % (str(pmessage.id)))
+                pmessage.status = 'D'
+                pmessage.code = 200
+                pmessage.save()
 
 @receiver(pre_save, sender=Message)
 def message_pre_save(sender, instance, **kwargs):
