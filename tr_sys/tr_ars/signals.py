@@ -64,20 +64,24 @@ def message_post_save(sender, instance, **kwargs):
             send_messages(matching_actors, [message]) #this line will need to be changed to adapt to lists of channels
 
     # check if parent status should be updated to 'Done'
-    if message.ref and message.status in ['D', 'S', 'E', 'U']:
+    if message.ref is not None and message.status in ['D', 'S', 'E', 'U']:
+        logger.debug('+++ checking parent Doneness: %s for message/parent: %s %s' % (message.ref.status, str(message.id), str(message.ref.id)))
+
         pmessage = message.ref
         if pmessage.status != 'D':
+            logger.debug('+++ Parent message not Done for: %s' % (str(pmessage.id)))
             children = Message.objects.filter(ref__pk=pmessage.pk)
             logger.debug('%s: %d children' % (pmessage.pk, len(children)))
             finished = True
             for child in children:
                 if child.status not in ['D', 'S', 'E', 'U']:
                     finished = False
-
-            if finished:
-                pmessage.status = 'D'
-                pmessage.code = 200
-                pmessage.save()
+                    logger.debug('+++ Parent message %s not Done because of child: %s in state %s' % (str(pmessage.id),str(child.id),str(child.status)))
+        if finished:
+            logger.debug('+++ Parent message Done for: %s \n Attempting save' % (str(pmessage.id)))
+            pmessage.status = 'D'
+            pmessage.code = 200
+            pmessage.save()
 
 @receiver(pre_save, sender=Message)
 def message_pre_save(sender, instance, **kwargs):
