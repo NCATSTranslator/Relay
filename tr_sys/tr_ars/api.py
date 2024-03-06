@@ -226,13 +226,12 @@ def trace_message(req, key):
             if merged_pk is not None:
                 merged_msg = Message.objects.get(pk=merged_pk)
                 merged_dict = merged_msg.to_dict()
-                results = utils.get_safe(merged_dict,"fields", "data", "message","results")
                 n_merged = {
                     'message': str(merged_pk),
                     'status': dict(Message.STATUS)[merged_msg.status],
                     'parent': str(mesg.id),
-                    'result_count': len(results),
-                    'result_stat': utils.ScoreStatCalc(results),
+                    'result_count': str(mesg.result_count),
+                    'result_stat': mesg.result_stat,
                     'code': int(merged_msg.code),
                     'actor': {
                         'pk': merged_msg.actor_id,

@@ -601,7 +601,12 @@ def post_process(data,key, agent_name):
         post_processing_error(mesg,data,"Error in f-score calculation")
         logging.exception("Error in f-score calculation")
         raise e
-
+    try:
+        mesg.result_count = len(new_res)
+        mesg.result_stat = ScoreStatCalc(new_res)
+    except Exception as e:
+        logging.exception("Error in ScoreStatCalculation or result count")
+        raise e
     try:
         mesg.status='D'
         mesg.code=200
