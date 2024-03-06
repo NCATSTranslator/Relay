@@ -198,6 +198,7 @@ def catch_timeout_async():
         actor = Agent.objects.get(pk=mpk)
         logging.info(f'actor: {actor} id: {mesg[1]} timestamp: {mesg[2]} updated_at {mesg[3]}')
 
+        #exempting parents from timing out
         if actor.name == 'ars-default-agent':
             continue
         else:

@@ -1,5 +1,5 @@
 import gzip
-
+from django.shortcuts import get_object_or_404
 from django.db.models.signals import post_save, pre_save
 from django.dispatch import receiver
 import sys, logging
@@ -42,10 +42,13 @@ def message_post_save(sender, instance, **kwargs):
             send_messages(matching_actors, [message]) #this line will need to be changed to adapt to lists of channels
 
     # check if parent status should be updated to 'Done'
-    if message.ref and message.status in ['D', 'S', 'E', 'U']:
+    if message.ref is not None and message.status in ['D', 'S', 'E', 'U']:
+        logger.debug('+++ checking parent Doneness: %s for message/parent: %s %s' % (message.ref.status, str(message.id), str(message.ref.id)))
+
         pmessage = message.ref
         if pmessage.status != 'D':
-            children = Message.objects.filter(ref__pk=pmessage.pk)
+            logger.debug('+++ Parent message not Done for: %s' % (str(pmessage.id)))
+            children = get_object_or_404(Message.objects.filter(ref__pk=pmessage.pk))
             logger.debug('%s: %d children' % (pmessage.pk, len(children)))
             finished = True
             merge_count=0
@@ -53,6 +56,7 @@ def message_post_save(sender, instance, **kwargs):
             for child in children:
                 if child.status not in ['D', 'S', 'E', 'U']:
                     finished = False
+                    logger.debug('+++ Parent message %s not Done because of child: %s in state %s' % (str(pmessage.id),str(child.id),str(child.status)))
                 if child.status == 'D' and child.actor.agent.name.startswith('ar') and (child.result_count is not None and child.result_count > 0):
                     if child.actor.agent.name == 'ars-ars-agent':
                         merge_count += 1
@@ -60,9 +64,11 @@ def message_post_save(sender, instance, **kwargs):
                         orig_count += 1
 
             if finished and merge_count == orig_count:
+                logger.debug('+++ Parent message Done for: %s \n Attempting save' % (str(pmessage.id)))
                 pmessage.status = 'D'
                 pmessage.code = 200
                 pmessage.save()
+
 
 @receiver(pre_save, sender=Message)
 def message_pre_save(sender, instance, **kwargs):

@@ -4,7 +4,7 @@ import logging
 import traceback
 import os, sys
 from datetime import time, datetime
-from django.db import transaction
+from django.db import transaction, DatabaseError
 import requests
 import statistics
 from .api import get_ars_actor, get_or_create_actor
@@ -602,13 +602,27 @@ def post_process(data,key, agent_name):
         post_processing_error(mesg,data,"Error in f-score calculation")
         logging.exception("Error in f-score calculation")
         raise e
-    mesg.status='D'
-    mesg.code=code
-    mesg.result_count = len(new_res)
-    mesg.result_stat = ScoreStatCalc(new_res)
-    mesg.save_compressed_dict(data)
-    #mesg.data = data
-    mesg.save()
+
+    try:
+        mesg.result_count = len(new_res)
+        mesg.result_stat = ScoreStatCalc(new_res)
+    except Exception as e:
+        logging.exception("Error in ScoreStatCalculation or result count")
+        raise e
+    try:
+        mesg.status='D'
+        mesg.code=200
+        mesg.save_compressed_dict(data)
+        logging.debug("Time before save")
+        with transaction.atomic():
+            mesg.save()
+        logging.debug("Time after save")
+    except DatabaseError as e:
+        mesg.status ='E'
+        mesg.code=422
+        logging.error("Final save failed")
+        mesg.save(update_fields=['status','code'])
+        
 def lock_merge(message):
     pass
     if message.merge_semaphore is True:
@@ -698,6 +712,7 @@ def remove_blocked(mesg, data, blocklist=None):
             #Then we find any edges that have them as a subject or object and remove those
             edges_to_remove=[]
             for edge_id, edge in edges.items():
+
                 if edge['subject'] in nodes_to_remove or edge['object'] in nodes_to_remove:
                     edges_to_remove.append(edge_id)
             for edge_id in edges_to_remove:
@@ -706,6 +721,7 @@ def remove_blocked(mesg, data, blocklist=None):
             if aux_graphs is not None:
                 aux_graphs_to_remove=[]
                 for aux_id, aux_graph in aux_graphs.items():
+
                     edges = get_safe(aux_graph,"edges")
                     overlap = list(set(edges) & set(edges_to_remove))
                     if len(overlap)>0:
@@ -722,8 +738,10 @@ def remove_blocked(mesg, data, blocklist=None):
                             nb=node_bindings[k]
                             for c in nb:
                                 the_id = get_safe(c,"id")
+
                             if the_id in nodes_to_remove and result not in results_to_remove:
                                 results_to_remove.append(result)
+
 
                     analyses=get_safe(result,"analyses")
                     if analyses is not None:
@@ -1118,7 +1136,9 @@ def canonizeMessageTest(kg,results):
             if canon in nodes:
                 new_name=get_safe(canonical[canon],'id','label')
                 if new_name is not None and ('name' not in nodes[canon] or ('name' in nodes[canon] and nodes[canon]['name']!= new_name)):
-                        nodes[canon]['name'] = new_name
+                    nodes[canon]['name'] = new_name
+                elif new_name is None and ('name' not in nodes[canon]):
+                    nodes[canon]['name']="NameUnknown"
                 if canonical[canon] is not None and canon != canonical[canon]["id"]["identifier"]:
                     changes[canon]=canonical[canon]
                     new_id = changes[canon]['id']['identifier']
