@@ -57,6 +57,7 @@ def message_post_save(sender, instance, **kwargs):
                 if child.status not in ['D', 'S', 'E', 'U']:
                     finished = False
                     logger.debug('+++ Parent message %s not Done because of child: %s in state %s' % (str(pmessage.id),str(child.id),str(child.status)))
+
                 if child.status == 'D' and child.actor.agent.name.startswith('ar') and (child.result_count is not None and child.result_count > 0):
                     if child.actor.agent.name == 'ars-ars-agent':
                         merge_count += 1
