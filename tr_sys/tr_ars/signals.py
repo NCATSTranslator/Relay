@@ -1,3 +1,5 @@
+import gzip
+from django.shortcuts import get_object_or_404
 from django.db.models.signals import post_save, pre_save
 from django.dispatch import receiver
 import sys, logging
@@ -5,6 +7,7 @@ from .models import Actor, Agent, Message, Channel
 from .pubsub import send_messages
 from .utils import get_safe
 logger = logging.getLogger(__name__)
+import gzip
 
 @receiver(post_save, sender=Actor)
 def actor_post_save(sender, instance, **kwargs):
@@ -16,29 +19,11 @@ def actor_post_save(sender, instance, **kwargs):
     # TODO Currently failing because triggered before app is initialized to receive request
     #send_messages([actor], Message.objects.filter(code=200)
     #              .order_by('timestamp'))
-            
+
 
 @receiver(post_save, sender=Message)
 def message_post_save(sender, instance, **kwargs):
     message = instance
-    msg = message.to_dict()
-    data = get_safe(msg, "fields", "data")
-    if data is not None:
-        keyList = data.keys()
-        if "allow_tools" in keyList and "deny_tools" in keyList:
-            allow_tools=data['allow_tools']
-            deny_tools =[]
-            logger.error("Both an allow list and a deny list provided.  Taking only the allow list")
-        elif "allow_tools" in keyList:
-            allow_tools = data['allow_tools']
-            deny_tools=[]
-        elif "deny_tools" in keyList:
-            deny_tools=data['deny_tools']
-            allow_tools=[]
-        else:
-            allow_tools=[]
-            deny_tools=[]
-
     if message.status == 'R':
         message.code = 202
     if message.status == 'D':
@@ -49,16 +34,9 @@ def message_post_save(sender, instance, **kwargs):
         if len(Message.objects.filter(ref__pk=message.pk)) == 0: # make sure we haven't already done this broadcast
             matching_actors=[]
             for actor in Actor.objects.all():
-                if (not allow_tools) and (not deny_tools):
-                    for ch in actor.channel:
-                        if ch in message.actor.channel:
-                            print("match "+str(actor.inforesid))
-                            matching_actors.append(actor)
-                elif allow_tools and not deny_tools:
-                    if str(actor.inforesid) in allow_tools:
-                        matching_actors.append(actor)
-                elif deny_tools and not allow_tools:
-                    if str(actor.inforesid) not in deny_tools:
+                for ch in actor.channel:
+                    if ch in message.actor.channel:
+                        print("match "+str(actor.inforesid))
                         matching_actors.append(actor)
             #send_messages(Actor.objects.filter(message.actor.channel in channel), [message]) #this line will need to be changed to adapt to lists of channels
             send_messages(matching_actors, [message]) #this line will need to be changed to adapt to lists of channels
@@ -70,18 +48,28 @@ def message_post_save(sender, instance, **kwargs):
         pmessage = message.ref
         if pmessage.status != 'D':
             logger.debug('+++ Parent message not Done for: %s' % (str(pmessage.id)))
-            children = Message.objects.filter(ref__pk=pmessage.pk)
+            children = get_object_or_404(Message.objects.filter(ref__pk=pmessage.pk))
             logger.debug('%s: %d children' % (pmessage.pk, len(children)))
             finished = True
+            merge_count=0
+            orig_count=0
             for child in children:
                 if child.status not in ['D', 'S', 'E', 'U']:
                     finished = False
                     logger.debug('+++ Parent message %s not Done because of child: %s in state %s' % (str(pmessage.id),str(child.id),str(child.status)))
-            if finished:
+
+                if child.status == 'D' and child.actor.agent.name.startswith('ar') and (child.result_count is not None and child.result_count > 0):
+                    if child.actor.agent.name == 'ars-ars-agent':
+                        merge_count += 1
+                    else:
+                        orig_count += 1
+
+            if finished and merge_count == orig_count:
                 logger.debug('+++ Parent message Done for: %s \n Attempting save' % (str(pmessage.id)))
                 pmessage.status = 'D'
                 pmessage.code = 200
                 pmessage.save()
+
 
 @receiver(pre_save, sender=Message)
 def message_pre_save(sender, instance, **kwargs):

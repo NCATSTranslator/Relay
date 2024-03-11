@@ -17,6 +17,7 @@ import typing
 import time as sleeptime
 import re
 from objsize import get_deep_size
+from django.shortcuts import get_object_or_404
 from .scoring import compute_from_results
 from collections import Counter
 
@@ -508,7 +509,7 @@ def sharedResultsJson(sharedResultsMap):
     return results
 
 def pre_merge_process(data,key, agent_name,inforesid):
-    mesg=Message.objects.get(pk = key)
+    mesg = get_object_or_404(Message.objects.filter(pk=key))
     logging.info("Pre node norm for "+str(key))
     try:
         scrub_null_attributes(data)
@@ -533,7 +534,7 @@ def pre_merge_process(data,key, agent_name,inforesid):
         raise e
     logging.info("Normalizing scores for "+str(key))
     try:
-        normalize_scores(mesg,data,key,agent_name)
+        normalize_scores(data,key,agent_name)
     except Exception as e:
         post_processing_error(mesg,data,"Error in ARS score normalization")
         logging.exception("Error in ARS score normalization")
@@ -542,7 +543,7 @@ def pre_merge_process(data,key, agent_name,inforesid):
 
 def post_process(data,key, agent_name):
     code =200
-    mesg=Message.objects.get(pk = key)
+    mesg = get_object_or_404(Message.objects.filter(pk=key))
     logging.info("Pre node annotation for agent %s pk: %s" % (agent_name, str(key)))
     try:
         annotate_nodes(mesg,data,agent_name)
@@ -601,6 +602,7 @@ def post_process(data,key, agent_name):
         post_processing_error(mesg,data,"Error in f-score calculation")
         logging.exception("Error in f-score calculation")
         raise e
+
     try:
         mesg.result_count = len(new_res)
         mesg.result_stat = ScoreStatCalc(new_res)
@@ -610,7 +612,7 @@ def post_process(data,key, agent_name):
     try:
         mesg.status='D'
         mesg.code=200
-        mesg.data = data
+        mesg.save_compressed_dict(data)
         logging.debug("Time before save")
         with transaction.atomic():
             mesg.save()
@@ -620,13 +622,14 @@ def post_process(data,key, agent_name):
         mesg.code=422
         logging.error("Final save failed")
         mesg.save(update_fields=['status','code'])
+        
 def lock_merge(message):
     pass
     if message.merge_semaphore is True:
         return True
     else:
         message.merge_semaphore=True
-        message.save(update_fields=['merge_semaphore'])
+        message.save()
         return False
 
 @shared_task(name="merge_and_post_process")
@@ -635,7 +638,7 @@ def merge_and_post_process(parent_pk,message_to_merge, agent_name, counter=0):
     logging.info(f"Starting merge for %s with parent PK: %s"% (agent_name,parent_pk))
     logging.info(f"Before atomic transaction for %s with parent PK: %s"% (agent_name,parent_pk))
     with transaction.atomic():
-        parent = Message.objects.select_for_update().get(pk=parent_pk)
+        parent = get_object_or_404(Message.objects.select_for_update().filter(pk=parent_pk))
         logging.info("the merge semaphore for agent %s is %s"% (agent_name, parent.merge_semaphore))
         lock_state = lock_merge(parent)
         logging.info("the lock state for agent %s is %s" % (agent_name, lock_state))
@@ -645,8 +648,9 @@ def merge_and_post_process(parent_pk,message_to_merge, agent_name, counter=0):
     if lock_state is False:
         try:
             logging.info(f"Before merging for %s with parent PK: %s"% (agent_name,parent_pk))
-            merged = merge_received(parent,message_to_merge, agent_name)
+            merged, parent = merge_received(parent,message_to_merge, agent_name)
             logging.info(f"After merging for %s with parent PK: %s"% (agent_name,parent_pk))
+            parent.save()
         except Exception as e:
             logging.info("Problem with merger for agent %s pk: %s " % (agent_name, (parent_pk)))
             logging.info(e, exc_info=True)
@@ -669,7 +673,8 @@ def merge_and_post_process(parent_pk,message_to_merge, agent_name, counter=0):
     if merged is not None:
         try:
             logging.info('merged data for agent %s with pk %s is returned & ready to be preprocessed' % (agent_name, str(merged.id)))
-            post_process(merged.data,merged.id, agent_name)
+            merged_data = merged.decompress_dict()
+            post_process(merged_data,merged.id, agent_name)
             logging.info('post processing complete for agent %s with pk %s is returned & ready to be preprocessed' % (agent_name, str(merged.id)))
 
         except Exception as e:
@@ -769,7 +774,7 @@ def remove_blocked(mesg, data, blocklist=None):
                             #if removing the bad analyses leaves us with a result that would have none, we remove the result
                             results_to_remove.append(result)
                 for result in results_to_remove:
-                  results.remove(result)
+                    results.remove(result)
 
         list_of_names = []
         for node in removed_nodes:
@@ -785,7 +790,8 @@ def remove_blocked(mesg, data, blocklist=None):
         add_log_entry(data,log_tuple)
         #mesg.status='D'
         #mesg.code=200
-        mesg.data=data
+        mesg.save_compressed_dict(data)
+        #mesg.data=data
         mesg.save()
 
         return (str(mesg.id),removed_nodes,results_to_remove)
@@ -936,7 +942,7 @@ def annotate_nodes(mesg,data,agent_name):
            # post_processing_error(mesg,data,"Error in annotation of nodes")
 
 
-def normalize_scores(mesg,data,key, agent_name):
+def normalize_scores(data,key, agent_name):
     res=get_safe(data,"message","results")
     if res is not None:
         if len(res)>0:
@@ -1348,13 +1354,13 @@ def getChildrenFromParent(pk):
     if children is not None:
         for child in children:
             childPk=child.id
-            messageList.append(Message.objects.get(pk=childPk))
+            messageList.append(get_object_or_404(Message.objects.filter(pk=childPk)))
     return messageList
 
 def createMessage(actor,parent_pk):
 
-    message = Message.create(code=202, status='Running', data={},
-                             actor=actor, ref=Message.objects.get(pk=parent_pk))
+    message = Message.create(code=202, status='Running',
+                             actor=actor, ref=get_object_or_404(Message.objects.filter(pk=parent_pk)))
     message.save()
     return message
 
@@ -1362,7 +1368,7 @@ def createMessage(actor,parent_pk):
 @app.task(name="merge")
 def merge(pk,merged_pk):
     messageList= getChildrenFromParent(pk)
-    mergedComplete = Message.objects.get(pk=merged_pk)
+    mergedComplete = get_object_or_404(Message.objects.filter(pk=merged_pk))
 
     newList =[]
     for message in messageList:
@@ -1387,8 +1393,7 @@ def merge_received(parent,message_to_merge, agent_name, counter=0):
     #to_merge_message= Message.objects.get(pk=pk_to_merge)
     #to_merge_message_dict=get_safe(to_merge_message.to_dict(),"fields","data","message")
     t_to_merge_message=TranslatorMessage(message_to_merge)
-
-    new_merged_message = createMessage(get_ars_actor(), str(parent.pk))
+    new_merged_message = createMessage(get_ars_actor(),str(parent.pk))
     logging.info("the merged_pk for agent %s is %s" % (agent_name, str(new_merged_message.pk)))
     new_merged_message.save()
     # #Since we've started a merge, we lock the parent PK for the duration (this is a soft lock)
@@ -1397,7 +1402,8 @@ def merge_received(parent,message_to_merge, agent_name, counter=0):
     try:
         #If at least one merger has already occurred, we merge the newcomer into that
         if current_merged_pk is not None :
-            current_merged_message=Message.objects.get(pk=current_merged_pk)
+            current_merged_message=get_object_or_404(Message.objects.filter(pk=current_merged_pk))
+            #current_merged_decomp_message = current_merged_message.decompress_json()
             current_message_dict = get_safe(current_merged_message.to_dict(),"fields","data","message")
             t_current_merged_message=TranslatorMessage(current_message_dict)
             if current_message_dict is not None:
@@ -1417,7 +1423,8 @@ def merge_received(parent,message_to_merge, agent_name, counter=0):
 
         merged_dict = merged.to_dict()
         logging.info('the keys for merged_dict are %s' % merged_dict['message'].keys())
-        new_merged_message.data = merged_dict
+        new_merged_message.save_compressed_dict(merged_dict)
+        # new_merged_message.data = merged_dict
         new_merged_message.status='R'
         new_merged_message.code=202
         new_merged_message.save()
@@ -1433,9 +1440,9 @@ def merge_received(parent,message_to_merge, agent_name, counter=0):
             parent.merged_versions_list=[pk_infores_merge]
         else:
             parent.merged_versions_list.append(pk_infores_merge)
-        parent.save(update_fields=['merge_semaphore','merged_versions_list', 'merged_version'])
+        parent.save()
         logging.info("returning new_merged_message to be post processed with pk: %s" % str(new_merged_message.pk))
-        return new_merged_message
+        return new_merged_message, parent
     except Exception as e:
         logging.exception("problem with merging for %s :" % agent_name)
         #If anything goes wrong, we at least need to unlock the semaphore
