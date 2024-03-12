@@ -48,7 +48,7 @@ def message_post_save(sender, instance, **kwargs):
         pmessage = message.ref
         if pmessage.status != 'D':
             logger.debug('+++ Parent message not Done for: %s' % (str(pmessage.id)))
-            children = get_object_or_404(Message.objects.filter(ref__pk=pmessage.pk))
+            children = Message.objects.filter(ref__pk=pmessage.pk)
             logger.debug('%s: %d children' % (pmessage.pk, len(children)))
             finished = True
             merge_count=0
