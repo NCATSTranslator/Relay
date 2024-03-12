@@ -407,6 +407,12 @@ def message(req, key):
             return trace_message(req, key)
         try:
             mesg = get_object_or_404(Message.objects.filter(pk=key))
+            #UI has stated that just the data field is sufficient for the compressed version, but it should be noted
+            #that this does not return any fields other than data.
+            if req.GET.get('compress',False):
+                data = mesg.data
+                return HttpResponse(data, content_type='application/octet-stream')
+
             actor = Actor.objects.get(pk=mesg.actor_id)
             mesg.name = actor.agent.name
             mesg_dict = mesg.to_dict()
