@@ -63,6 +63,8 @@ def message_post_save(sender, instance, **kwargs):
                         merge_count += 1
                     else:
                         orig_count += 1
+                if child.status == 'E' and child.actor.agent.name == 'ars-ars-agent':
+                    orig_count -= 1
 
             if finished and merge_count == orig_count:
                 logger.debug('+++ Parent message Done for: %s \n Attempting save' % (str(pmessage.id)))
