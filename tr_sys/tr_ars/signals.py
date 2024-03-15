@@ -43,20 +43,20 @@ def message_post_save(sender, instance, **kwargs):
 
     # check if parent status should be updated to 'Done'
     if message.ref is not None and message.status in ['D', 'S', 'E', 'U']:
-        logger.debug('+++ checking parent Doneness: %s for message/parent: %s %s' % (message.ref.status, str(message.id), str(message.ref.id)))
+        logger.info('+++ checking parent Doneness: %s for message/parent: %s %s' % (message.ref.status, str(message.id), str(message.ref.id)))
 
         pmessage = message.ref
         if pmessage.status != 'D':
-            logger.debug('+++ Parent message not Done for: %s' % (str(pmessage.id)))
+            logger.info('+++ Parent message not Done for: %s' % (str(pmessage.id)))
             children = Message.objects.filter(ref__pk=pmessage.pk)
-            logger.debug('%s: %d children' % (pmessage.pk, len(children)))
+            logger.info('%s: %d children' % (pmessage.pk, len(children)))
             finished = True
             merge_count=0
             orig_count=0
             for child in children:
                 if child.status not in ['D', 'S', 'E', 'U']:
                     finished = False
-                    logger.debug('+++ Parent message %s not Done because of child: %s in state %s' % (str(pmessage.id),str(child.id),str(child.status)))
+                    logger.info('+++ Parent message %s not Done because of child: %s in state %s' % (str(pmessage.id),str(child.id),str(child.status)))
 
                 if child.status == 'D' and child.actor.agent.name.startswith('ar') and (child.result_count is not None and child.result_count > 0):
                     if child.actor.agent.name == 'ars-ars-agent':
@@ -64,10 +64,11 @@ def message_post_save(sender, instance, **kwargs):
                     else:
                         orig_count += 1
                 if child.status == 'E' and child.actor.agent.name == 'ars-ars-agent':
+                    logger.info('+++ a merged message Errored out, removing its count from orig_count +++')
                     orig_count -= 1
 
             if finished and merge_count == orig_count:
-                logger.debug('+++ Parent message Done for: %s \n Attempting save' % (str(pmessage.id)))
+                logger.info('+++ Parent message Done for: %s \n Attempting save' % (str(pmessage.id)))
                 pmessage.status = 'D'
                 pmessage.code = 200
                 pmessage.save()
