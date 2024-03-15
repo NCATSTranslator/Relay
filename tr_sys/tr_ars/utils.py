@@ -592,6 +592,7 @@ def post_process(data,key, agent_name):
     try:
         results = get_safe(data,"message","results")
         if results is not None:
+            logging.info("+++ pre-scoring +++")
             new_res=scoring.compute_from_results(results)
             data['message']['results']=new_res
             logging.info("scoring succeeded for agent %s and pk %s" % (agent_name, key))
