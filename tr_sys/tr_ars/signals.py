@@ -56,17 +56,18 @@ def message_post_save(sender, instance, **kwargs):
             for child in children:
                 if child.status not in ['D', 'S', 'E', 'U']:
                     finished = False
-                    logger.info('+++ Parent message %s not Done because of child: %s in state %s' % (str(pmessage.id),str(child.id),str(child.status)))
+                    #logger.info('+++ Parent message %s not Done because of child: %s in state %s' % (str(pmessage.id),str(child.id),str(child.status)))
 
                 if child.status == 'D' and child.actor.agent.name.startswith('ar') and (child.result_count is not None and child.result_count > 0):
                     if child.actor.agent.name == 'ars-ars-agent':
+
                         merge_count += 1
                     else:
                         orig_count += 1
                 if child.status == 'E' and child.actor.agent.name == 'ars-ars-agent':
                     logger.info('+++ a merged message Errored out, removing its count from orig_count +++')
                     orig_count -= 1
-
+            logger.info('+++ so far merge_count: %s & orig_count: %s '% (merge_count,orig_count))
             if finished and merge_count == orig_count:
                 logger.info('+++ Parent message Done for: %s \n Attempting save' % (str(pmessage.id)))
                 pmessage.status = 'D'
