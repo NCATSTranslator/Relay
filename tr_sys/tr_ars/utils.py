@@ -592,7 +592,7 @@ def post_process(data,key, agent_name):
     try:
         results = get_safe(data,"message","results")
         if results is not None:
-            logging.info("+++ pre-scoring +++")
+            logging.info("+++ pre-scoring for agent: %s & pk: %s" % (agent_name, key))
             new_res=scoring.compute_from_results(results)
             data['message']['results']=new_res
             logging.info("scoring succeeded for agent %s and pk %s" % (agent_name, key))
@@ -614,10 +614,10 @@ def post_process(data,key, agent_name):
         mesg.status='D'
         mesg.code=200
         mesg.save_compressed_dict(data)
-        logging.debug("Time before save")
+        logging.info("Time before save")
         with transaction.atomic():
             mesg.save()
-        logging.debug("Time after save")
+        logging.info("Time after save")
     except DatabaseError as e:
         mesg.status ='E'
         mesg.code=422
