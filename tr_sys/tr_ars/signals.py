@@ -65,7 +65,7 @@ def message_post_save(sender, instance, **kwargs):
                     else:
                         orig_count += 1
                 if child.status == 'E' and child.actor.agent.name == 'ars-ars-agent':
-                    logger.info('+++ a merged message Errored out, removing its count from orig_count +++')
+                    logger.info('+++ a merged message Errored out, removing its count from orig_count pk: %s'% str(child.pk))
                     orig_count -= 1
             logger.info('+++ so far merge_count: %s & orig_count: %s '% (merge_count,orig_count))
             if finished and merge_count == orig_count:
