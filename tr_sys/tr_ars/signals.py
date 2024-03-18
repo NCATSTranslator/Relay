@@ -60,19 +60,18 @@ def message_post_save(sender, instance, **kwargs):
 
                 if child.status == 'D' and child.actor.agent.name.startswith('ar') and (child.result_count is not None and child.result_count > 0):
                     if child.actor.agent.name == 'ars-ars-agent':
-
                         merge_count += 1
                     else:
                         orig_count += 1
                 if child.status == 'E' and child.actor.agent.name == 'ars-ars-agent':
-                    logger.info('+++ a merged message Errored out, removing its count from orig_count pk: %s'% str(child.pk))
+                    logger.info('+++ a merged message Errored out, removing its count from orig_count pk: %s & psrent_pk: %s'% (str(child.pk),str(pmessage.id)))
                     orig_count -= 1
-            logger.info('+++ so far merge_count: %s & orig_count: %s '% (merge_count,orig_count))
+            logger.info('+++ so far parent_pk: %s merge_count: %s & orig_count: %s '% (str(pmessage),merge_count,orig_count))
             if finished and merge_count == orig_count:
                 logger.info('+++ Parent message Done for: %s \n Attempting save' % (str(pmessage.id)))
                 pmessage.status = 'D'
                 pmessage.code = 200
-                pmessage.save()
+                pmessage.save(update_fields=['status','code'])
 
 
 @receiver(pre_save, sender=Message)
