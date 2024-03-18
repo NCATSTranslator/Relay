@@ -206,4 +206,4 @@ def catch_timeout_async():
             message = get_object_or_404(Message.objects.filter(pk=mesg[1]))
             message.code = 598
             message.status = 'E'
-            message.save()
+            message.save(update_fields=['status','code'])
