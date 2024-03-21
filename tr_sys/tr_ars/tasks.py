@@ -189,6 +189,7 @@ def catch_timeout_async():
     now =timezone.now()
     logging.info(f'Checking timeout at {now}')
     time_threshold = now - timezone.timedelta(minutes=10)
+    merge_timedelta = timezone.timedelta(minutes=8)
     max_time = time_threshold+timezone.timedelta(minutes=5)
 
     messages = Message.objects.filter(timestamp__gt=time_threshold,timestamp__lt=max_time, status__in='R').values_list('actor','id','timestamp','updated_at')
@@ -196,11 +197,22 @@ def catch_timeout_async():
         mpk=mesg[0]
         id = mesg[1]
         actor = Agent.objects.get(pk=mpk)
+        timestamp=mesg[2]
         logging.info(f'actor: {actor} id: {mesg[1]} timestamp: {mesg[2]} updated_at {mesg[3]}')
 
         #exempting parents from timing out
         if actor.name == 'ars-default-agent':
             continue
+
+        elif actor.name == 'ars-ars-agent':
+            if now - timestamp  > merge_timedelta:
+                logging.info('merge_agent pk: %s has been running more than 8 min, setting its code to 598')
+                message = get_object_or_404(Message.objects.filter(pk=mesg[1]))
+                message.code = 598
+                message.status = 'E'
+                message.save(update_fields=['status','code'])
+            else:
+                continue
         else:
             logging.info(f'for actor: {actor.name}, and pk {str(id)} the status is still "Running" after 5 min, setting code to 598')
             message = get_object_or_404(Message.objects.filter(pk=mesg[1]))
