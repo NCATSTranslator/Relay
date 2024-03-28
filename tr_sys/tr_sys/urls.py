@@ -28,7 +28,6 @@ from tr_ara_bte.bte_app import AppConfig as BTEApp
 from tr_ara_explanatory.explanatory_app import AppConfig as ExplanatoryApp
 from tr_ara_improving.improving_app import AppConfig as ImprovingApp
 from tr_ara_ncats.ncats_app import AppConfig as NCATSApp
-from tr_ara_robokop.robokop_app import AppConfig as RobokopApp
 from tr_ara_aragorn_exp.aragorn_exp_app import AppConfig as AragornExpApp
 from tr_ara_unsecret.unsecret_app import AppConfig as UnsecretApp
 from tr_ara_wfr.wfr_app import AppConfig as WfrApp
@@ -41,7 +40,6 @@ from tr_kp_textmining.textmining_app import AppConfig as TextMiningApp
 from tr_kp_openpredict.openpredict_app import AppConfig as OpenPredictApp
 from tr_kp_cohd.cohd_app import AppConfig as COHDApp
 from tr_kp_chp.chp_app import AppConfig as ChpApp
-from tr_kp_icees_kg.icees_kg_app import AppConfig as IceesKgApp
 from tr_ars.default_ars_app.ars_app import AppConfig as ARSApp
 
 logger = logging.getLogger(__name__)
@@ -60,7 +58,6 @@ patterns = [
     re_path(AragornExpApp.regex_path, include(AragornExpApp.name)),
     re_path(WfrApp.regex_path, include(WfrApp.name)),
     re_path(CqsApp.regex_path, include(CqsApp.name)),
-    re_path(IceesKgApp.regex_path, include(IceesKgApp.name)),
     re_path(UnsecretApp.regex_path, include(UnsecretApp.name)),
     re_path(GeneticsApp.regex_path, include(GeneticsApp.name)),
     re_path(MolecularApp.regex_path, include(MolecularApp.name)),
