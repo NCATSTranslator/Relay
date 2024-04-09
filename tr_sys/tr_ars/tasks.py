@@ -133,7 +133,7 @@ def send_message(actor_dict, mesg_dict, timeout=300):
             if 'tr_ars.message.status' in r.headers:
                 status = r.headers['tr_ars.message.status']
             if r.status_code == 202:
-                status = 'W'
+                status = 'R'
                 url = url[:url.rfind('/')] + '/aresponse/' + r.text
             if r.status_code >= 400:
                 if r.status_code != 503:
