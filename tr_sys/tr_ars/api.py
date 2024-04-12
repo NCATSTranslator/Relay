@@ -11,7 +11,6 @@ import json, sys, logging
 import traceback
 from inspect import currentframe, getframeinfo
 from tr_ars import status_report
-import io
 from datetime import datetime, timedelta
 #from tr_ars.tasks import send_message
 import ast
