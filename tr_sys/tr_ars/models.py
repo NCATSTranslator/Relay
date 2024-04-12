@@ -115,7 +115,7 @@ class Message(ARSModel):
 
     def save_compressed_dict(self, data):
         try:
-            if isinstance(data, (bytes, bytearray)) and data is not None:
+            if isinstance(data, (bytes, bytearray)) and data is not None and data.startswith(b'\x1f\x8b'):
                 logger.info('data already compressed, no action needed')
                 self.data = data
             else:

@@ -410,8 +410,17 @@ def message(req, key):
             #UI has stated that just the data field is sufficient for the compressed version, but it should be noted
             #that this does not return any fields other than data.
             if req.GET.get('compress',False):
+
                 data = mesg.data
-                return HttpResponse(data, content_type='application/octet-stream')
+                if data.startswith(b'\x1f\x8b'):
+                    return HttpResponse(data, content_type='application/octet-stream')
+                else:
+                    stringv= data.decode('utf-8')
+                    json_data= json.loads(stringv)
+                    mesg.save_compressed_dict(json_data)
+                    return HttpResponse(mesg.data, content_type='application/octet-stream')
+
+
 
             actor = Actor.objects.get(pk=mesg.actor_id)
             mesg.name = actor.agent.name
