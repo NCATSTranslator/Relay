@@ -808,6 +808,7 @@ def remove_blocked(mesg, data, blocklist=None):
 def scrub_null_attributes(data):
     nodes = get_safe(data,"message","knowledge_graph","nodes")
     edges = get_safe(data,"message","knowledge_graph","edges")
+    aux_graphs = get_safe(data,"message","auxiliary_graphs")
     if nodes is not None:
         for nodeId,nodeStuff in nodes.items():
             nodeAttributes = get_safe(nodeStuff,"attributes")
@@ -822,6 +823,11 @@ def scrub_null_attributes(data):
             if edgeAttributes is not None:
                 while None in edgeAttributes:
                     edgeAttributes.remove(None)
+                for edgeAttribute in edgeAttributes:
+                    if "attributes" in edgeAttribute.keys():
+                        edgeAttributeAttributes= get_safe(edgeAttribute,"attributes")
+                        if edgeAttributeAttributes is None:
+                            edgeAttribute['attributes']=[]
 
             edgeSources=get_safe(edgeStuff, "sources")
             sources_to_remove = {}
@@ -852,6 +858,11 @@ def scrub_null_attributes(data):
             "DEBUG"
         ]
         #add_log_entry(data,log_tuple)
+    if aux_graphs is not None:
+        for aux_graph_id,aux_graph in aux_graphs.items():
+            if 'attributes' in aux_graph.keys() and aux_graph['attributes'] is None:
+                aux_graph['attributes']=[]
+
 
 
 def appraise(mesg,data, agent_name,retry_counter=0):
