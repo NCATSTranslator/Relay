@@ -385,11 +385,22 @@ def filters(req):
 def latest_pk(req, n):
     logger.debug("entering latest_pk endpoint")
     response = {}
+    response[f'pk_count_last_{n}_days']={}
+    response[f'latest_{n}_pks']=[]
     if req.method == 'GET':
-        response[f'latest_{n}_pks'] = []
         for actor in Actor.objects.all():
             if actor.agent.name == 'ars-default-agent':
                 actor_id = actor.id
+
+        end_date = timezone.now()
+        start_date = end_date - timedelta(days=n)
+
+        while start_date <= end_date:
+            print(start_date.date())
+            mesg_list = Message.objects.filter(timestamp__date=start_date, actor=actor_id)
+            query_count = len(mesg_list)
+            response[f'pk_count_last_{n}_days'][f'{start_date.date()}'] = query_count
+            start_date += timedelta(days=1)
 
         mesg_list = Message.objects.values('actor','timestamp','id').filter(actor=actor_id).order_by('-timestamp')[:n]
         for mesg in mesg_list:
