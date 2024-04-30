@@ -397,9 +397,8 @@ def latest_pk(req, n):
 
         while start_date <= end_date:
             print(start_date.date())
-            mesg_list = Message.objects.filter(timestamp__date=start_date, actor=actor_id)
-            query_count = len(mesg_list)
-            response[f'pk_count_last_{n}_days'][f'{start_date.date()}'] = query_count
+            mesg_list = Message.objects.values('id').filter(timestamp__date=start_date, actor=actor_id)
+            response[f'pk_count_last_{n}_days'][f'{start_date.date()}'] = len(mesg_list)
             start_date += timedelta(days=1)
 
         mesg_list = Message.objects.values('actor','timestamp','id').filter(actor=actor_id).order_by('-timestamp')[:n]
