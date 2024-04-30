@@ -396,7 +396,7 @@ def latest_pk(req, n):
         start_date = end_date - timedelta(days=n)
 
         while start_date <= end_date:
-            print(start_date.date())
+        
             mesg_list = Message.objects.values('id').filter(timestamp__date=start_date, actor=actor_id)
             response[f'pk_count_last_{n}_days'][f'{start_date.date()}'] = len(mesg_list)
             start_date += timedelta(days=1)
