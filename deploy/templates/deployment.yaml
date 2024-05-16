@@ -55,6 +55,10 @@ spec:
           env:
             - name: TR_APPRAISE
               value: {{ .Values.celeryworker.env.TR_APPRAISE }}
+            - name: TR_NORMALIZER
+              value: {{ .Values.celeryworker.env.TR_NORMALIZER }}
+            - name: TR_ANNOTATOR
+              value: {{ .Values.celeryworker.env.TR_ANNOTATOR }}
           {{- with .Values.celeryworker.resources }}
           resources:
             {{- toYaml . | nindent 12 }}
