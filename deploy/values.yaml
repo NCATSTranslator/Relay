@@ -45,10 +45,10 @@ affinity:
         - key: application
           operator: In
           values:
-          - managed-app    
+          - ars   
 tolerations:
   - key: "transltr"
-    value: "managed-app"
+    value: "ars"
     operator: "Equal"
     effect: "NoSchedule"
 
