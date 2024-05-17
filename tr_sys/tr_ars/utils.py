@@ -610,6 +610,9 @@ def post_process(data,key, agent_name):
     except Exception as e:
         logging.exception("Error in ScoreStatCalculation or result count")
         raise e
+        mesg.status ='E'
+        mesg.code=400
+        mesg.save(update_fields=['status','code'])
     try:
         mesg.status='D'
         mesg.code=200
@@ -1283,7 +1286,7 @@ def ScoreStatCalc(results):
                 if len(res['analyses']) > 1:
                     temp_score = []
                     for analysis in res['analyses']:
-                        if 'score' in analysis.keys():
+                        if 'score' in analysis.keys() and analysis['score'] is not None:
                             temp_score.append(analysis['score'])
                     score = statistics.mean(temp_score)
 
