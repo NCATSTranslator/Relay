@@ -726,12 +726,33 @@ def remove_blocked(mesg, data, blocklist=None):
                 aux_graphs_to_remove=[]
                 for aux_id, aux_graph in aux_graphs.items():
 
-                    edges = get_safe(aux_graph,"edges")
-                    overlap = list(set(edges) & set(edges_to_remove))
-                    if len(overlap)>0:
+                    aux_edges = get_safe(aux_graph,"edges")
+                    overlap = list(set(aux_edges) & set(edges_to_remove))
+                    #If we're removing ALL the edges, then the whole aux graph has to go
+                    if len(overlap)==len(aux_edges):
                         aux_graphs_to_remove.append(aux_id)
+                    #otherwise, we just remove the offending edges
+                    if len(overlap)>0:
+                        for edge_id in overlap:
+                            aux_edges.remove(edge_id)
                 for aux_id in aux_graphs_to_remove:
                     del aux_graphs[aux_id]
+                #Some edges in the knowledge graph may reference aux graphs in an attribute called support_graphs
+                #If so, we need to remove any references there to ones we removed here
+
+                for edge_id,edge in edges.items():
+                    if edge_id=='1b3c4b1c-5855-4631-b06b-fa0a5c728be5':
+                        print("stop")
+                    if 'attributes' in edge.keys() and edge['attributes'] is not None:
+                        attributes=get_safe(edge,"attributes")
+                        for attribute in attributes:
+                            if 'attribute_type_id' in attribute.keys():
+                                type_id = attribute['attribute_type_id']
+                                if type_id is not None and type_id=='biolink:support_graphs':
+                                    overlap = list(set(attribute['value']) & set(aux_graphs_to_remove))
+                                    if len(overlap)>0:
+                                        for graph in overlap:
+                                            attribute['value'].remove(graph)
             #We do the same for results
             if results is not None:
                 results_to_remove = []
@@ -792,6 +813,26 @@ def remove_blocked(mesg, data, blocklist=None):
             "DEBUG"
         ]
         add_log_entry(data,log_tuple)
+
+        aux_count = len(aux_graphs_to_remove)
+        nodes_count=len(nodes_to_remove)
+        edges_count = len(edges_to_remove)
+        results_count = len(results_to_remove)
+        analyses_count = len(analyses_to_remove)
+
+        log_json = {
+            "nodes":nodes_count,
+            "edges":edges_count,
+            "results":results_count,
+            "auxiliary_graphs":aux_count,
+            "analyses":analyses_count
+        }
+        log_tuple_counts =[
+            'Removed the following counts: '+ str(log_json),
+            datetime.now().strftime('%H:%M:%S'),
+            "DEBUG"
+        ]
+        add_log_entry(data,log_tuple_counts)
         #mesg.status='D'
         #mesg.code=200
         mesg.save_compressed_dict(data)
