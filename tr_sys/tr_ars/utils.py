@@ -741,8 +741,6 @@ def remove_blocked(mesg, data, blocklist=None):
                 #If so, we need to remove any references there to ones we removed here
 
                 for edge_id,edge in edges.items():
-                    if edge_id=='1b3c4b1c-5855-4631-b06b-fa0a5c728be5':
-                        print("stop")
                     if 'attributes' in edge.keys() and edge['attributes'] is not None:
                         attributes=get_safe(edge,"attributes")
                         for attribute in attributes:
