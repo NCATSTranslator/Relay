@@ -19,3 +19,4 @@ django-celery-beat
 statistics
 sympy
 objsize
+reasoner-pydantic

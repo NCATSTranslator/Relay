@@ -20,6 +20,16 @@ from objsize import get_deep_size
 from django.shortcuts import get_object_or_404
 from .scoring import compute_from_results
 from collections import Counter
+from reasoner_pydantic import (
+    Query as vQuery,
+    Message as vMessage,
+    QNode as vQNode,
+    KnowledgeGraph as vKnowledgeGraph,
+    Node as vNode,
+    Result as vResult,
+    NodeBinding as vNodeBinding,
+    Response as vResponse
+)
 
 
 ARS_ACTOR = {
@@ -1550,4 +1560,13 @@ def specific_node_filter(results, forbbiden_node):
         if any(item in ids for item in forbbiden_node):
             results.remove(result)
     return results
+
+def validate(response):
+    try:
+        logging.debug("Validating response")
+        pyd_response = vResponse.parse_obj(response)
+        return True
+    except Exception as e:
+        logging.debug("Validation problem found")
+
 
