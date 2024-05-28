@@ -488,9 +488,15 @@ def message(req, key):
                         utils.merge_and_post_process.apply_async((parent_pk,message_to_merge['message'],agent_name))
                         logger.info("post async call for agent %s" % agent_name)
                 else:
-                    logger.debug("Running validation problem found for agent %s with pk %s" % (agent_name, str(mesg.ref_id)))
+                    logger.debug("Validation problem found for agent %s with pk %s" % (agent_name, str(mesg.ref_id)))
                     code = 422
                     status = 'E'
+                    mesg.status = status
+                    mesg.code = code
+                    mesg.save_compressed_dict(data)
+                    mesg.save()
+                    return HttpResponse("Problem with TRAPI Validation",
+                                        status=422)
 
             mesg.status = status
             mesg.code = code
