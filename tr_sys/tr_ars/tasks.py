@@ -167,18 +167,27 @@ def send_message(actor_dict, mesg_dict, timeout=300):
 
     agent_name = str(mesg.actor.agent.name)
     if mesg.code == 200 and results is not None and len(results)>0:
-        if agent_name.startswith('ara-'):
-            logger.info("pre async call for agent %s" % agent_name)
-            # logging.debug("Merge starting for "+str(mesg.pk))
-            # new_merged = utils.merge_received(parent_pk,message_to_merge['message'], agent_name)
-            # logging.debug("Merge complete for "+str(new_merged.pk))
-            # utils.post_process(new_merged.data,new_merged.pk, agent_name)
-            # logging.debug("Post processing done for "+str(new_merged.pk))
-            #parent = get_object_or_404(Message.objects.filter(pk=parent_pk))
-            #logging.info(f'parent merged_versions_list before going into merge&post-process for pk: %s are %s' % (parent_pk,parent.merged_versions_list))
-            #utils.merge_and_post_process(parent_pk,message_to_merge['message'],agent_name)
-            utils.merge_and_post_process.apply_async((parent_pk,message_to_merge['message'],agent_name))
-            logger.info("post async call for agent %s" % agent_name)
+        valid = utils.validate(message_to_merge)
+        if valid:
+            if agent_name.startswith('ara-'):
+                logger.info("pre async call for agent %s" % agent_name)
+                # logging.debug("Merge starting for "+str(mesg.pk))
+                # new_merged = utils.merge_received(parent_pk,message_to_merge['message'], agent_name)
+                # logging.debug("Merge complete for "+str(new_merged.pk))
+                # utils.post_process(new_merged.data,new_merged.pk, agent_name)
+                # logging.debug("Post processing done for "+str(new_merged.pk))
+                #parent = get_object_or_404(Message.objects.filter(pk=parent_pk))
+                #logging.info(f'parent merged_versions_list before going into merge&post-process for pk: %s are %s' % (parent_pk,parent.merged_versions_list))
+                #utils.merge_and_post_process(parent_pk,message_to_merge['message'],agent_name)
+                utils.merge_and_post_process.apply_async((parent_pk,message_to_merge['message'],agent_name))
+                logger.info("post async call for agent %s" % agent_name)
+        else:
+            logger.debug("Validation problem found for agent %s with pk %s" % (agent_name, str(mesg.ref_id)))
+            code = 422
+            status = 'E'
+            mesg.code = code
+            mesg.status = status
+            mesg.save()
     else:
         logging.debug("Skipping merge and post for "+str(mesg.pk)+
                       " because the contributing message is in state: "+str(mesg.code))
