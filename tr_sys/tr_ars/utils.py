@@ -20,6 +20,11 @@ from objsize import get_deep_size
 from django.shortcuts import get_object_or_404
 from .scoring import compute_from_results
 from collections import Counter
+from reasoner_pydantic import (
+    Response as vResponse,
+    Message as vMessage
+)
+from pydantic import ValidationError
 
 
 ARS_ACTOR = {
@@ -638,6 +643,12 @@ def lock_merge(message):
 
 @shared_task(name="merge_and_post_process")
 def merge_and_post_process(parent_pk,message_to_merge, agent_name, counter=0):
+    try:
+        logging.info(f"Attempting to validate TRAPI for %s with parent PK: %s"% (agent_name,parent_pk))
+        valid = validate(message_to_merge)
+    except ValidationError as e:
+        logging.info(f"TRAPI validation problem for %s with parent PK: %s"% (agent_name,parent_pk))
+        raise e
 
     logging.info(f"Starting merge for %s with parent PK: %s"% (agent_name,parent_pk))
     logging.info(f"Before atomic transaction for %s with parent PK: %s"% (agent_name,parent_pk))
@@ -1551,3 +1562,12 @@ def specific_node_filter(results, forbbiden_node):
             results.remove(result)
     return results
 
+def validate(message):
+    try:
+        logging.debug("Validating response")
+        pyd_response = vMessage.parse_obj(message)
+        return True
+    except ValidationError as e:
+        logging.debug("Validation problem found")
+        raise e
+        return False

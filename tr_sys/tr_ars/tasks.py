@@ -12,6 +12,7 @@ from tr_smartapi_client.smart_api_discover import SmartApiDiscover
 import traceback
 from django.utils import timezone
 from django.shortcuts import get_object_or_404
+from pydantic import ValidationError
 import copy
 
 
@@ -177,7 +178,14 @@ def send_message(actor_dict, mesg_dict, timeout=300):
             #parent = get_object_or_404(Message.objects.filter(pk=parent_pk))
             #logging.info(f'parent merged_versions_list before going into merge&post-process for pk: %s are %s' % (parent_pk,parent.merged_versions_list))
             #utils.merge_and_post_process(parent_pk,message_to_merge['message'],agent_name)
-            utils.merge_and_post_process.apply_async((parent_pk,message_to_merge['message'],agent_name))
+            try:
+                utils.merge_and_post_process.apply_async((parent_pk,message_to_merge['message'],agent_name))
+            except ValidationError:
+                logger.info("TRAPI Validation problem")
+                mesg.status = 'E'
+                mesg.code = 422
+                mesg.save_compressed_dict(data)
+                mesg.save()
             logger.info("post async call for agent %s" % agent_name)
     else:
         logging.debug("Skipping merge and post for "+str(mesg.pk)+

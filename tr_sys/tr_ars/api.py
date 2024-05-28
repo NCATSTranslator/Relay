@@ -15,6 +15,7 @@ from datetime import datetime, timedelta
 #from tr_ars.tasks import send_message
 import ast
 from tr_smartapi_client.smart_api_discover import ConfigFile
+from pydantic import ValidationError
 
 
 #from reasoner_validator import validate_Message, ValidationError, validate_Query
@@ -460,10 +461,10 @@ def message(req, key):
             actor = Actor.objects.get(pk=mesg.actor_id)
             inforesid =actor.inforesid
             logging.info('received msg from agent: %s with parent pk: %s' % (str(inforesid), str(mesg.ref_id)))
-            if mesg.result_count is not None and mesg.result_count >0:
-                return HttpResponse('ARS already has a response with: %s results for pk %s \nWe are temporarily '
-                                   'disallowing subsequent updates to PKs which already have results\n'
-                                   % (str(len(res)), str(key)),status=409)
+            # if mesg.result_count is not None and mesg.result_count >0:
+            #     return HttpResponse('ARS already has a response with: %s results for pk %s \nWe are temporarily '
+            #                        'disallowing subsequent updates to PKs which already have results\n'
+            #                        % (str(len(res)), str(key)),status=409)
 
             if mesg.status=='E':
                 return HttpResponse("Response received but Message is already in state "+str(mesg.code)+". Response rejected\n",status=400)
@@ -484,8 +485,19 @@ def message(req, key):
                 if agent_name.startswith('ara-'):
                     logger.info("pre async call for agent %s" % agent_name)
                     #utils.merge_and_post_process(parent_pk,message_to_merge['message'],agent_name)
-                    utils.merge_and_post_process.apply_async((parent_pk,message_to_merge['message'],agent_name))
-                    logger.info("post async call for agent %s" % agent_name)
+                    try:
+                        utils.merge_and_post_process.apply_async((parent_pk,message_to_merge['message'],agent_name))
+                    except ValidationError as e:
+                        logger.info("TRAPI Validation problem")
+                        mesg.status = 'E'
+                        mesg.code = 422
+                        mesg.save_compressed_dict(data)
+                        mesg.save()
+                        return HttpResponse("Response received but TRAPI invalid.  Your response will be saved by not merged\n",status=400)
+                    print()
+
+                logger.info("post async call for agent %s" % agent_name)
+
 
             mesg.status = status
             mesg.code = code
