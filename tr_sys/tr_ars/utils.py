@@ -30,6 +30,7 @@ from reasoner_pydantic import (
     NodeBinding as vNodeBinding,
     Response as vResponse
 )
+from pydantic import ValidationError
 
 
 ARS_ACTOR = {
@@ -1566,7 +1567,8 @@ def validate(response):
         logging.debug("Validating response")
         pyd_response = vResponse.parse_obj(response)
         return True
-    except Exception as e:
+    except ValidationError as e:
         logging.debug("Validation problem found")
+        return False
 
 
