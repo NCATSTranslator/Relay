@@ -1203,7 +1203,7 @@ def canonizeMessageTest(kg,results):
                 if new_name is not None and ('name' not in nodes[canon] or ('name' in nodes[canon] and nodes[canon]['name']!= new_name)):
                     nodes[canon]['name'] = new_name
                 elif new_name is None and ('name' not in nodes[canon]):
-                    nodes[canon]['name']="NameUnknown"
+                    nodes[canon]['name']=str(canon)
                 if canonical[canon] is not None and canon != canonical[canon]["id"]["identifier"]:
                     changes[canon]=canonical[canon]
                     new_id = changes[canon]['id']['identifier']
