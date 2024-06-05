@@ -713,9 +713,8 @@ def remove_blocked(mesg, data, blocklist=None):
         nodes = get_safe(data,"message","knowledge_graph","nodes")
         edges = get_safe(data,"message","knowledge_graph","edges")
         aux_graphs = get_safe(data,"message","auxiliary_graphs")
-        removed_ids=[]
+        analyses_count = 0
         removed_nodes=[]
-
         #The set of ids of nodes that need to be removed is the intersection of the Nodes keys and the blocklist
         if nodes is not None:
             nodes_to_remove= list(set(blocklist) & set(nodes.keys()))
@@ -727,11 +726,12 @@ def remove_blocked(mesg, data, blocklist=None):
             #Then we find any edges that have them as a subject or object and remove those
             edges_to_remove=[]
             for edge_id, edge in edges.items():
-
+                #we will add the things to remove here, but actually remove them later because edges_to_remove
+                #can get more things added to it because of instance in which we removed all the support graphs
+                #but we can't look for that until we have aux_graphs_to_remove
                 if edge['subject'] in nodes_to_remove or edge['object'] in nodes_to_remove:
                     edges_to_remove.append(edge_id)
-            for edge_id in edges_to_remove:
-                del edges[edge_id]
+
 
             if aux_graphs is not None:
                 aux_graphs_to_remove=[]
@@ -762,6 +762,12 @@ def remove_blocked(mesg, data, blocklist=None):
                                     if len(overlap)>0:
                                         for graph in overlap:
                                             attribute['value'].remove(graph)
+                                        #If we removed ALL the support graphs, the edge itself is no good
+                                        if len(attribute['value'])==0 and edge_id not in edges_to_remove:
+                                            edges_to_remove.append(edge_id)
+            #Now that we have ALL of the edges to remove, we do the actual removing
+            for edge_id in edges_to_remove:
+                del edges[edge_id]
             #We do the same for results
             if results is not None:
                 results_to_remove = []
@@ -772,9 +778,8 @@ def remove_blocked(mesg, data, blocklist=None):
                             nb=node_bindings[k]
                             for c in nb:
                                 the_id = get_safe(c,"id")
-
-                            if the_id in nodes_to_remove and result not in results_to_remove:
-                                results_to_remove.append(result)
+                                if the_id in nodes_to_remove and result not in results_to_remove:
+                                    results_to_remove.append(result)
 
 
                     analyses=get_safe(result,"analyses")
@@ -803,8 +808,9 @@ def remove_blocked(mesg, data, blocklist=None):
                                 for sg in support_graphs_to_remove:
                                     support_graphs.remove(sg)
                         for analysis in analyses_to_remove:
+                            analyses_count+=1
                             analyses.remove(analysis)
-                        if len(analyses)<1 and result not in results_to_remove:
+                        if len(analyses)==0 and result not in results_to_remove:
                             #if removing the bad analyses leaves us with a result that would have none, we remove the result
                             results_to_remove.append(result)
                 for result in results_to_remove:
@@ -827,7 +833,6 @@ def remove_blocked(mesg, data, blocklist=None):
         nodes_count=len(nodes_to_remove)
         edges_count = len(edges_to_remove)
         results_count = len(results_to_remove)
-        analyses_count = len(analyses_to_remove)
 
         log_json = {
             "nodes":nodes_count,
