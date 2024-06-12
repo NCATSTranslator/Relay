@@ -66,7 +66,7 @@ ARS_ACTOR = {
         'uri': ''
     },
     'path': '',
-    'inforesid': 'ARS'
+    'inforesid': 'infores:ars'
 }
 
 def get_default_actor():
@@ -232,7 +232,7 @@ def trace_message(req, key):
                     'code': int(merged_msg.code),
                     'actor': {
                         'pk': merged_msg.actor_id,
-                        'inforesid': 'infores:ars',
+                        'inforesid': merged_msg.actor.inforesid,
                         'agent': merged_msg.actor.agent.name
                     },
                     'children': []
