@@ -232,7 +232,7 @@ def trace_message(req, key):
                     'code': int(merged_msg.code),
                     'actor': {
                         'pk': merged_msg.actor_id,
-                        'inforesid': merged_msg.actor.inforesid,
+                        'inforesid': 'infores:ars',
                         'agent': merged_msg.actor.agent.name
                     },
                     'children': []
@@ -257,6 +257,10 @@ def trace_message(req, key):
             'merged_versions_list':str(mesg.merged_versions_list),
             'children': []
         }
+        if mesg.ref_id is not None:
+            tree['ref']=str(mesg.ref_id)
+        else:
+            tree['ref']=None
         if n_merged:
             tree['children'].append(n_merged)
         trace_message_deepfirst(tree)
