@@ -181,7 +181,7 @@ def trace_message_deepfirst(node):
     children = Message.objects.filter(ref__pk=node['message'])
     logger.debug('%s: %d children' % (node['message'], len(children)))
     for child in children:
-        if child.actor.inforesid == 'ARS':
+        if child.actor.inforesid == 'infores:ars':
             pass
         else:
             channel_names=[]
