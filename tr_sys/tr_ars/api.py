@@ -15,7 +15,7 @@ from datetime import datetime, timedelta
 #from tr_ars.tasks import send_message
 import ast
 from tr_smartapi_client.smart_api_discover import ConfigFile
-
+from opentelemetry import trace
 
 #from reasoner_validator import validate_Message, ValidationError, validate_Query
 
@@ -84,52 +84,54 @@ def submit(req):
     logger.debug("submit")
     """Query submission"""
     logger.debug("entering submit")
-    if req.method != 'POST':
-        return HttpResponse('Only POST is permitted!', status=405)
+    tracer = trace.get_tracer(__name__)
+    with tracer.start_as_current_span("submit") as main_span:
+        if req.method != 'POST':
+            return HttpResponse('Only POST is permitted!', status=405)
 
-    try:
-        logger.debug('++ submit: %s' % req.body)
-        data = json.loads(req.body)
-        # if 'message' not in data:
-        #     return HttpResponse('Not a valid Translator query json', status=400)
-        # create a head message
-        # try:
-        #     validate_Query(data)
-        # except ValidationError as ve:
-        #     logger.debug("Warning! Input query failed TRAPI validation "+str(data))
-        #     logger.debug(ve)
-        #     return HttpResponse('Input query failed TRAPI validation',status=400)
-        if("workflow" in data):
-            wf = data["workflow"]
-            if(isinstance(wf,list)):
-                if(len(wf)>0):
-                    message = Message.create(code=202, status='Running', data=data,
-                                             actor=get_workflow_actor())
-                    logger.debug("Sending message to workflow runner")#TO-DO CHANGE
-                    # message.save()
-                    # send_message(get_workflow_actor().to_dict(),message.to_dict())
-                    # return HttpResponse(json.dumps(data, indent=2),
-                    #                     content_type='application/json', status=201)
-        else:
-            message = Message.create(code=202, status='Running', data=data,
-                              actor=get_default_actor())
+        try:
+            logger.debug('++ submit: %s' % req.body)
+            data = json.loads(req.body)
+            # if 'message' not in data:
+            #     return HttpResponse('Not a valid Translator query json', status=400)
+            # create a head message
+            # try:
+            #     validate_Query(data)
+            # except ValidationError as ve:
+            #     logger.debug("Warning! Input query failed TRAPI validation "+str(data))
+            #     logger.debug(ve)
+            #     return HttpResponse('Input query failed TRAPI validation',status=400)
+            if("workflow" in data):
+                wf = data["workflow"]
+                if(isinstance(wf,list)):
+                    if(len(wf)>0):
+                        message = Message.create(code=202, status='Running', data=data,
+                                                 actor=get_workflow_actor())
+                        logger.debug("Sending message to workflow runner")#TO-DO CHANGE
+                        # message.save()
+                        # send_message(get_workflow_actor().to_dict(),message.to_dict())
+                        # return HttpResponse(json.dumps(data, indent=2),
+                        #                     content_type='application/json', status=201)
+            else:
+                message = Message.create(code=202, status='Running', data=data,
+                                  actor=get_default_actor())
 
-        if 'name' in data:
-            message.name = data['name']
-        # save and broadcast
+            if 'name' in data:
+                message.name = data['name']
+            # save and broadcast
 
-        message.save()
-        data = message.to_dict()
-        return HttpResponse(json.dumps(data, indent=2),
-                            content_type='application/json', status=201)
-    except Exception as e:
-        logger.error("Unexpected error 10: {}".format(traceback.format_exception(type(e), e, e.__traceback__)))
-        logging.info(e, exc_info=True)
-        logging.info('error message %s' % str(e))
-        logging.info(e.__cause__)
-        logging.error(type(e).__name__)
-        logging.error(e.args)
-        return HttpResponse('failing due to %s with the message %s' % (e.__cause__, str(e)), status=400)
+            message.save()
+            data = message.to_dict()
+            return HttpResponse(json.dumps(data, indent=2),
+                                content_type='application/json', status=201)
+        except Exception as e:
+            logger.error("Unexpected error 10: {}".format(traceback.format_exception(type(e), e, e.__traceback__)))
+            logging.info(e, exc_info=True)
+            logging.info('error message %s' % str(e))
+            logging.info(e.__cause__)
+            logging.error(type(e).__name__)
+            logging.error(e.args)
+            return HttpResponse('failing due to %s with the message %s' % (e.__cause__, str(e)), status=400)
 
 @csrf_exempt
 def messages(req):
