@@ -787,11 +787,7 @@ def answers(req, key):
     except Message.DoesNotExist:
         return HttpResponse('Unknown message: %s' % key, status=404)
 
-@csrf_exempt
-def status(req):
-    if req.method == 'GET':
-        return HttpResponse(json.dumps(status_report.status(req), indent=2),
-                            content_type='application/json', status=200)
+
 @csrf_exempt
 def timeoutTest(req,time=300):
     if req.method == 'POST':
@@ -888,7 +884,6 @@ apipatterns = [
     path('messages/<uuid:key>', message, name='ars-message'),
     re_path(r'^filters/?$', filters, name='ars-filters'),
     path('filter/<uuid:key>', filter, name='ars-filter'),
-    re_path(r'^status/?$', status, name='ars-status'),
     path('reports/<inforesid>',get_report,name='ars-report'),
     re_path(r'^timeoutTest/?$', timeoutTest, name='ars-timeout'),
     path('merge/<uuid:key>', merge, name='ars-merge'),
