@@ -1,5 +1,4 @@
 
-import os, logging
 from opentelemetry import trace
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import TracerProvider
@@ -8,8 +7,6 @@ from opentelemetry.instrumentation.django import DjangoInstrumentor
 from opentelemetry.exporter.jaeger.thrift import JaegerExporter
 from opentelemetry.instrumentation.celery import CeleryInstrumentor
 from opentelemetry.instrumentation.requests import RequestsInstrumentor
-#from opentelemetry.instrumentation.httpx import HTTPXClientInstrumentor
-#
 
 def configure_opentelemetry():
 
@@ -36,7 +33,12 @@ def configure_opentelemetry():
     span_processor = BatchSpanProcessor(jaeger_exporter)
     tracer_provider.add_span_processor(span_processor)
 
-    # tracer = trace.get_tracer(__name__)
+    #if we want the default POST changes to sth customize, we can add hooks to the Request Instrumentation
+    # def request_hook(span, request, result):
+    #     if span and request.method == "POST":
+    #         span.update_name(f"Custom POST to {request.url}")
+    # # Instrument requests with the custom hook
+    # RequestsInstrumentor().instrument(request_hook=request_hook)
 
     # Optional: Console exporter for debugging
     console_exporter = ConsoleSpanExporter()
@@ -45,6 +47,3 @@ def configure_opentelemetry():
     DjangoInstrumentor().instrument()
     CeleryInstrumentor().instrument()
     RequestsInstrumentor().instrument()
-    #instrument HTTPX clients to enable distributed tracing
-    #HTTPXClientInstrumentor().instrument()
-    #

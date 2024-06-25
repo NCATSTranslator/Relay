@@ -14,53 +14,70 @@ from django.utils import timezone
 from django.shortcuts import get_object_or_404
 import copy
 from opentelemetry import trace
-
+from opentelemetry.context import attach, detach, get_current
+from opentelemetry.propagate import inject, extract
+import redis
 
 logger = get_task_logger(__name__)
 #logger.propagate = True
-tracer = trace.get_tracer(__name__)
+# Initialize Redis
+#redis_client = redis.StrictRedis(host='localhost', port=6379, db=0)
+
 
 @shared_task(name="send-message-to-actor")
 def send_message(actor_dict, mesg_dict, timeout=300):
+    span = trace.get_current_span()
+    logger.debug(f"CURRENT span before task execution: {span}")
+    tracer = trace.get_tracer(__name__)
     infores=actor_dict['fields']['inforesid']
     agent= infores.split(':')[1]
-    with tracer.start_as_current_span(f"{agent}") as span:
-        logger.info(mesg_dict)
-        url = settings.DEFAULT_HOST + actor_dict['fields']['url']
-        logger.debug('sending message %s to %s...' % (mesg_dict['pk'], url))
-        data = mesg_dict
-        data['fields']['actor'] = {
-            'id': actor_dict['pk'],
-            'channel': actor_dict['fields']['channel'],
-            'agent': actor_dict['fields']['agent'],
-            'uri': url
-        }
-        mesg = Message.create(actor=Actor.objects.get(pk=actor_dict['pk']),
-                              name=mesg_dict['fields']['name'], status='R',
-                              ref=get_object_or_404(Message.objects.filter(pk=mesg_dict['pk'])))
+    logger.info(mesg_dict)
+    url = settings.DEFAULT_HOST + actor_dict['fields']['url']
+    logger.debug('sending message %s to %s...' % (mesg_dict['pk'], url))
+    data = mesg_dict
+    data['fields']['actor'] = {
+        'id': actor_dict['pk'],
+        'channel': actor_dict['fields']['channel'],
+        'agent': actor_dict['fields']['agent'],
+        'uri': url
+    }
+    mesg = Message.create(actor=Actor.objects.get(pk=actor_dict['pk']),
+                        name=mesg_dict['fields']['name'], status='R',
+                        ref=get_object_or_404(Message.objects.filter(pk=mesg_dict['pk'])))
 
-        if mesg.status == 'R':
-            mesg.code = 202
-        mesg.save()
-        # TODO Add Translator API Version to Actor Model ... here one expects strict 0.92 format
-        if 'url' in actor_dict['fields'] and actor_dict['fields']['url'].find('/ara-explanatory/api/runquery') == 0:
-            pass
-        else:
-            callback = settings.DEFAULT_HOST + reverse('ars-messages') + '/' + str(mesg.pk)
-            data['fields']['data']['callback'] = callback
+    if mesg.status == 'R':
+        mesg.code = 202
+    mesg.save()
+    # TODO Add Translator API Version to Actor Model ... here one expects strict 0.92 format
+    if 'url' in actor_dict['fields'] and actor_dict['fields']['url'].find('/ara-explanatory/api/runquery') == 0:
+        pass
+    else:
+        callback = settings.DEFAULT_HOST + reverse('ars-messages') + '/' + str(mesg.pk)
+        data['fields']['data']['callback'] = callback
 
-        status = 'U'
-        status_code = 0
-        rdata = data['fields']['data']
-        inforesid = actor_dict['fields']['inforesid']
-        endpoint=SmartApiDiscover().endpoint(inforesid)
-        params=SmartApiDiscover().params(inforesid)
-        query_endpoint = (endpoint if endpoint is not None else "") + (("?"+params) if params is not None else "")
-
+    status = 'U'
+    status_code = 0
+    rdata = data['fields']['data']
+    inforesid = actor_dict['fields']['inforesid']
+    endpoint=SmartApiDiscover().endpoint(inforesid)
+    params=SmartApiDiscover().params(inforesid)
+    query_endpoint = (endpoint if endpoint is not None else "") + (("?"+params) if params is not None else "")
+    task_id=str(mesg.pk)
+    with tracer.start_as_current_span(f"{agent}:{str(mesg.pk)}") as span:
+        logger.debug(f"CURRENT span during task execution: {span}")
+        span.set_attribute("task.id", task_id)
+        span.set_attribute("parent_pk", str(mesg.ref_id))
+        span.set_attribute("agent", agent)
+        headers={}
+        inject(headers)
+        # Make HTTP request and trace it
         try:
             r = requests.post(url, json=data, timeout=timeout)
             span.set_attribute("http.url", url)
             span.set_attribute("http.status_code", r.status_code)
+            span.set_attribute("http.method", "POST")
+            span.set_attribute("task.id", task_id)
+            #span.set_attribute("celery.task_id", send_message.request.id)
             logger.debug('%d: receive message from actor %s...\n%s.\n'
                          % (r.status_code, url, str(r.text)[:500]))
             status_code = r.status_code
@@ -162,6 +179,8 @@ def send_message(actor_dict, mesg_dict, timeout=300):
             logger.error("Unexpected error 2: {}".format(traceback.format_exception(type(e), e, e.__traceback__)))
             logger.exception("Can't send message to actor %s\n%s for pk: %s"
                              % (url,sys.exc_info(),mesg.pk))
+            span.set_attribute("error", True)
+            span.set_attribute("error.message", str(e))
             status_code = 500
             status = 'E'
             mesg.code = status_code
@@ -198,7 +217,6 @@ def send_message(actor_dict, mesg_dict, timeout=300):
         else:
             logging.debug("Skipping merge and post for "+str(mesg.pk)+
                           " because the contributing message is in state: "+str(mesg.code))
-
 
 @shared_task(name="catch_timeout")
 def catch_timeout_async():
