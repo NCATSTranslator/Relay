@@ -35,7 +35,6 @@ def send_messages(actors, messages):
             elif settings.USE_CELERY:
                 span = trace.get_current_span()
                 logger.debug(f"CURRENT span before Celery task submission: {span}")
-                #result = send_message(actor.to_dict(), mesg.to_dict(), headers)
                 result = send_message.delay(actor.to_dict(), mesg.to_dict())
                 result.forget()
             else:

@@ -12,7 +12,7 @@ import traceback
 from inspect import currentframe, getframeinfo
 from tr_ars import status_report
 from datetime import datetime, timedelta
-from opentelemetry.propagate import inject, extract
+from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 #from tr_ars.tasks import send_message
 import ast
 from tr_smartapi_client.smart_api_discover import ConfigFile
@@ -455,8 +455,11 @@ def message(req, key):
             return HttpResponse('Unknown message: %s' % key, status=404)
 
     elif req.method == 'POST':
-        with tracer.start_as_current_span(f'message:{str(key)}') as span:
-            span.set_attribute("task.id", str(key))
+        headers = dict(req.headers)
+        carrier ={'traceparent': headers['Traceparent']}
+        ctx = TraceContextTextMapPropagator().extract(carrier=carrier)
+        with tracer.start_as_current_span('message', context=ctx) as span:
+            span.set_attribute("pk", str(key))
             try:
                 data = json.loads(req.body)
                 #if 'query_graph' not in data or 'knowledge_graph' not in data or 'results' not in data:

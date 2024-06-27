@@ -1,4 +1,4 @@
-
+import os
 from opentelemetry import trace
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import TracerProvider
@@ -10,11 +10,8 @@ from opentelemetry.instrumentation.requests import RequestsInstrumentor
 
 def configure_opentelemetry():
 
-    # if os.environ.get('JAEGER_ENABLED') == "True":
-    #     logging.info("starting up jaeger telemetry")
-    #
-    # jaeger_host = os.environ.get('JAEGER_HOST', 'jaeger-otel-agent')
-    # jaeger_port = int(os.environ.get('JAEGER_PORT', '6831'))
+    jaeger_host = os.environ.get('JAEGER_HOST', 'jaeger-otel-agent')
+    jaeger_port = int(os.environ.get('JAEGER_PORT', '6831'))
 
     resource = Resource(attributes={
         "service.name": "ARS"
@@ -26,8 +23,8 @@ def configure_opentelemetry():
 
     # Configure Jaeger Exporter
     jaeger_exporter = JaegerExporter(
-        agent_host_name="localhost",
-        agent_port=6831,
+        agent_host_name=jaeger_host,
+        agent_port=jaeger_port,
     )
 
     span_processor = BatchSpanProcessor(jaeger_exporter)

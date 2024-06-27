@@ -63,16 +63,16 @@ def send_message(actor_dict, mesg_dict, timeout=300):
     params=SmartApiDiscover().params(inforesid)
     query_endpoint = (endpoint if endpoint is not None else "") + (("?"+params) if params is not None else "")
     task_id=str(mesg.pk)
-    with tracer.start_as_current_span(f"{agent}:{str(mesg.pk)}") as span:
+    with tracer.start_as_current_span(f"{agent}") as span:
         logger.debug(f"CURRENT span during task execution: {span}")
-        span.set_attribute("task.id", task_id)
-        span.set_attribute("parent_pk", str(mesg.ref_id))
+        span.set_attribute("pk", str(mesg.pk))
+        span.set_attribute("ref_pk", str(mesg.ref_id))
         span.set_attribute("agent", agent)
         headers={}
         inject(headers)
         # Make HTTP request and trace it
         try:
-            r = requests.post(url, json=data, timeout=timeout)
+            r = requests.post(url, json=data, headers=headers, timeout=timeout)
             span.set_attribute("http.url", url)
             span.set_attribute("http.status_code", r.status_code)
             span.set_attribute("http.method", "POST")
