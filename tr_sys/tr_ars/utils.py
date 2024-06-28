@@ -562,7 +562,6 @@ def post_process(data,key, agent_name):
     except Exception as e:
         status='E'
         code=444
-        post_processing_error(mesg,data,"Error in annotation of nodes")
         logging.exception(f"problem with node annotation for agent: {agent_name} pk: {str(key)}")
 
     logging.info("pre scrub null for agent %s and pk %s" % (agent_name, str(key)))
@@ -572,6 +571,13 @@ def post_process(data,key, agent_name):
         status='E'
         code=444
         logging.exception(f"Problem with the second scrubbing of null attributes for agent: {agent_name} pk: {str(key)}")
+        post_processing_error(mesg,data,"Error in second scrubbing of null attributes")
+        log_tuple =[
+            "Error in second scrubbing of null attributes",
+            datetime.now().strftime('%H:%M:%S'),
+            "DEBUG"
+        ]
+        add_log_entry(data,log_tuple)
     logging.info("pre blocklist for "+str(key))
     try:
         remove_blocked(mesg, data)
@@ -606,7 +612,6 @@ def post_process(data,key, agent_name):
         else:
             logging.error('results returned from appraiser is None')
 
-        #logging.exception(f"Problem with appraiser for agent: {agent_name} pk: {str(key)}")
         mesg.save(update_fields=['status','code'])
         raise e
     try:
@@ -624,6 +629,12 @@ def post_process(data,key, agent_name):
         mesg.code = 422
         post_processing_error(mesg,data,"Error in f-score calculation")
         logging.exception("Error in f-score calculation")
+        log_tuple =[
+            "Error in Score computation from result",
+            datetime.now().strftime('%H:%M:%S'),
+            "ERROR"
+        ]
+        add_log_entry(data,log_tuple)
         mesg.save(update_fields=['status','code'])
         raise e
 
@@ -632,7 +643,14 @@ def post_process(data,key, agent_name):
         mesg.result_stat = ScoreStatCalc(new_res)
     except Exception as e:
         logging.exception("Error in ScoreStatCalculation or result count")
+        post_processing_error(mesg,data,"Error in score stat calculation")
         raise e
+        log_tuple =[
+            "Error in score stat calculation",
+            datetime.now().strftime('%H:%M:%S'),
+            "DEBUG"
+        ]
+        add_log_entry(data,log_tuple)
         mesg.status ='E'
         mesg.code=400
         mesg.save(update_fields=['status','code'])
@@ -961,6 +979,12 @@ def appraise(mesg,data, agent_name,retry_counter=0):
     except Exception as e:
         logging.error("Problem with appraiser for agent %s and pk %s of type %s" % (agent_name,str(mesg.id),type(e).__name__))
         logging.error("Adding default ordering_components for agent %s and pk %s " % (agent_name,str(mesg.id)))
+        log_tuple =[
+            "Error in Appraiser: "+ str(e),
+            datetime.now().strftime('%H:%M:%S'),
+            "ERROR"
+        ]
+        add_log_entry(data,log_tuple)
         raise e
         
 
@@ -1013,11 +1037,12 @@ def annotate_nodes(mesg,data,agent_name):
         except Exception as e:
             logging.exception('node annotation internal error msg is for agent %s with pk: %s is  %s' % (agent_name,str(mesg.pk),str(e)))
             raise e
-        #else:
-         #   with open(str(mesg.actor)+".json", "w") as outfile:
-          #      outfile.write(json_data)
-           # post_processing_error(mesg,data,"Error in annotation of nodes")
-
+            log_tuple =[
+                'node annotation internal error: '+ str(e),
+                datetime.now().strftime('%H:%M:%S'),
+                "DEBUG"
+            ]
+            add_log_entry(data,log_tuple)
 
 def normalize_scores(data,key, agent_name):
     res=get_safe(data,"message","results")
@@ -1087,7 +1112,7 @@ def post_processing_error(mesg,data,text):
     mesg.code = 206
     log_tuple=[text,
                (mesg.updated_at).strftime('%H:%M:%S'),
-               "WARNING"]
+               "DEBUG"]
     logging.info(f'the log_tuple is %s'% log_tuple)
     add_log_entry(data,log_tuple)
 
