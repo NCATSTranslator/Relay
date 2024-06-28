@@ -44,7 +44,7 @@ ARS_ACTOR = {
 }
 
 NORMALIZER_URL=os.getenv("TR_NORMALIZER") if os.getenv("TR_NORMALIZER") is not None else "https://nodenormalization-sri.renci.org/1.4/get_normalized_nodes"
-ANNOTATOR_URL=os.getenv("TR_ANNOTATOR") if os.getenv("TR_ANNOTATOR") is not None else "https://biothings.ncats.io/annotator/"
+ANNOTATOR_URL=os.getenv("TR_ANNOTATOR") if os.getenv("TR_ANNOTATOR") is not None else "https://biothings.test.ncats.io/annotator/"
 APPRAISER_URL=os.getenv("TR_APPRAISE") if os.getenv("TR_APPRAISE") is not None else "http://localhost:9096/get_appraisal"
 
 
@@ -562,6 +562,12 @@ def post_process(data,key, agent_name):
     except Exception as e:
         status='E'
         code=444
+        log_tuple =[
+            f'node annotation internal error: {str(e)}',
+            datetime.now().strftime('%H:%M:%S'),
+            "DEBUG"
+        ]
+        add_log_entry(data,log_tuple)
         logging.exception(f"problem with node annotation for agent: {agent_name} pk: {str(key)}")
 
     logging.info("pre scrub null for agent %s and pk %s" % (agent_name, str(key)))
@@ -611,7 +617,12 @@ def post_process(data,key, agent_name):
                     continue
         else:
             logging.error('results returned from appraiser is None')
-
+        log_tuple =[
+                "Error in Appraiser: "+ str(e),
+                datetime.now().strftime('%H:%M:%S'),
+                "ERROR"
+            ]
+        add_log_entry(data,log_tuple)
         mesg.save(update_fields=['status','code'])
         raise e
     try:
@@ -630,7 +641,7 @@ def post_process(data,key, agent_name):
         post_processing_error(mesg,data,"Error in f-score calculation")
         logging.exception("Error in f-score calculation")
         log_tuple =[
-            "Error in Score computation from result",
+            "Error in f-score calculation",
             datetime.now().strftime('%H:%M:%S'),
             "ERROR"
         ]
@@ -979,12 +990,6 @@ def appraise(mesg,data, agent_name,retry_counter=0):
     except Exception as e:
         logging.error("Problem with appraiser for agent %s and pk %s of type %s" % (agent_name,str(mesg.id),type(e).__name__))
         logging.error("Adding default ordering_components for agent %s and pk %s " % (agent_name,str(mesg.id)))
-        log_tuple =[
-            "Error in Appraiser: "+ str(e),
-            datetime.now().strftime('%H:%M:%S'),
-            "ERROR"
-        ]
-        add_log_entry(data,log_tuple)
         raise e
         
 
@@ -1037,12 +1042,6 @@ def annotate_nodes(mesg,data,agent_name):
         except Exception as e:
             logging.exception('node annotation internal error msg is for agent %s with pk: %s is  %s' % (agent_name,str(mesg.pk),str(e)))
             raise e
-            log_tuple =[
-                'node annotation internal error: '+ str(e),
-                datetime.now().strftime('%H:%M:%S'),
-                "DEBUG"
-            ]
-            add_log_entry(data,log_tuple)
 
 def normalize_scores(data,key, agent_name):
     res=get_safe(data,"message","results")
