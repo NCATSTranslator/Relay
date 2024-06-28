@@ -44,7 +44,7 @@ ARS_ACTOR = {
 }
 
 NORMALIZER_URL=os.getenv("TR_NORMALIZER") if os.getenv("TR_NORMALIZER") is not None else "https://nodenormalization-sri.renci.org/1.4/get_normalized_nodes"
-ANNOTATOR_URL=os.getenv("TR_ANNOTATOR") if os.getenv("TR_ANNOTATOR") is not None else "https://biothings.ncats.io/annotator/"
+ANNOTATOR_URL=os.getenv("TR_ANNOTATOR") if os.getenv("TR_ANNOTATOR") is not None else "https://biothings.test.ncats.io/annotator/"
 APPRAISER_URL=os.getenv("TR_APPRAISE") if os.getenv("TR_APPRAISE") is not None else "http://localhost:9096/get_appraisal"
 
 
@@ -551,36 +551,46 @@ def pre_merge_process(data,key, agent_name,inforesid):
         logging.exception("Error in ARS score normalization")
         raise e
 
-
 def post_process(data,key, agent_name):
     code =200
+    status='D'
     mesg = get_object_or_404(Message.objects.filter(pk=key))
     logging.info("Pre node annotation for agent %s pk: %s" % (agent_name, str(key)))
     try:
         annotate_nodes(mesg,data,agent_name)
         logging.info("node annotation successful for agent %s and pk: %s" % (agent_name, str(key)))
     except Exception as e:
+        status='E'
+        code=444
         post_processing_error(mesg,data,"Error in annotation of nodes")
-        logging.error("Error with node annotations for "+str(key))
-        logging.exception("problem with node annotation post process function")
-        raise e
+        logging.exception(f"problem with node annotation for agent: {agent_name} pk: {str(key)}")
+
     logging.info("pre scrub null for agent %s and pk %s" % (agent_name, str(key)))
     try:
         scrub_null_attributes(data)
     except Exception as e:
-        logging.info("Problem with the second scrubbing of null attributes")
+        status='E'
+        code=444
+        logging.exception(f"Problem with the second scrubbing of null attributes for agent: {agent_name} pk: {str(key)}")
     logging.info("pre blocklist for "+str(key))
     try:
         remove_blocked(mesg, data)
     except Exception as e:
+        status='E'
+        code=444
         logging.info(e.__cause__)
-        logging.info("Problem with block list removal")
+        logging.exception(f"Problem with block list removal for agent: {agent_name} pk: {str(key)}")
+
+    mesg.status=status
+    mesg.code=code
+    mesg.save(update_fields=['status','code'])
     logging.info("pre appraiser for agent %s and pk %s" % (agent_name, str(key)))
     try:
         appraise(mesg,data,agent_name)
         logging.info("appraiser successful for agent %s and pk %s" % (agent_name, str(key)))
     except Exception as e:
-        code = 422
+        mesg.status='E'
+        mesg.code = 422
         results = get_safe(data,"message","results")
         default_ordering_component = {
             "novelty": 0,
@@ -596,10 +606,9 @@ def post_process(data,key, agent_name):
         else:
             logging.error('results returned from appraiser is None')
 
-        #post_processing_error(mesg,data,"Error in appraiser")
-        logging.error("Error with appraise for "+str(key))
-        logging.exception("Error in appraiser post process function")
-        #raise e
+        #logging.exception(f"Problem with appraiser for agent: {agent_name} pk: {str(key)}")
+        mesg.save(update_fields=['status','code'])
+        raise e
     try:
         results = get_safe(data,"message","results")
         if results is not None:
@@ -611,8 +620,11 @@ def post_process(data,key, agent_name):
             logging.error('results from appraiser returns None, cant do the scoring')
         print()
     except Exception as e:
+        mesg.status='E'
+        mesg.code = 422
         post_processing_error(mesg,data,"Error in f-score calculation")
         logging.exception("Error in f-score calculation")
+        mesg.save(update_fields=['status','code'])
         raise e
 
     try:
@@ -625,8 +637,8 @@ def post_process(data,key, agent_name):
         mesg.code=400
         mesg.save(update_fields=['status','code'])
     try:
-        mesg.status='D'
-        mesg.code=200
+        mesg.status=status
+        mesg.code=code
         mesg.save_compressed_dict(data)
         logging.info("Time before save")
         with transaction.atomic():
@@ -693,12 +705,12 @@ def merge_and_post_process(parent_pk,message_to_merge, agent_name, counter=0):
             logging.info('post processing complete for agent %s with pk %s is returned & ready to be preprocessed' % (agent_name, str(merged.id)))
 
         except Exception as e:
-            logging.info("Problem with post processing for agent %s pk: %s " % (agent_name, (parent_pk)))
-            logging.info(e, exc_info=True)
-            logging.info('error message %s' % str(e))
-            merged.status='E'
-            merged.code = 422
-            merged.save()
+            logging.exception("Problem with one/more post processing steps for agent %s pk: %s " % (agent_name, (parent_pk)))
+            # logging.info(e, exc_info=True)
+            # logging.info('error message %s' % str(e))
+            # merged.status='E'
+            # merged.code = 422
+            # merged.save()
 
 def remove_blocked(mesg, data, blocklist=None):
     try:
@@ -947,10 +959,7 @@ def appraise(mesg,data, agent_name,retry_counter=0):
                     logging.error("3 consecutive Errors from appraise for agent %s and pk %s " % (agent_name,str(mesg.id)))
                     raise Exception
     except Exception as e:
-
-        logging.error("Problem with appraiser for agent %s and pk %s " % (agent_name,str(mesg.id)))
-        logging.error(type(e).__name__)
-        logging.error(e.args)
+        logging.error("Problem with appraiser for agent %s and pk %s of type %s" % (agent_name,str(mesg.id),type(e).__name__))
         logging.error("Adding default ordering_components for agent %s and pk %s " % (agent_name,str(mesg.id)))
         raise e
         
@@ -1002,9 +1011,7 @@ def annotate_nodes(mesg,data,agent_name):
             else:
                 post_processing_error(mesg,data,"Error in annotation of nodes")
         except Exception as e:
-            logging.info('node annotation internal error msg is for agent %s with pk: %s is  %s' % (agent_name,str(mesg.pk),str(e)))
-            logging.exception("error in node annotation internal function")
-
+            logging.exception('node annotation internal error msg is for agent %s with pk: %s is  %s' % (agent_name,str(mesg.pk),str(e)))
             raise e
         #else:
          #   with open(str(mesg.actor)+".json", "w") as outfile:
