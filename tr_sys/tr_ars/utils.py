@@ -44,7 +44,7 @@ ARS_ACTOR = {
 }
 
 NORMALIZER_URL=os.getenv("TR_NORMALIZER") if os.getenv("TR_NORMALIZER") is not None else "https://nodenormalization-sri.renci.org/1.4/get_normalized_nodes"
-ANNOTATOR_URL=os.getenv("TR_ANNOTATOR") if os.getenv("TR_ANNOTATOR") is not None else "https://biothings.ncats.io/annotator/"
+ANNOTATOR_URL=os.getenv("TR_ANNOTATOR") if os.getenv("TR_ANNOTATOR") is not None else "https://biothings.test.ncats.io/annotator/"
 APPRAISER_URL=os.getenv("TR_APPRAISE") if os.getenv("TR_APPRAISE") is not None else "http://localhost:9096/get_appraisal"
 
 
@@ -551,10 +551,9 @@ def pre_merge_process(data,key, agent_name,inforesid):
         logging.exception("Error in ARS score normalization")
         raise e
 
-def post_process(data,key, agent_name):
-    code =200
-    status='D'
-    mesg = get_object_or_404(Message.objects.filter(pk=key))
+def post_process(mesg,key, agent_name):
+
+    data = mesg.decompress_dict()
     logging.info("Pre node annotation for agent %s pk: %s" % (agent_name, str(key)))
     try:
         annotate_nodes(mesg,data,agent_name)
@@ -599,86 +598,68 @@ def post_process(data,key, agent_name):
     logging.info("pre appraiser for agent %s and pk %s" % (agent_name, str(key)))
     try:
         appraise(mesg,data,agent_name)
-        logging.info("appraiser successful for agent %s and pk %s" % (agent_name, str(key)))
+        logging.info("appraiser returned with code: %s and status: %s" % (mesg.code, mesg.status))
     except Exception as e:
-        mesg.status='E'
-        mesg.code = 422
-        results = get_safe(data,"message","results")
-        default_ordering_component = {
-            "novelty": 0,
-            "confidence": 0,
-            "clinical_evidence": 0
-        }
-        if results is not None:
-            for result in results:
-                if 'ordering_components' not in result.keys():
-                    result['ordering_components']=default_ordering_component
-                else:
-                    continue
-        else:
-            logging.error('results returned from appraiser is None')
-        log_tuple =[
-                "Error in Appraiser: "+ str(e),
+        logging.ERROR("appraiser failed mesg for agent %s is %s: %s"% (agent_name, mesg.code, mesg.status))
+
+    if mesg.code == 422:
+        return mesg, mesg.code, mesg.status
+    else:
+        try:
+            results = get_safe(data,"message","results")
+            if results is not None:
+                logging.info("+++ pre-scoring for agent: %s & pk: %s" % (agent_name, key))
+                new_res=scoring.compute_from_results(results)
+                data['message']['results']=new_res
+                logging.info("scoring succeeded for agent %s and pk %s" % (agent_name, key))
+            else:
+                logging.error('results from appraiser returns None, cant do the scoring')
+            print()
+        except Exception as e:
+            status='E'
+            code = 422
+            mesg.save(update_fields=['status','code'])
+            log_tuple =[
+                "Error in f-score calculation: "+ str(e),
                 datetime.now().strftime('%H:%M:%S'),
                 "ERROR"
             ]
-        add_log_entry(data,log_tuple)
-        mesg.save(update_fields=['status','code'])
-        raise e
-    try:
-        results = get_safe(data,"message","results")
-        if results is not None:
-            logging.info("+++ pre-scoring for agent: %s & pk: %s" % (agent_name, key))
-            new_res=scoring.compute_from_results(results)
-            data['message']['results']=new_res
-            logging.info("scoring succeeded for agent %s and pk %s" % (agent_name, key))
-        else:
-            logging.error('results from appraiser returns None, cant do the scoring')
-        print()
-    except Exception as e:
-        mesg.status='E'
-        mesg.code = 422
-        post_processing_error(mesg,data,"Error in f-score calculation")
-        logging.exception("Error in f-score calculation")
-        log_tuple =[
-            "Error in f-score calculation",
-            datetime.now().strftime('%H:%M:%S'),
-            "ERROR"
-        ]
-        add_log_entry(data,log_tuple)
-        mesg.save(update_fields=['status','code'])
-        raise e
+            add_log_entry(data,log_tuple)
+            logging.exception("Error in f-score calculation")
+            mesg.save_compressed_dict(data)
+            return mesg, code, status
 
-    try:
-        mesg.result_count = len(new_res)
-        mesg.result_stat = ScoreStatCalc(new_res)
-    except Exception as e:
-        logging.exception("Error in ScoreStatCalculation or result count")
-        post_processing_error(mesg,data,"Error in score stat calculation")
-        raise e
-        log_tuple =[
-            "Error in score stat calculation",
-            datetime.now().strftime('%H:%M:%S'),
-            "DEBUG"
-        ]
-        add_log_entry(data,log_tuple)
-        mesg.status ='E'
-        mesg.code=400
-        mesg.save(update_fields=['status','code'])
-    try:
-        mesg.status=status
-        mesg.code=code
-        mesg.save_compressed_dict(data)
-        logging.info("Time before save")
-        with transaction.atomic():
-            mesg.save()
-        logging.info("Time after save")
-    except DatabaseError as e:
-        mesg.status ='E'
-        mesg.code=422
-        logging.error("Final save failed")
-        mesg.save(update_fields=['status','code'])
-        
+        try:
+            mesg.result_count = len(new_res)
+            mesg.result_stat = ScoreStatCalc(new_res)
+            logging.info("scoring stat calculation succeeded  for agent %s and pk %s" % (agent_name, key))
+        except Exception as e:
+            logging.exception("Error in ScoreStatCalculation or result count")
+            post_processing_error(mesg,data,"Error in score stat calculation")
+            log_tuple =[
+                "Error in score stat calculation",
+                datetime.now().strftime('%H:%M:%S'),
+                "DEBUG"
+            ]
+            add_log_entry(data,log_tuple)
+            status ='E'
+            code=400
+            mesg.save_compressed_dict(data)
+            return mesg, code, status
+
+        try:
+            mesg.save_compressed_dict(data)
+            logging.info("Time before save")
+            with transaction.atomic():
+                mesg.save()
+            logging.info("Time after save")
+
+        except DatabaseError as e:
+            status ='E'
+            code=422
+            logging.error("Final save failed")
+        return mesg, code, status
+
 def lock_merge(message):
     pass
     if message.merge_semaphore is True:
@@ -727,19 +708,12 @@ def merge_and_post_process(parent_pk,message_to_merge, agent_name, counter=0):
             logging.debug("Merging failed for %s %s" % (agent_name, str(parent_pk)))
 
     if merged is not None:
-        try:
-            logging.info('merged data for agent %s with pk %s is returned & ready to be preprocessed' % (agent_name, str(merged.id)))
-            merged_data = merged.decompress_dict()
-            post_process(merged_data,merged.id, agent_name)
-            logging.info('post processing complete for agent %s with pk %s is returned & ready to be preprocessed' % (agent_name, str(merged.id)))
-
-        except Exception as e:
-            logging.exception("Problem with one/more post processing steps for agent %s pk: %s " % (agent_name, (parent_pk)))
-            # logging.info(e, exc_info=True)
-            # logging.info('error message %s' % str(e))
-            # merged.status='E'
-            # merged.code = 422
-            # merged.save()
+        logging.info('merged data for agent %s with pk %s is returned & ready to be preprocessed' % (agent_name, str(merged.id)))
+        merged, code, status = post_process(merged,merged.id, agent_name)
+        logging.info('post processing complete for agent %s with pk %s is returned & ready to be preprocessed' % (agent_name, str(merged.id)))
+        merged.status = status
+        merged.code = code
+        merged.save()
 
 def remove_blocked(mesg, data, blocklist=None):
     try:
@@ -990,8 +964,31 @@ def appraise(mesg,data, agent_name,retry_counter=0):
     except Exception as e:
         logging.error("Problem with appraiser for agent %s and pk %s of type %s" % (agent_name,str(mesg.id),type(e).__name__))
         logging.error("Adding default ordering_components for agent %s and pk %s " % (agent_name,str(mesg.id)))
-        raise e
-        
+        results = get_safe(data,"message","results")
+        default_ordering_component = {
+            "novelty": 0,
+            "confidence": 0,
+            "clinical_evidence": 0
+        }
+        if results is not None:
+            for result in results:
+                if 'ordering_components' not in result.keys():
+                    result['ordering_components']=default_ordering_component
+                else:
+                    continue
+        else:
+            logging.error('results returned from appraiser is None')
+        log_tuple =[
+            "Error in Appraiser: "+ str(e),
+            datetime.now().strftime('%H:%M:%S'),
+            "ERROR"
+        ]
+        add_log_entry(data,log_tuple)
+        mesg.save_compressed_dict(data)
+        mesg.status='E'
+        mesg.code = 422
+        mesg.save(update_fields=['status','code'])
+
 
 def annotate_nodes(mesg,data,agent_name):
     #TODO pull this URL from SmartAPI
