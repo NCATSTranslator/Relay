@@ -1,10 +1,10 @@
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.core import serializers
 from django.shortcuts import redirect, get_object_or_404
 from django.urls import path, re_path, include, reverse
 from django.utils import timezone
-from tr_ars import utils
+from tr_ars import utils, tasks
 from utils2 import urlRemoteFromInforesid
 from .models import Agent, Message, Channel, Actor
 import json, sys, logging
@@ -12,13 +12,14 @@ import traceback
 from inspect import currentframe, getframeinfo
 from tr_ars import status_report
 from datetime import datetime, timedelta
+from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 #from tr_ars.tasks import send_message
 import ast
 from tr_smartapi_client.smart_api_discover import ConfigFile
+from opentelemetry import trace
 
 
-#from reasoner_validator import validate_Message, ValidationError, validate_Query
-
+tracer = trace.get_tracer(__name__)
 logger = logging.getLogger(__name__)
 
 def index(req):
@@ -84,52 +85,57 @@ def submit(req):
     logger.debug("submit")
     """Query submission"""
     logger.debug("entering submit")
-    if req.method != 'POST':
-        return HttpResponse('Only POST is permitted!', status=405)
+    with tracer.start_as_current_span("submit") as span:
+        span.set_attribute("http.method", req.method)
+        span.set_attribute("http.url", req.build_absolute_uri())
+        span.set_attribute("user.id", req.user.id if req.user.is_authenticated else "anonymous")
+        if span.parent is None:
+            span.set_attribute("is_root", True)
+        if req.method != 'POST':
+            return HttpResponse('Only POST is permitted!', status=405)
+        try:
+            logger.debug('++ submit: %s' % req.body)
+            data = json.loads(req.body)
+            # if 'message' not in data:
+            #     return HttpResponse('Not a valid Translator query json', status=400)
+            # create a head message
+            # try:
+            #     validate_Query(data)
+            # except ValidationError as ve:
+            #     logger.debug("Warning! Input query failed TRAPI validation "+str(data))
+            #     logger.debug(ve)
+            #     return HttpResponse('Input query failed TRAPI validation',status=400)
+            if("workflow" in data):
+                wf = data["workflow"]
+                if(isinstance(wf,list)):
+                    if(len(wf)>0):
+                        message = Message.create(code=202, status='Running', data=data,
+                                                 actor=get_workflow_actor())
+                        logger.debug("Sending message to workflow runner")#TO-DO CHANGE
+                        # message.save()
+                        # send_message(get_workflow_actor().to_dict(),message.to_dict())
+                        # return HttpResponse(json.dumps(data, indent=2),
+                        #                     content_type='application/json', status=201)
+            else:
+                message = Message.create(code=202, status='Running', data=data,
+                                  actor=get_default_actor())
 
-    try:
-        logger.debug('++ submit: %s' % req.body)
-        data = json.loads(req.body)
-        # if 'message' not in data:
-        #     return HttpResponse('Not a valid Translator query json', status=400)
-        # create a head message
-        # try:
-        #     validate_Query(data)
-        # except ValidationError as ve:
-        #     logger.debug("Warning! Input query failed TRAPI validation "+str(data))
-        #     logger.debug(ve)
-        #     return HttpResponse('Input query failed TRAPI validation',status=400)
-        if("workflow" in data):
-            wf = data["workflow"]
-            if(isinstance(wf,list)):
-                if(len(wf)>0):
-                    message = Message.create(code=202, status='Running', data=data,
-                                             actor=get_workflow_actor())
-                    logger.debug("Sending message to workflow runner")#TO-DO CHANGE
-                    # message.save()
-                    # send_message(get_workflow_actor().to_dict(),message.to_dict())
-                    # return HttpResponse(json.dumps(data, indent=2),
-                    #                     content_type='application/json', status=201)
-        else:
-            message = Message.create(code=202, status='Running', data=data,
-                              actor=get_default_actor())
+            if 'name' in data:
+                message.name = data['name']
+            # save and broadcast
 
-        if 'name' in data:
-            message.name = data['name']
-        # save and broadcast
-
-        message.save()
-        data = message.to_dict()
-        return HttpResponse(json.dumps(data, indent=2),
-                            content_type='application/json', status=201)
-    except Exception as e:
-        logger.error("Unexpected error 10: {}".format(traceback.format_exception(type(e), e, e.__traceback__)))
-        logging.info(e, exc_info=True)
-        logging.info('error message %s' % str(e))
-        logging.info(e.__cause__)
-        logging.error(type(e).__name__)
-        logging.error(e.args)
-        return HttpResponse('failing due to %s with the message %s' % (e.__cause__, str(e)), status=400)
+            message.save()
+            data = message.to_dict()
+            return HttpResponse(json.dumps(data, indent=2),
+                                content_type='application/json', status=201)
+        except Exception as e:
+            logger.error("Unexpected error 10: {}".format(traceback.format_exception(type(e), e, e.__traceback__)))
+            logging.info(e, exc_info=True)
+            logging.info('error message %s' % str(e))
+            logging.info(e.__cause__)
+            logging.error(type(e).__name__)
+            logging.error(e.args)
+            return HttpResponse('failing due to %s with the message %s' % (e.__cause__, str(e)), status=400)
 
 @csrf_exempt
 def messages(req):
@@ -415,7 +421,6 @@ def latest_pk(req, n):
 @csrf_exempt
 def message(req, key):
     logger.debug("entering message endpoint %s " % key)
-
     if req.method == 'GET':
         if req.GET.get('trace', False):
             return trace_message(req, key)
@@ -450,92 +455,97 @@ def message(req, key):
             return HttpResponse('Unknown message: %s' % key, status=404)
 
     elif req.method == 'POST':
-        try:
-            data = json.loads(req.body)
-            #if 'query_graph' not in data or 'knowledge_graph' not in data or 'results' not in data:
-            #    return HttpResponse('Not a valid Translator API json', status=400)
-            mesg = get_object_or_404(Message.objects.filter(pk=key))
-            status = 'D'
-            code = 200
-            if 'tr_ars.message.status' in req.headers:
-                status = req.headers['tr_ars.message.status']
-            res=utils.get_safe(data,"message","results")
-            kg = utils.get_safe(data,"message", "knowledge_graph")
-            actor = Actor.objects.get(pk=mesg.actor_id)
-            inforesid =actor.inforesid
-            logging.info('received msg from agent: %s with parent pk: %s' % (str(inforesid), str(mesg.ref_id)))
-            if mesg.result_count is not None and mesg.result_count >0:
-                return HttpResponse('ARS already has a response with: %s results for pk %s \nWe are temporarily '
-                                   'disallowing subsequent updates to PKs which already have results\n'
-                                   % (str(len(res)), str(key)),status=409)
+        headers = dict(req.headers)
+        carrier ={'traceparent': headers['Traceparent']}
+        ctx = TraceContextTextMapPropagator().extract(carrier=carrier)
+        with tracer.start_as_current_span('message', context=ctx) as span:
+            span.set_attribute("pk", str(key))
+            try:
+                data = json.loads(req.body)
+                #if 'query_graph' not in data or 'knowledge_graph' not in data or 'results' not in data:
+                #    return HttpResponse('Not a valid Translator API json', status=400)
+                mesg = get_object_or_404(Message.objects.filter(pk=key))
+                status = 'D'
+                code = 200
+                if 'tr_ars.message.status' in req.headers:
+                    status = req.headers['tr_ars.message.status']
+                res=utils.get_safe(data,"message","results")
+                kg = utils.get_safe(data,"message", "knowledge_graph")
+                actor = Actor.objects.get(pk=mesg.actor_id)
+                inforesid =actor.inforesid
+                logging.info('received msg from agent: %s with parent pk: %s' % (str(inforesid), str(mesg.ref_id)))
+                if mesg.result_count is not None and mesg.result_count >0:
+                    return HttpResponse('ARS already has a response with: %s results for pk %s \nWe are temporarily '
+                                       'disallowing subsequent updates to PKs which already have results\n'
+                                       % (str(len(res)), str(key)),status=409)
 
-            if mesg.status=='E':
-                return HttpResponse("Response received but Message is already in state "+str(mesg.code)+". Response rejected\n",status=400)
-            if res is not None and len(res)>0:
-                mesg.result_count = len(res)
-                scorestat = utils.ScoreStatCalc(res)
-                mesg.result_stat = scorestat
-                #before we do basically anything else, we normalize
-                parent_pk = mesg.ref_id
-                #message_to_merge =utils.get_safe(data,"message")
-                message_to_merge = data
-                agent_name = str(mesg.actor.agent.name)
-                logger.info("Running pre_merge_process for agent %s with %s" % (agent_name, len(res)))
-                utils.pre_merge_process(message_to_merge,key, agent_name, inforesid)
-                if mesg.data and 'results' in mesg.data and mesg.data['results'] != None and len(mesg.data['results']) > 0:
-                    mesg = Message.create(name=mesg.name, status=status, actor=mesg.actor, ref=mesg)
-                valid = utils.validate(data)
-                if valid:
-                    if agent_name.startswith('ara-'):
-                        logger.info("pre async call for agent %s" % agent_name)
-                        #utils.merge_and_post_process(parent_pk,message_to_merge['message'],agent_name)
-                        utils.merge_and_post_process.apply_async((parent_pk,message_to_merge['message'],agent_name))
-                        logger.info("post async call for agent %s" % agent_name)
+                if mesg.status=='E':
+                    return HttpResponse("Response received but Message is already in state "+str(mesg.code)+". Response rejected\n",status=400)
+                if res is not None and len(res)>0:
+                    mesg.result_count = len(res)
+                    scorestat = utils.ScoreStatCalc(res)
+                    mesg.result_stat = scorestat
+                    #before we do basically anything else, we normalize
+                    parent_pk = mesg.ref_id
+                    #message_to_merge =utils.get_safe(data,"message")
+                    message_to_merge = data
+                    agent_name = str(mesg.actor.agent.name)
+                    logger.info("Running pre_merge_process for agent %s with %s" % (agent_name, len(res)))
+                    utils.pre_merge_process(message_to_merge,key, agent_name, inforesid)
+                    if mesg.data and 'results' in mesg.data and mesg.data['results'] != None and len(mesg.data['results']) > 0:
+                        mesg = Message.create(name=mesg.name, status=status, actor=mesg.actor, ref=mesg)
+                    valid = utils.validate(data)
+                    if valid:
+                        if agent_name.startswith('ara-'):
+                            logger.info("pre async call for agent %s" % agent_name)
+                            #utils.merge_and_post_process(parent_pk,message_to_merge['message'],agent_name)
+                            utils.merge_and_post_process.apply_async((parent_pk,message_to_merge['message'],agent_name))
+                            logger.info("post async call for agent %s" % agent_name)
+                    else:
+                        logger.debug("Validation problem found for agent %s with pk %s" % (agent_name, str(mesg.ref_id)))
+                        code = 422
+                        status = 'E'
+                        mesg.status = status
+                        mesg.code = code
+                        mesg.save_compressed_dict(data)
+                        mesg.save()
+                        return HttpResponse("Problem with TRAPI Validation",
+                                            status=422)
+
+                mesg.status = status
+                mesg.code = code
+                mesg.save_compressed_dict(data)
+                if len(res) == 0 and res is not None:
+                    mesg.result_count = 0
+                mesg.save()
+
+                return HttpResponse(json.dumps(mesg.to_dict(), indent=2),
+                                    status=201)
+
+            except Message.DoesNotExist:
+                return HttpResponse('Unknown state reference %s' % key, status=404)
+
+            except json.decoder.JSONDecodeError:
+                return HttpResponse('Can not decode json:<br>\n%s for the pk: %s' % (req.body, key), status=500)
+
+            except Exception as e:
+                mesg.status = 'E'
+                mesg.code = 500
+                log_entry = {
+                    "message":"Internal ARS Server Error",
+                    "timestamp":mesg.updated_at,
+                    "level":"ERROR"
+                }
+                if 'logs' in data.keys():
+                    data['logs'].append(log_entry)
                 else:
-                    logger.debug("Validation problem found for agent %s with pk %s" % (agent_name, str(mesg.ref_id)))
-                    code = 422
-                    status = 'E'
-                    mesg.status = status
-                    mesg.code = code
-                    mesg.save_compressed_dict(data)
-                    mesg.save()
-                    return HttpResponse("Problem with TRAPI Validation",
-                                        status=422)
+                    data['logs'] = [log_entry]
+                mesg.save_compressed_dict(data)
+                #mesg.data = data
+                mesg.save()
+                logger.error("Unexpected error 12: {} with the pk: %s".format(traceback.format_exception(type(e), e, e.__traceback__), key))
 
-            mesg.status = status
-            mesg.code = code
-            mesg.save_compressed_dict(data)
-            if len(res) == 0 and res is not None:
-                mesg.result_count = 0
-            mesg.save()
-
-            return HttpResponse(json.dumps(mesg.to_dict(), indent=2),
-                                status=201)
-
-        except Message.DoesNotExist:
-            return HttpResponse('Unknown state reference %s' % key, status=404)
-
-        except json.decoder.JSONDecodeError:
-            return HttpResponse('Can not decode json:<br>\n%s for the pk: %s' % (req.body, key), status=500)
-
-        except Exception as e:
-            mesg.status = 'E'
-            mesg.code = 500
-            log_entry = {
-                "message":"Internal ARS Server Error",
-                "timestamp":mesg.updated_at,
-                "level":"ERROR"
-            }
-            if 'logs' in data.keys():
-                data['logs'].append(log_entry)
-            else:
-                data['logs'] = [log_entry]
-            mesg.save_compressed_dict(data)
-            #mesg.data = data
-            mesg.save()
-            logger.error("Unexpected error 12: {} with the pk: %s".format(traceback.format_exception(type(e), e, e.__traceback__), key))
-
-            return HttpResponse('Internal server error', status=500)
+                return HttpResponse('Internal server error', status=500)
 
     else:
         return HttpResponse('Method %s not supported!' % req.method, status=400)
