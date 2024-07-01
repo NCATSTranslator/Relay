@@ -31,8 +31,6 @@ from reasoner_pydantic import (
     Response as vResponse
 )
 from pydantic import ValidationError
-from opentelemetry import trace
-tracer = trace.get_tracer(__name__)
 
 
 ARS_ACTOR = {
@@ -924,39 +922,37 @@ def scrub_null_attributes(data):
                 aux_graph['attributes']=[]
 
 
+
 def appraise(mesg,data, agent_name,retry_counter=0):
     headers = {'Content-type': 'application/json', 'Accept': 'text/plain'}
     json_data = json.dumps(data)
     logging.info('sending data for agent: %s to APPRAISER URL: %s' % (agent_name, APPRAISER_URL))
-    with tracer.start_as_current_span("get_appraisal") as span:
-        try:
-            with requests.post(APPRAISER_URL,data=json_data,headers=headers, stream=True) as r:
-                logging.info("Appraiser being called at: "+APPRAISER_URL)
-                logging.info('the response for agent %s to appraiser code is: %s' % (agent_name, r.status_code))
-                if r.status_code==200:
-                    rj = r.json()
-                    #for now, just update the whole message, but we could be more precise/efficient
-                    logging.info("Updating message with appraiser data for agent %s and pk %s " % (agent_name, str(mesg.id)))
-                    data['message']['results']=rj['message']['results']
-                    logging.info("Updating message with appraiser data complete for "+str(mesg.id))
+    try:
+        with requests.post(APPRAISER_URL,data=json_data,headers=headers, stream=True) as r:
+            logging.info("Appraiser being called at: "+APPRAISER_URL)
+            logging.info('the response for agent %s to appraiser code is: %s' % (agent_name, r.status_code))
+            if r.status_code==200:
+                rj = r.json()
+                #for now, just update the whole message, but we could be more precise/efficient
+                logging.info("Updating message with appraiser data for agent %s and pk %s " % (agent_name, str(mesg.id)))
+                data['message']['results']=rj['message']['results']
+                logging.info("Updating message with appraiser data complete for "+str(mesg.id))
+            else:
+                retry_counter +=1
+                logging.info("Received Error state from appraiser for agent %s and pk %s  Code %s Attempt %s" % (agent_name,str(mesg.id),str(r.status_code),str(retry_counter)))
+                logging.info("JSON fields "+str(json_data)[:100])
+                if retry_counter<3:
+                    appraise(mesg,data, agent_name,retry_counter)
                 else:
-                    retry_counter +=1
-                    logging.info("Received Error state from appraiser for agent %s and pk %s  Code %s Attempt %s" % (agent_name,str(mesg.id),str(r.status_code),str(retry_counter)))
-                    logging.info("JSON fields "+str(json_data)[:100])
-                    if retry_counter<3:
-                        appraise(mesg,data, agent_name,retry_counter)
-                    else:
-                        logging.error("3 consecutive Errors from appraise for agent %s and pk %s " % (agent_name,str(mesg.id)))
-                        raise Exception
-        except Exception as e:
+                    logging.error("3 consecutive Errors from appraise for agent %s and pk %s " % (agent_name,str(mesg.id)))
+                    raise Exception
+    except Exception as e:
 
-            logging.error("Problem with appraiser for agent %s and pk %s " % (agent_name,str(mesg.id)))
-            logging.error(type(e).__name__)
-            logging.error(e.args)
-            logging.error("Adding default ordering_components for agent %s and pk %s " % (agent_name,str(mesg.id)))
-            span.set_attribute("error", True)
-            span.set_attribute("exception", str(e))
-            raise e
+        logging.error("Problem with appraiser for agent %s and pk %s " % (agent_name,str(mesg.id)))
+        logging.error(type(e).__name__)
+        logging.error(e.args)
+        logging.error("Adding default ordering_components for agent %s and pk %s " % (agent_name,str(mesg.id)))
+        raise e
         
 
 def annotate_nodes(mesg,data,agent_name):
@@ -985,33 +981,31 @@ def annotate_nodes(mesg,data,agent_name):
 
 
         json_data = json.dumps(nodes_message)
-        logging.info('posting data to the annotator URL %s' % ANNOTATOR_URL)
-        # with open(str(mesg.pk)+'_'+agent_name+"_KG_nodes_annotator.json", "w") as outfile:
-        #     outfile.write(json_data)
-        with tracer.start_as_current_span("annotator") as span:
-            try:
-                r = requests.post(ANNOTATOR_URL,data=json_data,headers=headers)
-                r.raise_for_status()
-                rj=r.json()
-                logging.info('the response status for agent %s node annotator is: %s' % (agent_name,r.status_code))
-                if r.status_code==200:
-                    for key, value in rj.items():
-                        if 'attributes' in value.keys() and value['attributes'] is not None:
-                            for attribute in value['attributes']:
-                                if attribute is not None:
-                                    add_attribute(data['message']['knowledge_graph']['nodes'][key],attribute)
+        try:
+            logging.info('posting data to the annotator URL %s' % ANNOTATOR_URL)
+            # with open(str(mesg.pk)+'_'+agent_name+"_KG_nodes_annotator.json", "w") as outfile:
+            #     outfile.write(json_data)
+            r = requests.post(ANNOTATOR_URL,data=json_data,headers=headers)
+            r.raise_for_status()
+            rj=r.json()
+            logging.info('the response status for agent %s node annotator is: %s' % (agent_name,r.status_code))
+            if r.status_code==200:
+                for key, value in rj.items():
+                    if 'attributes' in value.keys() and value['attributes'] is not None:
+                        for attribute in value['attributes']:
+                            if attribute is not None:
+                                add_attribute(data['message']['knowledge_graph']['nodes'][key],attribute)
+                            
+                    #Not sure about adding back clearly borked nodes, but it is in keeping with policy of non-destructiveness
+                if len(invalid_nodes)>0:
+                    data['message']['knowledge_graph']['nodes'].update(invalid_nodes)
+            else:
+                post_processing_error(mesg,data,"Error in annotation of nodes")
+        except Exception as e:
+            logging.info('node annotation internal error msg is for agent %s with pk: %s is  %s' % (agent_name,str(mesg.pk),str(e)))
+            logging.exception("error in node annotation internal function")
 
-                        #Not sure about adding back clearly borked nodes, but it is in keeping with policy of non-destructiveness
-                    if len(invalid_nodes)>0:
-                        data['message']['knowledge_graph']['nodes'].update(invalid_nodes)
-                else:
-                    post_processing_error(mesg,data,"Error in annotation of nodes")
-            except Exception as e:
-                logging.info('node annotation internal error msg is for agent %s with pk: %s is  %s' % (agent_name,str(mesg.pk),str(e)))
-                logging.exception("error in node annotation internal function")
-                span.set_attribute("error", True)
-                span.set_attribute("exception", str(e))
-                raise e
+            raise e
         #else:
          #   with open(str(mesg.actor)+".json", "w") as outfile:
           #      outfile.write(json_data)
@@ -1176,15 +1170,11 @@ def canonize(curies):
         "drug_chemical_conflate":True
     }
     logging.info('the normalizer_URL is %s' % NORMALIZER_URL)
-    with tracer.start_as_current_span("get_normalized_node") as span:
-        try:
-            r = requests.post(NORMALIZER_URL,json.dumps(j))
-            rj=r.json()
-            return rj
-        except Exception as e:
-            span.set_attribute("error", True)
-            span.set_attribute("exception", str(e))
-            raise
+    r = requests.post(NORMALIZER_URL,json.dumps(j))
+    rj=r.json()
+    return rj
+
+
 def canonizeResults(results):
     canonical_results=[]
     for result in results:
