@@ -1,24 +1,13 @@
 from django.core import serializers
-import sys, logging, json, threading, queue, requests, os
+import sys, logging, json, threading, queue, requests
 from .models import Message
-from .tasks import send_message
+from tr_ars.tasks import send_message
 from django.utils import timezone
 from django.conf import settings
-import django
-from opentelemetry import trace
-from opentelemetry.propagate import inject
 
-# Set the Django settings module
-#os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'tr_sys.settings')
-#django.setup()
-
-# Initialize OpenTelemetry
-#from tr_sys.tr_sys.otel_config import configure_opentelemetry
-#configure_opentelemetry()
 
 logger = logging.getLogger(__name__)
-# headers={}
-# inject(headers)
+
 def send_messages(actors, messages):
     logger.debug("++ sending messages ++")
     for mesg in messages:
@@ -33,9 +22,8 @@ def send_messages(actors, messages):
                 logger.debug("Skipping actor %s/%s; it's inactive..." % (
                     actor.agent, actor.url()))
             elif settings.USE_CELERY:
-                span = trace.get_current_span()
-                logger.debug(f"CURRENT span before Celery task submission: {span}")
                 result = send_message.delay(actor.to_dict(), mesg.to_dict())
+                #logger.debug('>>>> task future: %s' % result)
                 result.forget()
             else:
                 queue1.put((actor, mesg))
@@ -47,8 +35,6 @@ class BackgroundWorker(threading.Thread):
     def run(self):
         logger.debug('%s: BackgroundWorker started!' % __name__)
         while True:
-            # headers={}
-            # inject(headers)
             actor, mesg = queue1.get()
             if actor is None:
                 break
