@@ -10,9 +10,10 @@ from opentelemetry.instrumentation.requests import RequestsInstrumentor
 
 def configure_opentelemetry():
 
-    jaeger_host = os.environ.get('JAEGER_HOST', 'jaeger-otel-agent')
-    jaeger_port = int(os.environ.get('JAEGER_PORT', '6831'))
-
+    #jaeger_host = os.environ.get('JAEGER_HOST', 'jaeger-otel-agent')
+    #jaeger_port = int(os.environ.get('JAEGER_PORT', '6831'))
+    jaeger_host='jaeger-otel-agent'
+    jaeger_port=6831
     resource = Resource.create({telemetery_service_name_key: 'ARS'})
 
     trace.set_tracer_provider(TracerProvider(resource=resource))
