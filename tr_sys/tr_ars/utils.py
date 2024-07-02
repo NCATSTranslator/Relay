@@ -44,7 +44,7 @@ ARS_ACTOR = {
 }
 
 NORMALIZER_URL=os.getenv("TR_NORMALIZER") if os.getenv("TR_NORMALIZER") is not None else "https://nodenormalization-sri.renci.org/1.4/get_normalized_nodes"
-ANNOTATOR_URL=os.getenv("TR_ANNOTATOR") if os.getenv("TR_ANNOTATOR") is not None else "https://biothings.test.ncats.io/annotator/"
+ANNOTATOR_URL=os.getenv("TR_ANNOTATOR") if os.getenv("TR_ANNOTATOR") is not None else "https://biothings.ncats.io/annotator/"
 APPRAISER_URL=os.getenv("TR_APPRAISE") if os.getenv("TR_APPRAISE") is not None else "http://localhost:9096/get_appraisal"
 
 
@@ -568,6 +568,9 @@ def post_process(mesg,key, agent_name):
         ]
         add_log_entry(data,log_tuple)
         logging.exception(f"problem with node annotation for agent: {agent_name} pk: {str(key)}")
+        mesg.status=status
+        mesg.code=code
+        mesg.save()
 
     logging.info("pre scrub null for agent %s and pk %s" % (agent_name, str(key)))
     try:
@@ -583,6 +586,9 @@ def post_process(mesg,key, agent_name):
             "DEBUG"
         ]
         add_log_entry(data,log_tuple)
+        mesg.status=status
+        mesg.code=code
+        mesg.save()
     logging.info("pre blocklist for "+str(key))
     try:
         remove_blocked(mesg, data)
@@ -591,14 +597,13 @@ def post_process(mesg,key, agent_name):
         code=444
         logging.info(e.__cause__)
         logging.exception(f"Problem with block list removal for agent: {agent_name} pk: {str(key)}")
+        mesg.status=status
+        mesg.code=code
+        mesg.save()
 
-    mesg.status=status
-    mesg.code=code
-    mesg.save(update_fields=['status','code'])
     logging.info("pre appraiser for agent %s and pk %s" % (agent_name, str(key)))
     try:
         appraise(mesg,data,agent_name)
-        logging.info("appraiser returned with code: %s and status: %s" % (mesg.code, mesg.status))
     except Exception as e:
         logging.ERROR("appraiser failed mesg for agent %s is %s: %s"% (agent_name, mesg.code, mesg.status))
 
@@ -650,7 +655,13 @@ def post_process(mesg,key, agent_name):
         try:
             mesg.save_compressed_dict(data)
             logging.info("Time before save")
+            logging.info('the mesg before save code: %s and status: %s'%(mesg.code, mesg.status))
             with transaction.atomic():
+                if mesg.code == 202:
+                    code = 200
+                    status='D'
+                mesg.code=code
+                mesg.status=status
                 mesg.save()
             logging.info("Time after save")
 
@@ -979,7 +990,7 @@ def appraise(mesg,data, agent_name,retry_counter=0):
         else:
             logging.error('results returned from appraiser is None')
         log_tuple =[
-            "Error in Appraiser: "+ str(e),
+            "Error in Appraiser "+ str(e),
             datetime.now().strftime('%H:%M:%S'),
             "ERROR"
         ]
