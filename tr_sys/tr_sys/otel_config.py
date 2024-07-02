@@ -1,6 +1,6 @@
 import os
 from opentelemetry import trace
-from opentelemetry.sdk.resources import Resource
+from opentelemetry.sdk.resources import SERVICE_NAME as telemetery_service_name_key, Resource
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
 from opentelemetry.instrumentation.django import DjangoInstrumentor
@@ -13,9 +13,7 @@ def configure_opentelemetry():
     jaeger_host = os.environ.get('JAEGER_HOST', 'jaeger-otel-agent')
     jaeger_port = int(os.environ.get('JAEGER_PORT', '6831'))
 
-    resource = Resource(attributes={
-        "service.name": "ARS"
-    })
+    resource = Resource({telemetery_service_name_key: 'ARS'})
 
     trace.set_tracer_provider(TracerProvider(resource=resource))
 
