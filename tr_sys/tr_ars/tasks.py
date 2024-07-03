@@ -66,6 +66,7 @@ def send_message(actor_dict, mesg_dict, timeout=300):
         inject(headers)
         # Make HTTP request and trace it
         try:
+            logging.info('POSTing to agent %s pk:%s with header %s'% (agent,task_id, headers))
             r = requests.post(url, json=data, headers=headers, timeout=timeout)
             span.set_attribute("http.url", url)
             span.set_attribute("http.status_code", r.status_code)
