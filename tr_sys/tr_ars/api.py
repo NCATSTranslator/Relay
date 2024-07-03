@@ -84,6 +84,42 @@ def submit(req):
     logger.debug("submit")
     """Query submission"""
     logger.debug("entering submit")
+
+    with tracer.start_as_current_span("submit") as span:
+        span.set_attribute("http.method", req.method)
+        span.set_attribute("http.url", req.build_absolute_uri())
+        span.set_attribute("user.id", req.user.id if req.user.is_authenticated else "anonymous")
+        # if span.parent is None:
+        #     span.set_attribute("is_root", True)
+        if req.method != 'POST':
+            return HttpResponse('Only POST is permitted!', status=405)
+        try:
+            logger.debug('++ submit: %s' % req.body)
+            data = json.loads(req.body)
+            # if 'message' not in data:
+            #     return HttpResponse('Not a valid Translator query json', status=400)
+            # create a head message
+            # try:
+            #     validate_Query(data)
+            # except ValidationError as ve:
+            #     logger.debug("Warning! Input query failed TRAPI validation "+str(data))
+            #     logger.debug(ve)
+            #     return HttpResponse('Input query failed TRAPI validation',status=400)
+            if("workflow" in data):
+                wf = data["workflow"]
+                if(isinstance(wf,list)):
+                    if(len(wf)>0):
+                        message = Message.create(code=202, status='Running', data=data,
+                                                 actor=get_workflow_actor())
+                        logger.debug("Sending message to workflow runner")#TO-DO CHANGE
+                        # message.save()
+                        # send_message(get_workflow_actor().to_dict(),message.to_dict())
+                        # return HttpResponse(json.dumps(data, indent=2),
+                        #                     content_type='application/json', status=201)
+            else:
+                message = Message.create(code=202, status='Running', data=data,
+                                  actor=get_default_actor())
+
     if req.method != 'POST':
         return HttpResponse('Only POST is permitted!', status=405)
 
