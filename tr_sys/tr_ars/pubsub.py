@@ -1,10 +1,10 @@
 from django.core import serializers
 import sys, logging, json, threading, queue, requests
 from .models import Message
-from tr_ars.tasks import send_message
+from .tasks import send_message
 from django.utils import timezone
 from django.conf import settings
-
+from opentelemetry import trace
 
 logger = logging.getLogger(__name__)
 
@@ -22,6 +22,8 @@ def send_messages(actors, messages):
                 logger.debug("Skipping actor %s/%s; it's inactive..." % (
                     actor.agent, actor.url()))
             elif settings.USE_CELERY:
+                span = trace.get_current_span()
+                logger.debug(f"CURRENT span before Celery task submission: {span}")
                 result = send_message.delay(actor.to_dict(), mesg.to_dict())
                 #logger.debug('>>>> task future: %s' % result)
                 result.forget()

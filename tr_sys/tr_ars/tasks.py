@@ -12,15 +12,10 @@ from tr_smartapi_client.smart_api_discover import SmartApiDiscover
 import traceback
 from django.utils import timezone
 from django.shortcuts import get_object_or_404
-import copy
 from opentelemetry import trace
-from opentelemetry.context import attach, detach, get_current
-from opentelemetry.propagate import inject, extract
+from opentelemetry.propagate import inject
 
 logger = get_task_logger(__name__)
-#logger.propagate = True
-# Initialize Redis
-#redis_client = redis.StrictRedis(host='localhost', port=6379, db=0)
 
 
 @shared_task(name="send-message-to-actor")
