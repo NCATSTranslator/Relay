@@ -17,7 +17,8 @@ def configure_opentelemetry():
     try:
         jaeger_host= 'jaeger-otel-agent.sri'
         jaeger_port= 6831
-        resource = Resource.create({telemetery_service_name_key: 'ARS'})
+        service_name= 'ARS'
+        resource = Resource.create({telemetery_service_name_key: service_name})
 
         trace.set_tracer_provider(TracerProvider(resource=resource))
 
