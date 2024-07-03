@@ -38,7 +38,7 @@ def configure_opentelemetry():
         tracer_provider.add_span_processor(BatchSpanProcessor(console_exporter))
 
         DjangoInstrumentor().instrument()
-        CeleryInstrumentor().instrument()
+        #CeleryInstrumentor().instrument()
         RequestsInstrumentor().instrument()
         logging.info('Finished instrumenting ARS app for OTEL')
     except Exception as e:
