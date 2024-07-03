@@ -29,6 +29,7 @@ app.autodiscover_tasks()
 def debug_task(self):
     print('Request: {0!r}'.format(self.request))
 
+CeleryInstrumentor().instrument()
 
 app.conf.beat_schedule = {
  #Excute the timeout fucntion every 3 min
