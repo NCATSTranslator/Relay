@@ -16,7 +16,6 @@ import copy
 from opentelemetry import trace
 from opentelemetry.context import attach, detach, get_current
 from opentelemetry.propagate import inject, extract
-import redis
 
 logger = get_task_logger(__name__)
 #logger.propagate = True
