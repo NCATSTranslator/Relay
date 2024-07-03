@@ -14,11 +14,23 @@ from django.utils import timezone
 from django.shortcuts import get_object_or_404
 from opentelemetry import trace
 from opentelemetry.propagate import inject
+# Ensure that the tracing context is properly propagated within tasks
+from opentelemetry.context import attach, detach, set_value, get_current
 
 logger = get_task_logger(__name__)
 
+def propagate_context(func):
+    def wrapper(*args, **kwargs):
+        token = attach(get_current())
+        try:
+            return func(*args, **kwargs)
+        finally:
+            detach(token)
+    return wrapper
+
 
 @shared_task(name="send-message-to-actor")
+@propagate_context
 def send_message(actor_dict, mesg_dict, timeout=300):
     span = trace.get_current_span()
     logger.debug(f"CURRENT span before task execution: {span}")
