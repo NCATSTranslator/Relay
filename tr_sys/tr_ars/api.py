@@ -494,6 +494,7 @@ def message(req, key):
                     #message_to_merge =utils.get_safe(data,"message")
                     message_to_merge = data
                     agent_name = str(mesg.actor.agent.name)
+                    span.set_attribute("agent", agent_name)
                     logger.info("Running pre_merge_process for agent %s with %s" % (agent_name, len(res)))
                     utils.pre_merge_process(message_to_merge,key, agent_name, inforesid)
                     if mesg.data and 'results' in mesg.data and mesg.data['results'] != None and len(mesg.data['results']) > 0:
