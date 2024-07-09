@@ -477,6 +477,7 @@ def message(req, key):
                 kg = utils.get_safe(data,"message", "knowledge_graph")
                 actor = Actor.objects.get(pk=mesg.actor_id)
                 inforesid =actor.inforesid
+                span.set_attribute("agent", inforesid)
                 logging.info('received msg from agent: %s with parent pk: %s' % (str(inforesid), str(mesg.ref_id)))
                 if mesg.result_count is not None and mesg.result_count >0:
                     return HttpResponse('ARS already has a response with: %s results for pk %s \nWe are temporarily '
@@ -494,7 +495,6 @@ def message(req, key):
                     #message_to_merge =utils.get_safe(data,"message")
                     message_to_merge = data
                     agent_name = str(mesg.actor.agent.name)
-                    span.set_attribute("agent", agent_name)
                     logger.info("Running pre_merge_process for agent %s with %s" % (agent_name, len(res)))
                     utils.pre_merge_process(message_to_merge,key, agent_name, inforesid)
                     if mesg.data and 'results' in mesg.data and mesg.data['results'] != None and len(mesg.data['results']) > 0:
