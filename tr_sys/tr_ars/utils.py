@@ -675,31 +675,30 @@ def merge_and_post_process(parent_pk,message_to_merge, agent_name, counter=0):
                 merged.status='E'
                 merged.code = 422
                 merged.save()
-
     else:
-        #If there is currently a merge happening, we wait until it finishes to do our merge
         if counter < 5:
-            logging.debug("Merged_version locked for %s.  Attempt %s:" % (agent_name, str(counter)))
+            logging.info("Merged_version locked for %s.  Attempt %s:" % (agent_name, str(counter)))
             sleeptime.sleep(5)
             counter = counter + 1
             merge_and_post_process(parent_pk,message_to_merge, agent_name, counter)
         else:
-            logging.debug("Merging failed for %s %s" % (agent_name, str(parent_pk)))
+            logging.info("Merging failed for %s %s" % (agent_name, str(parent_pk)))
 
-    if merged is not None:
-        try:
-            logging.info('merged data for agent %s with pk %s is returned & ready to be preprocessed' % (agent_name, str(merged.id)))
-            merged_data = merged.decompress_dict()
-            post_process(merged_data,merged.id, agent_name)
-            logging.info('post processing complete for agent %s with pk %s is returned & ready to be preprocessed' % (agent_name, str(merged.id)))
+    if merged:
+        if merged is not None:
+            try:
+                logging.info('merged data for agent %s with pk %s is returned & ready to be preprocessed' % (agent_name, str(merged.id)))
+                merged_data = merged.decompress_dict()
+                post_process(merged_data,merged.id, agent_name)
+                logging.info('post processing complete for agent %s with pk %s is returned & ready to be preprocessed' % (agent_name, str(merged.id)))
 
-        except Exception as e:
-            logging.info("Problem with post processing for agent %s pk: %s " % (agent_name, (parent_pk)))
-            logging.info(e, exc_info=True)
-            logging.info('error message %s' % str(e))
-            merged.status='E'
-            merged.code = 422
-            merged.save()
+            except Exception as e:
+                logging.info("Problem with post processing for agent %s pk: %s " % (agent_name, (parent_pk)))
+                logging.info(e, exc_info=True)
+                logging.info('error message %s' % str(e))
+                merged.status='E'
+                merged.code = 422
+                merged.save()
 
 def remove_blocked(mesg, data, blocklist=None):
     try:
