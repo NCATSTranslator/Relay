@@ -44,7 +44,7 @@ ARS_ACTOR = {
     'inforesid': 'ARS'
 }
 
-NORMALIZER_URL=os.getenv("TR_NORMALIZER") if os.getenv("TR_NORMALIZER") is not None else "https://nodenormalization-sri.renci.org/1.4/get_normalized_nodes"
+NORMALIZER_URL=os.getenv("TR_NORMALIZER") if os.getenv("TR_NORMALIZER") is not None else "https://nodenorm.ci.transltr.io/get_normalized_nodes"
 ANNOTATOR_URL=os.getenv("TR_ANNOTATOR") if os.getenv("TR_ANNOTATOR") is not None else "https://biothings.ncats.io/annotator/"
 APPRAISER_URL=os.getenv("TR_APPRAISE") if os.getenv("TR_APPRAISE") is not None else "http://localhost:9096/get_appraisal"
 
@@ -699,6 +699,8 @@ def merge_and_post_process(parent_pk,message_to_merge, agent_name, counter=0):
                 merged.status='E'
                 merged.code = 422
                 merged.save()
+    else:
+        pass
 
 def remove_blocked(mesg, data, blocklist=None):
     try:
