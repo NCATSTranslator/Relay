@@ -28,8 +28,9 @@ def propagate_context(func):
             detach(token)
     return wrapper
 
-@propagate_context
+
 @shared_task(name="send-message-to-actor")
+@propagate_context
 def send_message(actor_dict, mesg_dict, timeout=300):
     span = trace.get_current_span()
     logger.debug(f"CURRENT span before task execution: {span}")
