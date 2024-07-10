@@ -699,6 +699,8 @@ def merge_and_post_process(parent_pk,message_to_merge, agent_name, counter=0):
                 merged.status='E'
                 merged.code = 422
                 merged.save()
+    else:
+        pass
 
 def remove_blocked(mesg, data, blocklist=None):
     try:
