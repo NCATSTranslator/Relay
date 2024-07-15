@@ -39,6 +39,7 @@ spec:
               value: {{ .Values.arsserver.env.TR_NORMALIZER }}
             - name: TR_ANNOTATOR
               value: {{ .Values.arsserver.env.TR_ANNOTATOR }}
+
           {{- with .Values.arsserver.resources }}
           resources:
             {{- toYaml . | nindent 12 }}
@@ -59,6 +60,7 @@ spec:
               value: {{ .Values.celeryworker.env.TR_NORMALIZER }}
             - name: TR_ANNOTATOR
               value: {{ .Values.celeryworker.env.TR_ANNOTATOR }}
+
           {{- with .Values.celeryworker.resources }}
           resources:
             {{- toYaml . | nindent 12 }}

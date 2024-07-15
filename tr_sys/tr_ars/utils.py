@@ -31,7 +31,8 @@ from reasoner_pydantic import (
     Response as vResponse
 )
 from pydantic import ValidationError
-
+from opentelemetry import trace
+tracer = trace.get_tracer(__name__)
 
 ARS_ACTOR = {
     'channel': [],
@@ -43,7 +44,7 @@ ARS_ACTOR = {
     'inforesid': 'ARS'
 }
 
-NORMALIZER_URL=os.getenv("TR_NORMALIZER") if os.getenv("TR_NORMALIZER") is not None else "https://nodenormalization-sri.renci.org/1.4/get_normalized_nodes"
+NORMALIZER_URL=os.getenv("TR_NORMALIZER") if os.getenv("TR_NORMALIZER") is not None else "https://nodenorm.ci.transltr.io/get_normalized_nodes"
 ANNOTATOR_URL=os.getenv("TR_ANNOTATOR") if os.getenv("TR_ANNOTATOR") is not None else "https://biothings.ncats.io/annotator/"
 APPRAISER_URL=os.getenv("TR_APPRAISE") if os.getenv("TR_APPRAISE") is not None else "http://localhost:9096/get_appraisal"
 
@@ -707,16 +708,15 @@ def merge_and_post_process(parent_pk,message_to_merge, agent_name, counter=0):
                 merged.status='E'
                 merged.code = 422
                 merged.save()
-
     else:
-        #If there is currently a merge happening, we wait until it finishes to do our merge
         if counter < 5:
-            logging.debug("Merged_version locked for %s.  Attempt %s:" % (agent_name, str(counter)))
+            logging.info("Merged_version locked for %s.  Attempt %s:" % (agent_name, str(counter)))
             sleeptime.sleep(5)
             counter = counter + 1
             merge_and_post_process(parent_pk,message_to_merge, agent_name, counter)
         else:
-            logging.debug("Merging failed for %s %s" % (agent_name, str(parent_pk)))
+            logging.info("Merging failed for %s %s" % (agent_name, str(parent_pk)))
+
 
     if merged is not None:
         logging.info('merged data for agent %s with pk %s is returned & ready to be preprocessed' % (agent_name, str(merged.id)))
@@ -725,6 +725,7 @@ def merge_and_post_process(parent_pk,message_to_merge, agent_name, counter=0):
         merged.status = status
         merged.code = code
         merged.save()
+
 
 def remove_blocked(mesg, data, blocklist=None):
     try:
@@ -953,53 +954,55 @@ def appraise(mesg,data, agent_name,retry_counter=0):
     headers = {'Content-type': 'application/json', 'Accept': 'text/plain'}
     json_data = json.dumps(data)
     logging.info('sending data for agent: %s to APPRAISER URL: %s' % (agent_name, APPRAISER_URL))
-    try:
-        with requests.post(APPRAISER_URL,data=json_data,headers=headers, stream=True) as r:
-            logging.info("Appraiser being called at: "+APPRAISER_URL)
-            logging.info('the response for agent %s to appraiser code is: %s' % (agent_name, r.status_code))
-            if r.status_code==200:
-                rj = r.json()
-                #for now, just update the whole message, but we could be more precise/efficient
-                logging.info("Updating message with appraiser data for agent %s and pk %s " % (agent_name, str(mesg.id)))
-                data['message']['results']=rj['message']['results']
-                logging.info("Updating message with appraiser data complete for "+str(mesg.id))
-            else:
-                retry_counter +=1
-                logging.info("Received Error state from appraiser for agent %s and pk %s  Code %s Attempt %s" % (agent_name,str(mesg.id),str(r.status_code),str(retry_counter)))
-                logging.info("JSON fields "+str(json_data)[:100])
-                if retry_counter<3:
-                    appraise(mesg,data, agent_name,retry_counter)
+    with tracer.start_as_current_span("get_appraisal") as span:
+        try:
+            with requests.post(APPRAISER_URL,data=json_data,headers=headers, stream=True) as r:
+                logging.info("Appraiser being called at: "+APPRAISER_URL)
+                logging.info('the response for agent %s to appraiser code is: %s' % (agent_name, r.status_code))
+                if r.status_code==200:
+                    rj = r.json()
+                    #for now, just update the whole message, but we could be more precise/efficient
+                    logging.info("Updating message with appraiser data for agent %s and pk %s " % (agent_name, str(mesg.id)))
+                    data['message']['results']=rj['message']['results']
+                    logging.info("Updating message with appraiser data complete for "+str(mesg.id))
                 else:
-                    logging.error("3 consecutive Errors from appraise for agent %s and pk %s " % (agent_name,str(mesg.id)))
-                    raise Exception
-    except Exception as e:
-        logging.error("Problem with appraiser for agent %s and pk %s of type %s" % (agent_name,str(mesg.id),type(e).__name__))
-        logging.error("Adding default ordering_components for agent %s and pk %s " % (agent_name,str(mesg.id)))
-        results = get_safe(data,"message","results")
-        default_ordering_component = {
-            "novelty": 0,
-            "confidence": 0,
-            "clinical_evidence": 0
-        }
-        if results is not None:
-            for result in results:
-                if 'ordering_components' not in result.keys():
-                    result['ordering_components']=default_ordering_component
-                else:
-                    continue
-        else:
-            logging.error('results returned from appraiser is None')
-        log_tuple =[
-            "Error in Appraiser "+ str(e),
-            datetime.now().strftime('%H:%M:%S'),
-            "ERROR"
-        ]
-        add_log_entry(data,log_tuple)
-        mesg.save_compressed_dict(data)
-        mesg.status='E'
-        mesg.code = 422
-        mesg.save(update_fields=['status','code'])
-
+                    retry_counter +=1
+                    logging.info("Received Error state from appraiser for agent %s and pk %s  Code %s Attempt %s" % (agent_name,str(mesg.id),str(r.status_code),str(retry_counter)))
+                    logging.info("JSON fields "+str(json_data)[:100])
+                    if retry_counter<3:
+                        appraise(mesg,data, agent_name,retry_counter)
+                    else:
+                        logging.error("3 consecutive Errors from appraise for agent %s and pk %s " % (agent_name,str(mesg.id)))
+                        raise Exception
+        except Exception as e:
+              logging.error("Problem with appraiser for agent %s and pk %s of type %s" % (agent_name,str(mesg.id),type(e).__name__))
+              logging.error("Adding default ordering_components for agent %s and pk %s " % (agent_name,str(mesg.id)))
+              span.set_attribute("error", True)
+              span.set_attribute("exception", str(e))
+              results = get_safe(data,"message","results")
+              default_ordering_component = {
+                  "novelty": 0,
+                  "confidence": 0,
+                  "clinical_evidence": 0
+              }
+              if results is not None:
+                  for result in results:
+                      if 'ordering_components' not in result.keys():
+                          result['ordering_components']=default_ordering_component
+                      else:
+                          continue
+              else:
+                  logging.error('results returned from appraiser is None')
+              log_tuple =[
+                 "Error in Appraiser "+ str(e),
+                 datetime.now().strftime('%H:%M:%S'),
+                  "ERROR"
+              ]
+              add_log_entry(data,log_tuple)
+              mesg.save_compressed_dict(data)
+              mesg.status='E'
+              mesg.code = 422
+              mesg.save(update_fields=['status','code'])
 
 def annotate_nodes(mesg,data,agent_name):
     #TODO pull this URL from SmartAPI
@@ -1025,31 +1028,38 @@ def annotate_nodes(mesg,data,agent_name):
             for key in invalid_nodes.keys():
                 del nodes_message['message']['knowledge_graph']['nodes'][key]
 
-
         json_data = json.dumps(nodes_message)
-        try:
-            logging.info('posting data to the annotator URL %s' % ANNOTATOR_URL)
-            # with open(str(mesg.pk)+'_'+agent_name+"_KG_nodes_annotator.json", "w") as outfile:
-            #     outfile.write(json_data)
-            r = requests.post(ANNOTATOR_URL,data=json_data,headers=headers)
-            r.raise_for_status()
-            rj=r.json()
-            logging.info('the response status for agent %s node annotator is: %s' % (agent_name,r.status_code))
-            if r.status_code==200:
-                for key, value in rj.items():
-                    if 'attributes' in value.keys() and value['attributes'] is not None:
-                        for attribute in value['attributes']:
-                            if attribute is not None:
-                                add_attribute(data['message']['knowledge_graph']['nodes'][key],attribute)
-                            
-                    #Not sure about adding back clearly borked nodes, but it is in keeping with policy of non-destructiveness
-                if len(invalid_nodes)>0:
-                    data['message']['knowledge_graph']['nodes'].update(invalid_nodes)
-            else:
-                post_processing_error(mesg,data,"Error in annotation of nodes")
-        except Exception as e:
-            logging.exception('node annotation internal error msg is for agent %s with pk: %s is  %s' % (agent_name,str(mesg.pk),str(e)))
-            raise e
+        logging.info('posting data to the annotator URL %s' % ANNOTATOR_URL)
+        # with open(str(mesg.pk)+'_'+agent_name+"_KG_nodes_annotator.json", "w") as outfile:
+        #     outfile.write(json_data)
+        with tracer.start_as_current_span("annotator") as span:
+            try:
+                r = requests.post(ANNOTATOR_URL,data=json_data,headers=headers)
+                r.raise_for_status()
+                rj=r.json()
+                logging.info('the response status for agent %s node annotator is: %s' % (agent_name,r.status_code))
+                if r.status_code==200:
+                    for key, value in rj.items():
+                        if 'attributes' in value.keys() and value['attributes'] is not None:
+                            for attribute in value['attributes']:
+                                if attribute is not None:
+                                    add_attribute(data['message']['knowledge_graph']['nodes'][key],attribute)
+
+                        #Not sure about adding back clearly borked nodes, but it is in keeping with policy of non-destructiveness
+                    if len(invalid_nodes)>0:
+                        data['message']['knowledge_graph']['nodes'].update(invalid_nodes)
+                else:
+                    post_processing_error(mesg,data,"Error in annotation of nodes")
+            except Exception as e:
+                logging.info('node annotation internal error msg is for agent %s with pk: %s is  %s' % (agent_name,str(mesg.pk),str(e)))
+                logging.exception("error in node annotation internal function")
+                span.set_attribute("error", True)
+                span.set_attribute("exception", str(e))
+                raise e
+        #else:
+         #   with open(str(mesg.actor)+".json", "w") as outfile:
+          #      outfile.write(json_data)
+           # post_processing_error(mesg,data,"Error in annotation of nodes")
 
 def normalize_scores(data,key, agent_name):
     res=get_safe(data,"message","results")
@@ -1209,9 +1219,15 @@ def canonize(curies):
         "drug_chemical_conflate":True
     }
     logging.info('the normalizer_URL is %s' % NORMALIZER_URL)
-    r = requests.post(NORMALIZER_URL,json.dumps(j))
-    rj=r.json()
-    return rj
+    with tracer.start_as_current_span("get_normalized_node") as span:
+        try:
+            r = requests.post(NORMALIZER_URL,json.dumps(j))
+            rj=r.json()
+            return rj
+        except Exception as e:
+            span.set_attribute("error", True)
+            span.set_attribute("exception", str(e))
+            raise
 
 
 def canonizeResults(results):
