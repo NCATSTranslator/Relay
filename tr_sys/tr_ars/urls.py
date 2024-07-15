@@ -16,7 +16,6 @@ apipatterns = [
     re_path(r'^filters/?$', api.filters, name='ars-filters'),
     path('filter/<uuid:key>', api.filter, name='ars-filter'),
     path('reports/<inforesid>',api.get_report,name='ars-report'),
-    re_path(r'^status/?$', api.status, name='ars-status'),
     re_path(r'^timeoutTest/?$', api.timeoutTest, name='ars-timeout'),
     path('merge/<uuid:key>', api.merge, name='ars-merge'),
     path('retain/<uuid:key>', api.retain, name='ars-retain'),
