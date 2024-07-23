@@ -742,7 +742,7 @@ def remove_blocked(mesg, data, blocklist=None):
         removed_nodes=[]
         #The set of ids of nodes that need to be removed is the intersection of the Nodes keys and the blocklist
         if nodes is not None:
-            nodes_to_remove= list(set(blocklist) & set(nodes.keys()))
+            nodes_to_remove= list(set(blocklist.keys()) & set(nodes.keys()))
             #We remove those nodes first from the knowledge graph
             for node in nodes_to_remove:
                 removed_nodes.append(nodes[node])
