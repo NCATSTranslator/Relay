@@ -821,7 +821,6 @@ def timeoutTest(req,time=300):
     else:
         pass
         #utils.remove_blocked()
-
 def block(req,key):
     if req.method == 'GET':
         mesg = get_object_or_404(Message.objects.filter(pk=key))

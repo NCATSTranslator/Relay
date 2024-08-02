@@ -46,7 +46,7 @@ ARS_ACTOR = {
 
 NORMALIZER_URL=os.getenv("TR_NORMALIZER") if os.getenv("TR_NORMALIZER") is not None else "https://nodenorm.ci.transltr.io/get_normalized_nodes"
 ANNOTATOR_URL=os.getenv("TR_ANNOTATOR") if os.getenv("TR_ANNOTATOR") is not None else "https://biothings.ncats.io/annotator/"
-APPRAISER_URL=os.getenv("TR_APPRAISE") if os.getenv("TR_APPRAISE") is not None else "http://localhost:9096/get_appraisal"
+APPRAISER_URL=os.getenv("TR_APPRAISE") if os.getenv("TR_APPRAISE") is not None else "https://answerappraiser.ci.transltr.io/get_appraisal"
 
 
 class QueryGraph():
@@ -367,15 +367,36 @@ def mergeDicts(dcurrent,dmerged):
         dmerged ={}
     for key in dcurrent.keys():
         cv=dcurrent[key]
-        #print("key is "+str(key))
         if key in dmerged.keys():
-
             mv=dmerged[key]
+            if key == 'node_bindings':
+                cvv = [{node_key:node_value[0]} for node_key, node_value in cv.items() if 'id' in node_value[0]]
+                mvv = [{node_key:node_value[0]} for node_key, node_value in mv.items() if 'id' in node_value[0]]
+                if (all(isinstance(x, dict) for x in mvv)
+                    and all(isinstance(y, dict) for y in cvv)):
+                    cmap={}
+                    mmap={}
+                    for cd in cvv:
+                        for cd_key, cd_val in cd.items():
+                            if 'id' in cd_val:
+                                cmap[cd_val['id']]=cd_val
+                    for md in mvv:
+                        for md_key, md_val in md.items():
+                            if 'id' in md_val:
+                                mmap[md_val['id']]=md_val
+
+                    for ck in cmap.keys():
+                        if ck in mmap.keys():
+                            mmap[ck]=mergeDicts(cmap[ck],mmap[ck])
+                    else:
+                            mmap[ck]=cmap[ck]
+                    #dmerged[key]=list(mmap.values())
+                    # return dmerged
             #analyses are a special case in which we just append them at the result level
-            if key == 'analyses':
+            elif key == 'analyses':
                 dmerged[key]=mv+cv
                 return dmerged
-            if (isinstance(cv,dict) and isinstance(mv,dict)):
+            elif (isinstance(cv,dict) and isinstance(mv,dict)):
                 #print("merging dicts")
                 dmerged[key]=mergeDicts(cv,mv)
             elif isinstance(mv,list) and not isinstance(cv,list):
@@ -819,7 +840,7 @@ def remove_blocked(mesg, data, blocklist=None):
                                         if binding['id'] in edges_to_remove:
                                             if(len(bindings)>1):
                                                 bindings_to_remove.append(binding)
-                                            else:
+                                            elif analysis not in analyses_to_remove:
                                                 analyses_to_remove.append(analysis)
                                     for br in bindings_to_remove:
                                         bindings.remove(br)

@@ -32056,5 +32056,19 @@
             "biolink:NamedThing",
             "biolink:PhysicalEssenceOrOccurrent"
         ]
+    },
+    "CHEBI:28694": {
+        "name": "copper atom",
+        "type": [
+            "biolink:SmallMolecule",
+            "biolink:MolecularEntity",
+            "biolink:ChemicalEntity",
+            "biolink:PhysicalEssence",
+            "biolink:ChemicalOrDrugOrTreatment",
+            "biolink:ChemicalEntityOrGeneOrGeneProduct",
+            "biolink:ChemicalEntityOrProteinOrPolypeptide",
+            "biolink:NamedThing",
+            "biolink:PhysicalEssenceOrOccurrent"
+        ]
     }
 }
