@@ -32156,5 +32156,21 @@
             "biolink:NamedThing",
             "biolink:PhysicalEssenceOrOccurrent"
         ]
+    },
+    "UMLS:C1258800": {
+        "name": "Anabolic Agents",
+        "type": [
+            "biolink:Drug",
+            "biolink:ChemicalOrDrugOrTreatment",
+            "biolink:OntologyClass",
+            "biolink:MolecularMixture",
+            "biolink:ChemicalMixture",
+            "biolink:ChemicalEntity",
+            "biolink:PhysicalEssence",
+            "biolink:ChemicalEntityOrGeneOrGeneProduct",
+            "biolink:ChemicalEntityOrProteinOrPolypeptide",
+            "biolink:NamedThing",
+            "biolink:PhysicalEssenceOrOccurrent"
+        ]
     }
 }
