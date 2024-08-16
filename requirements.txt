@@ -27,4 +27,5 @@ opentelemetry-instrumentation-django
 opentelemetry-exporter-jaeger
 opentelemetry-instrumentation-requests
 opentelemetry-instrumentation-celery
+brotli
 
