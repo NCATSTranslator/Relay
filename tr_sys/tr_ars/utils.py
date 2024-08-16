@@ -1,6 +1,7 @@
 import copy
 import json
 import logging
+import brotli
 import traceback
 import os, sys
 from datetime import time, datetime
@@ -1027,7 +1028,7 @@ def appraise(mesg,data, agent_name,retry_counter=0):
 
 def annotate_nodes(mesg,data,agent_name):
     #TODO pull this URL from SmartAPI
-    headers = {'Content-type': 'application/json', 'Accept': 'text/plain'}
+    headers = {'Content-type': 'application/json', 'Accept': 'text/plain','Content-Encoding': 'br'}
     nodes = get_safe(data,"message","knowledge_graph","nodes")
     if nodes is not None:
         nodes_message = {
@@ -1050,10 +1051,11 @@ def annotate_nodes(mesg,data,agent_name):
                 del nodes_message['message']['knowledge_graph']['nodes'][key]
 
         json_data = json.dumps(nodes_message)
+        compress_nodes=brotli.compress(json_data.encode('utf-8'))
         logging.info('posting data to the annotator URL %s' % ANNOTATOR_URL)
         with tracer.start_as_current_span("annotator") as span:
             try:
-                r = requests.post(ANNOTATOR_URL,data=json_data,headers=headers)
+                r = requests.post(ANNOTATOR_URL,data=compress_nodes,headers=headers)
                 r.raise_for_status()
                 rj=r.json()
                 logging.info('the response status for agent %s node annotator is: %s' % (agent_name,r.status_code))
