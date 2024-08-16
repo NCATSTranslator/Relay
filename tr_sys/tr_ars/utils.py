@@ -1,7 +1,6 @@
 import copy
 import json
 import logging
-import brotli
 import traceback
 import os, sys
 from datetime import time, datetime
@@ -46,7 +45,7 @@ ARS_ACTOR = {
 }
 
 NORMALIZER_URL=os.getenv("TR_NORMALIZER") if os.getenv("TR_NORMALIZER") is not None else "https://nodenorm.ci.transltr.io/get_normalized_nodes"
-ANNOTATOR_URL=os.getenv("TR_ANNOTATOR") if os.getenv("TR_ANNOTATOR") is not None else "https://biothings.ncats.io/annotator/"
+ANNOTATOR_URL=os.getenv("TR_ANNOTATOR") if os.getenv("TR_ANNOTATOR") is not None else "https://annotator.ci.transltr.io/trapi/"
 APPRAISER_URL=os.getenv("TR_APPRAISE") if os.getenv("TR_APPRAISE") is not None else "https://answerappraiser.ci.transltr.io/get_appraisal"
 
 
@@ -1028,7 +1027,7 @@ def appraise(mesg,data, agent_name,retry_counter=0):
 
 def annotate_nodes(mesg,data,agent_name):
     #TODO pull this URL from SmartAPI
-    headers = {'Content-type': 'application/json', 'Accept': 'text/plain','Content-Encoding': 'br'}
+    headers = {'Content-Encoding': 'br'}
     nodes = get_safe(data,"message","knowledge_graph","nodes")
     if nodes is not None:
         nodes_message = {
@@ -1050,12 +1049,11 @@ def annotate_nodes(mesg,data,agent_name):
             for key in invalid_nodes.keys():
                 del nodes_message['message']['knowledge_graph']['nodes'][key]
 
-        json_data = json.dumps(nodes_message)
-        compress_nodes=brotli.compress(json_data.encode('utf-8'))
+        #json_data = json.dumps(nodes_message)
         logging.info('posting data to the annotator URL %s' % ANNOTATOR_URL)
         with tracer.start_as_current_span("annotator") as span:
             try:
-                r = requests.post(ANNOTATOR_URL,data=compress_nodes,headers=headers)
+                r = requests.post(ANNOTATOR_URL,json=nodes_message,headers=headers)
                 r.raise_for_status()
                 rj=r.json()
                 logging.info('the response status for agent %s node annotator is: %s' % (agent_name,r.status_code))
