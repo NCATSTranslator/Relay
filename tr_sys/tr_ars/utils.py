@@ -45,7 +45,7 @@ ARS_ACTOR = {
 }
 
 NORMALIZER_URL=os.getenv("TR_NORMALIZER") if os.getenv("TR_NORMALIZER") is not None else "https://nodenorm.ci.transltr.io/get_normalized_nodes"
-ANNOTATOR_URL=os.getenv("TR_ANNOTATOR") if os.getenv("TR_ANNOTATOR") is not None else "https://annotator.ci.transltr.io/trapi/"
+ANNOTATOR_URL=os.getenv("TR_ANNOTATOR") if os.getenv("TR_ANNOTATOR") is not None else "https://annotator.ci.transltr.io/curie"
 APPRAISER_URL=os.getenv("TR_APPRAISE") if os.getenv("TR_APPRAISE") is not None else "https://answerappraiser.ci.transltr.io/get_appraisal"
 
 
@@ -1031,23 +1031,18 @@ def annotate_nodes(mesg,data,agent_name):
     nodes = get_safe(data,"message","knowledge_graph","nodes")
     if nodes is not None:
         nodes_message = {
-            "message":
-                {
-                    "knowledge_graph":{
-                        "nodes":nodes
-                    }
-                }
+            "ids": [node_key for node_key in nodes.keys() if nodes is not None]
         }
         #we have to scrub input for invalid CURIEs or we'll get a 500 back from the annotator
         curie_pattern = re.compile("[\w\.]+:[\w\.]+")
         invalid_nodes={}
 
-        for key in nodes_message['message']['knowledge_graph']['nodes'].keys():
+        for key in nodes_message['ids']:
             if not curie_pattern.match(str(key)):
-                invalid_nodes[key]=nodes_message['message']['knowledge_graph']['nodes'][key]
+                invalid_nodes[key]=nodes[key]
         if len(invalid_nodes)!=0:
             for key in invalid_nodes.keys():
-                del nodes_message['message']['knowledge_graph']['nodes'][key]
+                nodes_message['ids'].remove(key)
 
         #json_data = json.dumps(nodes_message)
         logging.info('posting data to the annotator URL %s' % ANNOTATOR_URL)
@@ -1059,11 +1054,16 @@ def annotate_nodes(mesg,data,agent_name):
                 logging.info('the response status for agent %s node annotator is: %s' % (agent_name,r.status_code))
                 if r.status_code==200:
                     for key, value in rj.items():
-                        if 'attributes' in value.keys() and value['attributes'] is not None:
-                            for attribute in value['attributes']:
-                                if attribute is not None:
-                                    add_attribute(data['message']['knowledge_graph']['nodes'][key],attribute)
-
+                        if isinstance(value, list) and 'notfound' in value[0].keys() and value[0]['notfound'] == True:
+                            pass
+                        elif isinstance(value, dict) and value == {}:
+                            pass
+                        else:
+                            attribute={
+                                "attribute_type_id": "biothings_annotations",
+                                "value": value
+                            }
+                            add_attribute(data['message']['knowledge_graph']['nodes'][key],attribute)
                         #Not sure about adding back clearly borked nodes, but it is in keeping with policy of non-destructiveness
                     if len(invalid_nodes)>0:
                         data['message']['knowledge_graph']['nodes'].update(invalid_nodes)
@@ -1072,6 +1072,7 @@ def annotate_nodes(mesg,data,agent_name):
             except Exception as e:
                 logging.info('node annotation internal error msg is for agent %s with pk: %s is  %s' % (agent_name,str(mesg.pk),str(e)))
                 logging.exception("error in node annotation internal function")
+                logging.info(f'response error %s'%(r.text))
                 span.set_attribute("error", True)
                 span.set_attribute("exception", str(e))
                 raise e
