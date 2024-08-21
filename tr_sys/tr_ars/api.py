@@ -90,7 +90,7 @@ def submit(req):
         span.set_attribute("http.method", req.method)
         span.set_attribute("http.url", req.build_absolute_uri())
         span.set_attribute("user.id", req.user.id if req.user.is_authenticated else "anonymous")
-
+        logger.debug(f"Submit span: {span}")
         if req.method != 'POST':
             return HttpResponse('Only POST is permitted!', status=405)
         try:

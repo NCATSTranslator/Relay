@@ -30,10 +30,7 @@ def propagate_context(func):
 
 
 @shared_task(name="send-message-to-actor")
-@propagate_context
 def send_message(actor_dict, mesg_dict, timeout=300):
-    span = trace.get_current_span()
-    logger.debug(f"CURRENT span before task execution: {span}")
     tracer = trace.get_tracer(__name__)
     infores=actor_dict['fields']['inforesid']
     agent= infores.split(':')[1]
@@ -74,12 +71,18 @@ def send_message(actor_dict, mesg_dict, timeout=300):
         span.set_attribute("pk", str(mesg.pk))
         span.set_attribute("ref_pk", str(mesg.ref_id))
         span.set_attribute("agent", agent)
-        headers={}
-        inject(headers)
         # Make HTTP request and trace it
         try:
-            logging.info('POSTing to agent %s pk:%s with header %s'% (agent,task_id, headers))
-            r = requests.post(url, json=data, headers=headers, timeout=timeout)
+            logger.debug(f"CURRENT span before request post call: {span}")
+            #having to manually generate the traceparent_id since the automatic generation is disabled
+            span_context = span.get_span_context()
+            trace_id = span_context.trace_id
+            span_id = span_context.span_id
+            trace_flags = span_context.trace_flags
+            # Format the traceparent header
+            traceparent_header = (f"00-{trace_id:032x}-{span_id:016x}-{trace_flags:02x}")
+            logging.info('POSTing to agent %s pk:%s with traceparent: %s '% (agent,task_id, traceparent_header))
+            r = requests.post(url, json=data, timeout=timeout)
             span.set_attribute("http.url", url)
             span.set_attribute("http.status_code", r.status_code)
             span.set_attribute("http.method", "POST")
@@ -211,6 +214,7 @@ def send_message(actor_dict, mesg_dict, timeout=300):
                     # logging.debug("Post processing done for "+str(new_merged.pk))
                     #parent = get_object_or_404(Message.objects.filter(pk=parent_pk))
                     #logging.info(f'parent merged_versions_list before going into merge&post-process for pk: %s are %s' % (parent_pk,parent.merged_versions_list))
+                    #utils.merge_and_post_process(parent_pk,message_to_merge['message'],agent_name)
                     #utils.merge_and_post_process(parent_pk,message_to_merge['message'],agent_name)
                     utils.merge_and_post_process.apply_async((parent_pk,message_to_merge['message'],agent_name))
                     logger.info("post async call for agent %s" % agent_name)
