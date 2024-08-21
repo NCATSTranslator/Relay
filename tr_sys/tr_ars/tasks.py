@@ -111,7 +111,7 @@ def send_message(actor_dict, mesg_dict, timeout=300):
             # ('E', 'Error'),
             # ('W', 'Waiting'),
             # ('U', 'Unknown')
-            if r.status_code == 200 or (r.status_code == 400 and agent == 'arax'):
+            if r.status_code == 200:
                 rdata = dict()
                 try:
                     rdata = r.json()
