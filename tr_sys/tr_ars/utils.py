@@ -45,7 +45,7 @@ ARS_ACTOR = {
 }
 
 NORMALIZER_URL=os.getenv("TR_NORMALIZER") if os.getenv("TR_NORMALIZER") is not None else "https://nodenorm.ci.transltr.io/get_normalized_nodes"
-ANNOTATOR_URL=os.getenv("TR_ANNOTATOR") if os.getenv("TR_ANNOTATOR") is not None else "https://annotator.ci.transltr.io/curie"
+ANNOTATOR_URL=os.getenv("TR_ANNOTATOR") if os.getenv("TR_ANNOTATOR") is not None else "https://biothings.ncats.io/curie"
 APPRAISER_URL=os.getenv("TR_APPRAISE") if os.getenv("TR_APPRAISE") is not None else "https://answerappraiser.ci.transltr.io/get_appraisal"
 
 
@@ -1023,15 +1023,32 @@ def appraise(mesg,data, agent_name,retry_counter=0):
             mesg.status='E'
             mesg.code = 422
             mesg.save(update_fields=['status','code'])
+def sperate_annotated_nodes(nodes):
+    try:
+        unannotated=[]
+        for curie,value in nodes.items():
+            if 'attribute' in value.keys() and value['attributes'] == []:
+                unannotated.append(curie)
+            else:
+                annotated=False
+                for attribute in value['attributes']:
+                    if 'attribute_type_id' in attribute.keys() and attribute['attribute_type_id'] == 'biothings_annotations':
+                        annotated=True
+                if not annotated:
+                    unannotated.append(curie)
+    except Exception as e:
+        print(e)
 
+    return unannotated
 
 def annotate_nodes(mesg,data,agent_name):
     #TODO pull this URL from SmartAPI
-    headers = {'Content-Encoding': 'br'}
+    headers = {'Content-type': 'application/json'}
     nodes = get_safe(data,"message","knowledge_graph","nodes")
+    curie_list = sperate_annotated_nodes(nodes)
     if nodes is not None:
         nodes_message = {
-            "ids": [node_key for node_key in nodes.keys() if nodes is not None]
+            "ids": curie_list
         }
         #we have to scrub input for invalid CURIEs or we'll get a 500 back from the annotator
         curie_pattern = re.compile("[\w\.]+:[\w\.]+")
@@ -1053,11 +1070,15 @@ def annotate_nodes(mesg,data,agent_name):
                 rj=r.json()
                 logging.info('the response status for agent %s node annotator is: %s' % (agent_name,r.status_code))
                 if r.status_code==200:
+                    notfound_count=0
+                    emptydict_count=0
                     for key, value in rj.items():
                         if isinstance(value, list) and 'notfound' in value[0].keys() and value[0]['notfound'] == True:
+                            notfound_count +=1
                             pass
                         elif isinstance(value, dict) and value == {}:
                             pass
+                            emptydict_count +=1
                         else:
                             attribute={
                                 "attribute_type_id": "biothings_annotations",
