@@ -455,15 +455,6 @@ def message(req, key):
             return HttpResponse('Unknown message: %s' % key, status=404)
 
     elif req.method == 'POST':
-        # headers = dict(req.headers)
-        # if 'Traceparent' in headers.keys():
-        #     logging.info('traceparent for mesg pk: %s is %s'% (str(key),headers['Traceparent']))
-        # else:
-        #     logging.info('there is not Traceparent for mesg pk: %s'% (str(key)))
-        # carrier ={'traceparent': headers['Traceparent']}
-        # ctx = TraceContextTextMapPropagator().extract(carrier=carrier)
-        # with tracer.start_as_current_span('message', context=ctx) as span:
-        # Extract the trace context from the incoming request headers
         extracted_context = extract(req.headers)
         token = attach(extracted_context)
         try:
