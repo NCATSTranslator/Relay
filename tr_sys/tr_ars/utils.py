@@ -32,6 +32,7 @@ from reasoner_pydantic import (
 )
 from pydantic import ValidationError
 from opentelemetry import trace
+from biothings_annotator import Annotator
 tracer = trace.get_tracer(__name__)
 
 ARS_ACTOR = {
@@ -1043,7 +1044,7 @@ def sperate_annotated_nodes(nodes):
 
 def annotate_nodes(mesg,data,agent_name):
     #TODO pull this URL from SmartAPI
-    headers = {'Content-type': 'application/json'}
+    #headers = {'Content-type': 'application/json'}
     nodes = get_safe(data,"message","knowledge_graph","nodes")
     curie_list = sperate_annotated_nodes(nodes)
     if nodes is not None:
@@ -1065,35 +1066,32 @@ def annotate_nodes(mesg,data,agent_name):
         logging.info('posting data to the annotator URL %s' % ANNOTATOR_URL)
         with tracer.start_as_current_span("annotator") as span:
             try:
-                r = requests.post(ANNOTATOR_URL,json=nodes_message,headers=headers)
-                r.raise_for_status()
-                rj=r.json()
-                logging.info('the response status for agent %s node annotator is: %s' % (agent_name,r.status_code))
-                if r.status_code==200:
-                    notfound_count=0
-                    emptydict_count=0
-                    for key, value in rj.items():
-                        if isinstance(value, list) and 'notfound' in value[0].keys() and value[0]['notfound'] == True:
-                            notfound_count +=1
-                            pass
-                        elif isinstance(value, dict) and value == {}:
-                            pass
-                            emptydict_count +=1
-                        else:
-                            attribute={
-                                "attribute_type_id": "biothings_annotations",
-                                "value": value
-                            }
-                            add_attribute(data['message']['knowledge_graph']['nodes'][key],attribute)
-                        #Not sure about adding back clearly borked nodes, but it is in keeping with policy of non-destructiveness
+                annotator = Annotator()
+                rj = annotator.annotate_curie_list(curie_list)
+                #r = requests.post(ANNOTATOR_URL,json=nodes_message,headers=headers)
+                #r.raise_for_status()
+                #rj=r.json()
+                #logging.info('the response status for agent %s node annotator is: %s' % (agent_name,r.status_code))
+                #if r.status_code==200:
+                for key, value in rj.items():
+                    if isinstance(value, list) and 'notfound' in value[0].keys() and value[0]['notfound'] == True:
+                        pass
+                    elif isinstance(value, dict) and value == {}:
+                        pass
+                    else:
+                        attribute={
+                            "attribute_type_id": "biothings_annotations",
+                            "value": value
+                        }
+                        add_attribute(data['message']['knowledge_graph']['nodes'][key],attribute)
+                    #Not sure about adding back clearly borked nodes, but it is in keeping with policy of non-destructiveness
                     if len(invalid_nodes)>0:
                         data['message']['knowledge_graph']['nodes'].update(invalid_nodes)
-                else:
-                    post_processing_error(mesg,data,"Error in annotation of nodes")
+                #else:
+                #    post_processing_error(mesg,data,"Error in annotation of nodes")
             except Exception as e:
                 logging.info('node annotation internal error msg is for agent %s with pk: %s is  %s' % (agent_name,str(mesg.pk),str(e)))
                 logging.exception("error in node annotation internal function")
-                logging.info(f'response error %s'%(r.text))
                 span.set_attribute("error", True)
                 span.set_attribute("exception", str(e))
                 raise e
