@@ -28,4 +28,4 @@ opentelemetry-exporter-jaeger
 opentelemetry-instrumentation-requests
 opentelemetry-instrumentation-celery
 brotli
-
+git+https://github.com/biothings/biothings_annotator#egg=biothings_annotatorconda activate

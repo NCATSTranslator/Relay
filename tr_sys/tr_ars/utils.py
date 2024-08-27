@@ -30,6 +30,7 @@ from reasoner_pydantic import (
     NodeBinding as vNodeBinding,
     Response as vResponse
 )
+from biothings_annotator import annotator
 from pydantic import ValidationError
 from opentelemetry import trace
 tracer = trace.get_tracer(__name__)
@@ -1053,7 +1054,8 @@ def annotate_nodes(mesg,data,agent_name):
         #we have to scrub input for invalid CURIEs or we'll get a 500 back from the annotator
         curie_pattern = re.compile("[\w\.]+:[\w\.]+")
         invalid_nodes={}
-
+        with open(f'{agent_name}_annotator_curie_list.json', 'w') as json_file:
+            json.dump(nodes_message, json_file, indent=4)
         for key in nodes_message['ids']:
             if not curie_pattern.match(str(key)):
                 invalid_nodes[key]=nodes[key]
@@ -1063,37 +1065,32 @@ def annotate_nodes(mesg,data,agent_name):
 
         #json_data = json.dumps(nodes_message)
         logging.info('posting data to the annotator URL %s' % ANNOTATOR_URL)
+        logging.info('sending %s curie ides to the annotator'% len(curie_list))
         with tracer.start_as_current_span("annotator") as span:
             try:
-                r = requests.post(ANNOTATOR_URL,json=nodes_message,headers=headers)
-                r.raise_for_status()
-                rj=r.json()
-                logging.info('the response status for agent %s node annotator is: %s' % (agent_name,r.status_code))
-                if r.status_code==200:
-                    notfound_count=0
-                    emptydict_count=0
-                    for key, value in rj.items():
-                        if isinstance(value, list) and 'notfound' in value[0].keys() and value[0]['notfound'] == True:
-                            notfound_count +=1
+                atr = annotator.Annotator()
+                rj = atr.annotate_curie_list(curie_list)
+                # r = requests.post(ANNOTATOR_URL,json=nodes_message,headers=headers)
+                # r.raise_for_status()
+                # rj=r.json()
+                #logging.info('the response status for agent %s node annotator' % (agent_name))
+                for key, value in rj.items():
+                    if isinstance(value, list) and 'notfound' in value[0].keys() and value[0]['notfound'] == True:
                             pass
-                        elif isinstance(value, dict) and value == {}:
-                            pass
-                            emptydict_count +=1
-                        else:
-                            attribute={
-                                "attribute_type_id": "biothings_annotations",
-                                "value": value
-                            }
-                            add_attribute(data['message']['knowledge_graph']['nodes'][key],attribute)
-                        #Not sure about adding back clearly borked nodes, but it is in keeping with policy of non-destructiveness
-                    if len(invalid_nodes)>0:
-                        data['message']['knowledge_graph']['nodes'].update(invalid_nodes)
-                else:
-                    post_processing_error(mesg,data,"Error in annotation of nodes")
+                    elif isinstance(value, dict) and value == {}:
+                        pass
+                    else:
+                        attribute={
+                            "attribute_type_id": "biothings_annotations",
+                            "value": value
+                        }
+                        add_attribute(data['message']['knowledge_graph']['nodes'][key],attribute)
+                    #Not sure about adding back clearly borked nodes, but it is in keeping with policy of non-destructiveness
+                if len(invalid_nodes)>0:
+                    data['message']['knowledge_graph']['nodes'].update(invalid_nodes)
             except Exception as e:
                 logging.info('node annotation internal error msg is for agent %s with pk: %s is  %s' % (agent_name,str(mesg.pk),str(e)))
                 logging.exception("error in node annotation internal function")
-                logging.info(f'response error %s'%(r.text))
                 span.set_attribute("error", True)
                 span.set_attribute("exception", str(e))
                 raise e
