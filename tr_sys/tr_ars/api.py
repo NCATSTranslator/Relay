@@ -1,4 +1,4 @@
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.core import serializers
 from django.shortcuts import redirect, get_object_or_404
@@ -294,8 +294,8 @@ def get_report(req,inforesid):
                 time_elapsed = time_end - time_start
                 result_count = msg[4]
                 report[str(mid)]= {"status_code":code, "time_elapsed":str(time_elapsed), "result_count":result_count, "created_at":str(time_start), "updated_at": str(time_end)}
-            return HttpResponse(json.dumps(report, indent=2), content_type='text/plain',
-                                status=200)
+
+            return JsonResponse(report)
     except Exception as e:
         print(e.__traceback__)
         print(inforesid)
@@ -414,8 +414,9 @@ def latest_pk(req, n):
         for mesg in mesg_list:
             response[f'latest_{n}_pks'].append(str(mesg['id']))
 
-        return HttpResponse(json.dumps(response, indent=2),
-                            status=200)
+        return JsonResponse(response)
+        #return HttpResponse(json.dumps(response, indent=2),
+        #                    status=200)
 
 @csrf_exempt
 def message(req, key):
@@ -439,8 +440,6 @@ def message(req, key):
                     mesg.save_compressed_dict(json_data)
                     return HttpResponse(mesg.data, content_type='application/octet-stream')
 
-
-
             actor = Actor.objects.get(pk=mesg.actor_id)
             mesg.name = actor.agent.name
             mesg_dict = mesg.to_dict()
@@ -448,8 +447,9 @@ def message(req, key):
             if code is not None:
                 mesg_dict['fields']['code']=int(code)
 
-            return HttpResponse(json.dumps(mesg_dict, indent=2),
-                                status=200)
+            return JsonResponse(mesg_dict)
+            #return HttpResponse(json.dumps(mesg_dict, indent=2),
+            #                    status=200)
 
         except Message.DoesNotExist:
             return HttpResponse('Unknown message: %s' % key, status=404)
