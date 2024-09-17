@@ -45,10 +45,10 @@ affinity:
         - key: application
           operator: In
           values:
-          - ars   
+          - ars1   
 tolerations:
   - key: "transltr"
-    value: "ars"
+    value: "ars1"
     operator: "Equal"
     effect: "NoSchedule"
 
