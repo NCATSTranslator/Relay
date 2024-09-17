@@ -455,99 +455,94 @@ def message(req, key):
             return HttpResponse('Unknown message: %s' % key, status=404)
 
     elif req.method == 'POST':
-        extracted_context = extract(req.headers)
-        token = attach(extracted_context)
-        try:
-            tracer = trace.get_tracer(__name__)
-            with tracer.start_as_current_span('message') as span:
-                span.set_attribute("pk", str(key))
-                try:
-                    data = json.loads(req.body)
-                    #if 'query_graph' not in data or 'knowledge_graph' not in data or 'results' not in data:
-                    #    return HttpResponse('Not a valid Translator API json', status=400)
-                    mesg = get_object_or_404(Message.objects.filter(pk=key))
-                    status = 'D'
-                    code = 200
-                    if 'tr_ars.message.status' in req.headers:
-                        status = req.headers['tr_ars.message.status']
-                    res=utils.get_safe(data,"message","results")
-                    kg = utils.get_safe(data,"message", "knowledge_graph")
-                    actor = Actor.objects.get(pk=mesg.actor_id)
-                    inforesid =actor.inforesid
-                    span.set_attribute("agent", inforesid)
-                    logging.info('received msg from agent: %s with parent pk: %s' % (str(inforesid), str(mesg.ref_id)))
-                    if mesg.result_count is not None and mesg.result_count >0:
-                        return HttpResponse('ARS already has a response with: %s results for pk %s \nWe are temporarily '
-                                           'disallowing subsequent updates to PKs which already have results\n'
-                                           % (str(len(res)), str(key)),status=409)
+        tracer = trace.get_tracer(__name__)
+        with tracer.start_as_current_span('message') as span:
+            span.set_attribute("pk", str(key))
+            try:
+                data = json.loads(req.body)
+                #if 'query_graph' not in data or 'knowledge_graph' not in data or 'results' not in data:
+                #    return HttpResponse('Not a valid Translator API json', status=400)
+                mesg = get_object_or_404(Message.objects.filter(pk=key))
+                status = 'D'
+                code = 200
+                if 'tr_ars.message.status' in req.headers:
+                    status = req.headers['tr_ars.message.status']
+                res=utils.get_safe(data,"message","results")
+                kg = utils.get_safe(data,"message", "knowledge_graph")
+                actor = Actor.objects.get(pk=mesg.actor_id)
+                inforesid =actor.inforesid
+                span.set_attribute("agent", inforesid)
+                logging.info('received msg from agent: %s with parent pk: %s' % (str(inforesid), str(mesg.ref_id)))
+                if mesg.result_count is not None and mesg.result_count >0:
+                    return HttpResponse('ARS already has a response with: %s results for pk %s \nWe are temporarily '
+                                       'disallowing subsequent updates to PKs which already have results\n'
+                                       % (str(len(res)), str(key)),status=409)
 
-                    if mesg.status=='E':
-                        return HttpResponse("Response received but Message is already in state "+str(mesg.code)+". Response rejected\n",status=400)
-                    if res is not None and len(res)>0:
-                        mesg.result_count = len(res)
-                        scorestat = utils.ScoreStatCalc(res)
-                        mesg.result_stat = scorestat
-                        #before we do basically anything else, we normalize
-                        parent_pk = mesg.ref_id
-                        #message_to_merge =utils.get_safe(data,"message")
-                        message_to_merge = data
-                        agent_name = str(mesg.actor.agent.name)
-                        logger.info("Running pre_merge_process for agent %s with %s" % (agent_name, len(res)))
-                        utils.pre_merge_process(message_to_merge,key, agent_name, inforesid)
-                        if mesg.data and 'results' in mesg.data and mesg.data['results'] != None and len(mesg.data['results']) > 0:
-                            mesg = Message.create(name=mesg.name, status=status, actor=mesg.actor, ref=mesg)
-                        valid = utils.validate(data)
-                        if valid:
-                            if agent_name.startswith('ara-'):
-                                logger.info("pre async call for agent %s" % agent_name)
-                                #utils.merge_and_post_process(parent_pk,message_to_merge['message'],agent_name)
-                                utils.merge_and_post_process.apply_async((parent_pk,message_to_merge['message'],agent_name))
-                                logger.info("post async call for agent %s" % agent_name)
-                        else:
-                            logger.debug("Validation problem found for agent %s with pk %s" % (agent_name, str(mesg.ref_id)))
-                            code = 422
-                            status = 'E'
-                            mesg.status = status
-                            mesg.code = code
-                            mesg.save_compressed_dict(data)
-                            mesg.save()
-                            return HttpResponse("Problem with TRAPI Validation",
-                                                status=422)
-
-                    mesg.status = status
-                    mesg.code = code
-                    mesg.save_compressed_dict(data)
-                    if len(res) == 0 and res is not None:
-                        mesg.result_count = 0
-                    mesg.save()
-
-                    return HttpResponse(json.dumps(mesg.to_dict(), indent=2),
-                                        status=201)
-
-                except Message.DoesNotExist:
-                    return HttpResponse('Unknown state reference %s' % key, status=404)
-
-                except json.decoder.JSONDecodeError:
-                    return HttpResponse('Can not decode json:<br>\n%s for the pk: %s' % (req.body, key), status=500)
-
-                except Exception as e:
-                    mesg.status = 'E'
-                    mesg.code = 500
-                    log_entry = {
-                        "message":"Internal ARS Server Error",
-                        "timestamp":mesg.updated_at,
-                        "level":"ERROR"
-                    }
-                    if 'logs' in data.keys():
-                        data['logs'].append(log_entry)
+                if mesg.status=='E':
+                    return HttpResponse("Response received but Message is already in state "+str(mesg.code)+". Response rejected\n",status=400)
+                if res is not None and len(res)>0:
+                    mesg.result_count = len(res)
+                    scorestat = utils.ScoreStatCalc(res)
+                    mesg.result_stat = scorestat
+                    #before we do basically anything else, we normalize
+                    parent_pk = mesg.ref_id
+                    #message_to_merge =utils.get_safe(data,"message")
+                    message_to_merge = data
+                    agent_name = str(mesg.actor.agent.name)
+                    logger.info("Running pre_merge_process for agent %s with %s" % (agent_name, len(res)))
+                    utils.pre_merge_process(message_to_merge,key, agent_name, inforesid)
+                    if mesg.data and 'results' in mesg.data and mesg.data['results'] != None and len(mesg.data['results']) > 0:
+                        mesg = Message.create(name=mesg.name, status=status, actor=mesg.actor, ref=mesg)
+                    valid = utils.validate(data)
+                    if valid:
+                        if agent_name.startswith('ara-'):
+                            logger.info("pre async call for agent %s" % agent_name)
+                            #utils.merge_and_post_process(parent_pk,message_to_merge['message'],agent_name)
+                            utils.merge_and_post_process.apply_async((parent_pk,message_to_merge['message'],agent_name))
+                            logger.info("post async call for agent %s" % agent_name)
                     else:
-                        data['logs'] = [log_entry]
-                    mesg.save_compressed_dict(data)
-                    mesg.save()
-                    logger.error("Unexpected error 12: {} with the pk: %s".format(traceback.format_exception(type(e), e, e.__traceback__), key))
-                    return HttpResponse('Internal server error', status=500)
-        finally:
-            detach(token)
+                        logger.debug("Validation problem found for agent %s with pk %s" % (agent_name, str(mesg.ref_id)))
+                        code = 422
+                        status = 'E'
+                        mesg.status = status
+                        mesg.code = code
+                        mesg.save_compressed_dict(data)
+                        mesg.save()
+                        return HttpResponse("Problem with TRAPI Validation",
+                                            status=422)
+
+                mesg.status = status
+                mesg.code = code
+                mesg.save_compressed_dict(data)
+                if len(res) == 0 and res is not None:
+                    mesg.result_count = 0
+                mesg.save()
+
+                return HttpResponse(json.dumps(mesg.to_dict(), indent=2),
+                                    status=201)
+
+            except Message.DoesNotExist:
+                return HttpResponse('Unknown state reference %s' % key, status=404)
+
+            except json.decoder.JSONDecodeError:
+                return HttpResponse('Can not decode json:<br>\n%s for the pk: %s' % (req.body, key), status=500)
+
+            except Exception as e:
+                mesg.status = 'E'
+                mesg.code = 500
+                log_entry = {
+                    "message":"Internal ARS Server Error",
+                    "timestamp":mesg.updated_at,
+                    "level":"ERROR"
+                }
+                if 'logs' in data.keys():
+                    data['logs'].append(log_entry)
+                else:
+                    data['logs'] = [log_entry]
+                mesg.save_compressed_dict(data)
+                mesg.save()
+                logger.error("Unexpected error 12: {} with the pk: %s".format(traceback.format_exception(type(e), e, e.__traceback__), key))
+                return HttpResponse('Internal server error', status=500)
     else:
         return HttpResponse('Method %s not supported!' % req.method, status=400)
 
