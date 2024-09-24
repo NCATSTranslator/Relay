@@ -28,7 +28,7 @@ def compute_from_results(results):
         result['sugeno']=sugeno_score
         result['weighted_mean']=weighted_mean
 
-    final_ranks = compute_sugeno_rank(sugeno_scores,weighted_means)
+    final_ranks = compute_sugeno_rank(sugeno_scores)
     for i, rank in enumerate(final_ranks):
         #casting to int because some come through as pandas int64
         results[i]["rank"]=int(rank)
