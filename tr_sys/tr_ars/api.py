@@ -546,6 +546,8 @@ def message(req, key):
                     mesg.save()
                     logger.error("Unexpected error 12: {} with the pk: %s".format(traceback.format_exception(type(e), e, e.__traceback__), key))
                     return HttpResponse('Internal server error', status=500)
+        #except Exception as e:
+         #   logger.error(e)
         finally:
             detach(token)
     else:

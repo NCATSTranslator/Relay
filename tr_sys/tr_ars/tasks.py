@@ -19,14 +19,14 @@ from opentelemetry.context import attach, detach, set_value, get_current
 
 logger = get_task_logger(__name__)
 
-def propagate_context(func):
-    def wrapper(*args, **kwargs):
-        token = attach(get_current())
-        try:
-            return func(*args, **kwargs)
-        finally:
-            detach(token)
-    return wrapper
+#def propagate_context(func):
+ #   def wrapper(*args, **kwargs):
+ #       token = attach(get_current())
+ #       try#:
+      #      return func(*args, **kwargs)
+      #  finally:
+      #      detach(token)
+   # return wrapper
 
 
 @shared_task(name="send-message-to-actor")
