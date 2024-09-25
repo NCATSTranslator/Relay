@@ -981,7 +981,7 @@ def appraise(mesg, data, agent_name,retry_counter=0):
     logging.info('sending data for agent: %s to APPRAISER URL: %s' % (agent_name, APPRAISER_URL))
     with tracer.start_as_current_span("get_appraisal") as span:
         try:
-            with requests.post(APPRAISER_URL,data=json_data,headers=headers, stream=True) as r:
+            with requests.post(APPRAISER_URL,data=json_data,headers=headers, stream=True,timeout=600) as r:
                 logging.info("Appraiser being called at: "+APPRAISER_URL)
                 logging.info('the response for agent %s to appraiser code is: %s' % (agent_name, r.status_code))
                 if r.status_code==200:
