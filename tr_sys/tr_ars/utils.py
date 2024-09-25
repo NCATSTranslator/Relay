@@ -577,20 +577,15 @@ def pre_merge_process(data,key, agent_name,inforesid):
 def post_process(mesg,key, agent_name):
 
     data = mesg.decompress_dict()
-    logging.info("Pre node annotation for agent %s pk: %s" % (agent_name, str(key)))
+
+    logging.info("pre blocklist for "+str(key))
     try:
-        annotate_nodes(mesg,data,agent_name)
-        logging.info("node annotation successful for agent %s and pk: %s" % (agent_name, str(key)))
+        remove_blocked(mesg, data)
     except Exception as e:
         status='E'
         code=444
-        log_tuple =[
-            f'node annotation internal error: {str(e)}',
-            datetime.now().strftime('%H:%M:%S'),
-            "DEBUG"
-        ]
-        add_log_entry(data,log_tuple)
-        logging.exception(f"problem with node annotation for agent: {agent_name} pk: {str(key)}")
+        logging.info(e.__cause__)
+        logging.exception(f"Problem with block list removal for agent: {agent_name} pk: {str(key)}")
         mesg.status=status
         mesg.code=code
         mesg.save()
@@ -612,17 +607,27 @@ def post_process(mesg,key, agent_name):
         mesg.status=status
         mesg.code=code
         mesg.save()
-    logging.info("pre blocklist for "+str(key))
+
+
+
+    logging.info("Pre node annotation for agent %s pk: %s" % (agent_name, str(key)))
     try:
-        remove_blocked(mesg, data)
+        annotate_nodes(mesg,data,agent_name)
+        logging.info("node annotation successful for agent %s and pk: %s" % (agent_name, str(key)))
     except Exception as e:
         status='E'
         code=444
-        logging.info(e.__cause__)
-        logging.exception(f"Problem with block list removal for agent: {agent_name} pk: {str(key)}")
+        log_tuple =[
+            f'node annotation internal error: {str(e)}',
+            datetime.now().strftime('%H:%M:%S'),
+            "DEBUG"
+        ]
+        add_log_entry(data,log_tuple)
+        logging.exception(f"problem with node annotation for agent: {agent_name} pk: {str(key)}")
         mesg.status=status
         mesg.code=code
         mesg.save()
+
 
     logging.info("pre appraiser for agent %s and pk %s" % (agent_name, str(key)))
     try:
@@ -671,7 +676,7 @@ def post_process(mesg,key, agent_name):
             ]
             add_log_entry(data,log_tuple)
             status ='E'
-            code=400
+            code=444
             mesg.save_compressed_dict(data)
             return mesg, code, status
 
@@ -970,13 +975,13 @@ def scrub_null_attributes(data):
 
 
 
-def appraise(mesg,data, agent_name,retry_counter=0):
+def appraise(mesg, data, agent_name,retry_counter=0):
     headers = {'Content-type': 'application/json', 'Accept': 'text/plain'}
     json_data = json.dumps(data)
     logging.info('sending data for agent: %s to APPRAISER URL: %s' % (agent_name, APPRAISER_URL))
     with tracer.start_as_current_span("get_appraisal") as span:
         try:
-            with requests.post(APPRAISER_URL,data=json_data,headers=headers, stream=True) as r:
+            with requests.post(APPRAISER_URL,data=json_data,headers=headers, stream=True,timeout=600) as r:
                 logging.info("Appraiser being called at: "+APPRAISER_URL)
                 logging.info('the response for agent %s to appraiser code is: %s' % (agent_name, r.status_code))
                 if r.status_code==200:
