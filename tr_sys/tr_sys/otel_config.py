@@ -3,7 +3,7 @@ import logging
 from opentelemetry import trace
 from opentelemetry.sdk.resources import SERVICE_NAME as telemetery_service_name_key, Resource
 from opentelemetry.sdk.trace import TracerProvider
-from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
+from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter, SimpleSpanProcessor
 from opentelemetry.instrumentation.django import DjangoInstrumentor
 from opentelemetry.exporter.jaeger.thrift import JaegerExporter
 from opentelemetry.instrumentation.celery import CeleryInstrumentor
@@ -32,7 +32,7 @@ def configure_opentelemetry():
             agent_port=jaeger_port,
         )
 
-        span_processor = BatchSpanProcessor(jaeger_exporter)
+        span_processor = SimpleSpanProcessor(jaeger_exporter)
         tracer_provider.add_span_processor(span_processor)
 
         # Optional: Console exporter for debugging
