@@ -977,6 +977,8 @@ def scrub_null_attributes(data):
 
 def appraise(mesg, data, agent_name,retry_counter=0):
     headers = {'Content-type': 'application/json', 'Accept': 'text/plain'}
+    #adding PK for Max's logs
+    data['pk']=str(mesg.id)
     json_data = json.dumps(data)
     logging.info('sending data for agent: %s to APPRAISER URL: %s' % (agent_name, APPRAISER_URL))
     with tracer.start_as_current_span("get_appraisal") as span:
