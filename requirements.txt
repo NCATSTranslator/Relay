@@ -23,6 +23,7 @@ reasoner-pydantic
 opentelemetry-api
 opentelemetry-sdk
 opentelemetry-instrumentation
+opentelemetry-instrumentation-asgi
 opentelemetry-instrumentation-django
 opentelemetry-exporter-jaeger
 opentelemetry-instrumentation-requests

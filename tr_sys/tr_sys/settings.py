@@ -40,7 +40,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'corsheaders',
-#    'channels',
+    'channels',
     'tr_ars.apps.ARSConfig',
     #'tr_ars.default_ars_app.ars_app.AppConfig',
     'tr_ara_aragorn.aragorn_app.AppConfig',
@@ -97,10 +97,11 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = 'tr_sys.wsgi.application'
+#WSGI_APPLICATION = 'tr_sys.wsgi.application'
 # Channels
 ASGI_APPLICATION = 'tr_sys.routing.application'
 
+#telling Django channels which backend to use for storing, distributing messages between the client and the server
 CHANNEL_LAYERS = {
     'default': {
         'BACKEND': 'channels_redis.core.RedisChannelLayer',

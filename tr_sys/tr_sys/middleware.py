@@ -1,6 +1,6 @@
 
 import re
-from opentelemetry.instrumentation.wsgi import OpenTelemetryMiddleware
+from opentelemetry.instrumentation.asgi import OpenTelemetryMiddleware
 
 class CustomOpenTelemetryMiddleware(OpenTelemetryMiddleware):
     def __init__(self, application):
@@ -11,19 +11,21 @@ class CustomOpenTelemetryMiddleware(OpenTelemetryMiddleware):
             r'^/ars/api/messages/.*$',  # Example pattern to exclude
             r'^/ars/api/retain/.*$'
         ]
-    def __call__(self, environ, start_response):
-        method = environ.get('REQUEST_METHOD')
-        path = environ.get('PATH_INFO', '')
+    async def __call__(self,  scope, receive, send):
+        # Extract the HTTP method and path from the ASGI scope
+        if scope['type'] == 'http':
+            method = scope.get('method')
+            path = scope.get('path', '')
 
         # Skip tracing for GET requests
         if method == 'GET':
             # Call the wrapped application directly without tracing
-            return self.application(environ, start_response)
+            return await self.application(scope, receive, send)
         elif method == 'POST':
             for pattern in self.EXCLUDE_PATTERNS:
                 if re.match(pattern, path):
-                    return self.application(environ, start_response)
+                    return await self.application(scope, receive, send)
 
-        # Continue with default tracing behavior
-        return super().__call__(environ, start_response)
+        # Continue with the default OpenTelemetry behavior
+        await super().__call__(scope, receive, send)
 

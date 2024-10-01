@@ -22,6 +22,9 @@ app = Celery('tr_sys')
 #   should have a `CELERY_` prefix.
 app.config_from_object('django.conf:settings', namespace='CELERY')
 
+# Configure broker retry on startup
+app.conf.broker_connection_retry_on_startup = True
+
 # Load task modules from all registered Django app configs.
 app.autodiscover_tasks()
 
