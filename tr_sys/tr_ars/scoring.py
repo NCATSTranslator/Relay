@@ -66,7 +66,7 @@ def weight_sets(lambda_val, weight_confidence, weight_novelty, weight_clinical, 
 '''
 THIS FUNCTION COMPUTES THE SUGENO INTEGRAL FOR 4 WEIGHTS CONTRIBUTING TO EACH OF THE FACTORS AND 4 SCORES FOR A RESULT
 '''
-def compute_sugeno(score_confidence, score_novelty, score_clinical, score_blank_factor, weight_confidence=1.0, weight_novelty=0.1, weight_clinical=1.0, weight_blank_factor=0.0):
+def compute_sugeno(score_confidence, score_novelty, score_clinical, score_blank_factor, weight_confidence=1.0, weight_novelty=0.0, weight_clinical=1.0, weight_blank_factor=0.0):
     x = symbols('lambda')
     polynomial = expand(((1+weight_confidence*x)*(1+weight_novelty*x)*(1+weight_clinical*x)*(1+weight_blank_factor*x))-(1+x))
     simplified_polynomial = simplify(polynomial)
@@ -92,7 +92,7 @@ def compute_sugeno(score_confidence, score_novelty, score_clinical, score_blank_
 '''
 THIS FUNCTION COMPUTES THE WEIGHTED MEAN FOR 4 WEIGHTS CONTRIBUTING TO EACH OF THE FACTORS AND 4 SCORES FOR A RESULT
 '''
-def compute_weighted_mean(score_confidence, score_novelty, score_clinical, score_blank_factor, weight_confidence=1.0, weight_novelty=0.1, weight_clinical=1.0, weight_blank_factor=0.0):
+def compute_weighted_mean(score_confidence, score_novelty, score_clinical, score_blank_factor, weight_confidence=1.0, weight_novelty=0.0, weight_clinical=1.0, weight_blank_factor=0.0):
     weighted_mean = (score_confidence*weight_confidence + score_novelty*weight_novelty + score_clinical*weight_clinical + score_blank_factor*weight_blank_factor)/(weight_confidence+weight_novelty+ weight_clinical+weight_blank_factor)
     return weighted_mean
 
