@@ -1,5 +1,6 @@
 import copy
 import json
+import gzip
 import logging
 import traceback
 import os, sys
@@ -975,32 +976,34 @@ def scrub_null_attributes(data):
 
 
 
-def appraise(mesg, data, agent_name,retry_counter=0):
-    headers = {'Content-type': 'application/json', 'Accept': 'text/plain'}
+def appraise(mesg, data, agent_name, compress = True):
     CopyForMax = copy.deepcopy(data)
     CopyForMax['pk']=str(mesg.id)
-    json_data = json.dumps(CopyForMax)
+    if compress:
+        headers = {'Accept': 'gzip','Content-Encoding': 'gzip'}
+        data_payload = gzip.compress(json.dumps(CopyForMax))
+    else:
+        headers = {'Content-type': 'application/json', 'Accept': 'text/plain'}
+        data_payload = json.dumps(CopyForMax)
+
     logging.info('sending data for agent: %s to APPRAISER URL: %s' % (agent_name, APPRAISER_URL))
     with tracer.start_as_current_span("get_appraisal") as span:
         try:
-            with requests.post(APPRAISER_URL,data=json_data,headers=headers, stream=True,timeout=600) as r:
+            with requests.post(APPRAISER_URL,data=data_payload,headers=headers, stream=True,timeout=600) as r:
                 logging.info("Appraiser being called at: "+APPRAISER_URL)
                 logging.info('the response for agent %s to appraiser code is: %s' % (agent_name, r.status_code))
                 if r.status_code==200:
+                    if
                     rj = r.json()
                     #for now, just update the whole message, but we could be more precise/efficient
                     logging.info("Updating message with appraiser data for agent %s and pk %s " % (agent_name, str(mesg.id)))
                     data['message']['results']=rj['message']['results']
                     logging.info("Updating message with appraiser data complete for "+str(mesg.id))
                 else:
-                    retry_counter +=1
                     logging.info("Received Error state from appraiser for agent %s and pk %s  Code %s Attempt %s" % (agent_name,str(mesg.id),str(r.status_code),str(retry_counter)))
-                    logging.info("JSON fields "+str(json_data)[:100])
-                    if retry_counter<3:
-                        appraise(mesg,data, agent_name,retry_counter)
-                    else:
-                        logging.error("3 consecutive Errors from appraise for agent %s and pk %s " % (agent_name,str(mesg.id)))
-                        raise Exception
+                    logging.info("JSON fields "+str(data_payload)[:100])
+                    logging.error("Error from appraise for agent %s and pk %s " % (agent_name,str(mesg.id)))
+                    raise Exception
 
         except Exception as e:
             logging.error("Problem with appraiser for agent %s and pk %s of type %s" % (agent_name,str(mesg.id),type(e).__name__))
