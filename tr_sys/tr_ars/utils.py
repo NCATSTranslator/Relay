@@ -993,8 +993,10 @@ def appraise(mesg, data, agent_name, compress = True):
                 logging.info("Appraiser being called at: "+APPRAISER_URL)
                 logging.info('the response for agent %s to appraiser code is: %s' % (agent_name, r.status_code))
                 if r.status_code==200:
-                    if
-                    rj = r.json()
+                    if compress:
+                        rj = gzip.decompress(r).json()
+                    else:
+                        rj = r.json()
                     #for now, just update the whole message, but we could be more precise/efficient
                     logging.info("Updating message with appraiser data for agent %s and pk %s " % (agent_name, str(mesg.id)))
                     data['message']['results']=rj['message']['results']
