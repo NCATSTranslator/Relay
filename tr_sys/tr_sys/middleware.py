@@ -8,9 +8,9 @@ class CustomOpenTelemetryMiddleware(OpenTelemetryMiddleware):
         self.application = application
 
     EXCLUDE_PATTERNS = [
-            r'^/ars/api/messages/.*$',  # Example pattern to exclude
-            r'^/ars/api/retain/.*$'
-        ]
+        r'^/ars/api/messages/.*$',  # Example pattern to exclude
+        r'^/ars/api/retain/.*$'
+    ]
     async def __call__(self,  scope, receive, send):
         # Extract the HTTP method and path from the ASGI scope
         if scope['type'] == 'http':
