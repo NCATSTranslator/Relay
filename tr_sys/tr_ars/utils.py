@@ -981,7 +981,8 @@ def appraise(mesg, data, agent_name, compress = True):
     CopyForMax['pk']=str(mesg.id)
     if compress:
         headers = {'Accept': 'gzip','Content-Encoding': 'gzip'}
-        data_payload = gzip.compress(json.dumps(CopyForMax))
+        json_data = json.dumps(CopyForMax)
+        data_payload = gzip.compress(json_data.encode('utf-8'))
     else:
         headers = {'Content-type': 'application/json', 'Accept': 'text/plain'}
         data_payload = json.dumps(CopyForMax)
@@ -994,7 +995,7 @@ def appraise(mesg, data, agent_name, compress = True):
                 logging.info('the response for agent %s to appraiser code is: %s' % (agent_name, r.status_code))
                 if r.status_code==200:
                     if compress:
-                        rj = gzip.decompress(r).json()
+                        rj = json.loads(gzip.decompress(r.content).decode('utf-8'))
                     else:
                         rj = r.json()
                     #for now, just update the whole message, but we could be more precise/efficient
