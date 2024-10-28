@@ -25,6 +25,7 @@ opentelemetry-sdk
 opentelemetry-instrumentation
 opentelemetry-instrumentation-django
 opentelemetry-exporter-jaeger
+opentelemetry-exporter-otlp-proto-grpc
 opentelemetry-instrumentation-requests
 opentelemetry-instrumentation-celery
 brotli
