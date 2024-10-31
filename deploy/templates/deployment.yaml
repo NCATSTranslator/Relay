@@ -13,7 +13,7 @@ spec:
       labels:
         app: {{ .Values.appname }}
       annotations:
-        checksum/config: {{ tpl (.Files.Glob "configs/settings.py").AsConfig .  | sha256sum }}
+        checksum/config: {{ tpl (.Files.Glob "configs/settings.py").AsConfig . | sha256sum }}
     spec:
       containers:
         - name: arsserver
@@ -39,11 +39,11 @@ spec:
               value: {{ .Values.arsserver.env.TR_NORMALIZER }}
             - name: TR_ANNOTATOR
               value: {{ .Values.arsserver.env.TR_ANNOTATOR }}
-
           {{- with .Values.arsserver.resources }}
           resources:
             {{- toYaml . | nindent 12 }}
           {{- end }}
+
         - name: celeryworker
           image: "{{ .Values.celeryworker.image.repository }}:{{ .Values.celeryworker.image.tag }}"
           imagePullPolicy: {{ .Values.celeryworker.image.PullPolicy }}
@@ -60,20 +60,25 @@ spec:
               value: {{ .Values.celeryworker.env.TR_NORMALIZER }}
             - name: TR_ANNOTATOR
               value: {{ .Values.celeryworker.env.TR_ANNOTATOR }}
-
           {{- with .Values.celeryworker.resources }}
           resources:
             {{- toYaml . | nindent 12 }}
           {{- end }}
+
         - name: rabbitmq
           image: "{{ .Values.rabbitmq.image.repository }}:{{ .Values.rabbitmq.image.tag }}"
           imagePullPolicy: {{ .Values.rabbitmq.image.PullPolicy }}
           ports:
             - containerPort: {{ .Values.rabbitmq.containerPort }}
+          volumeMounts:
+            - name: config-rabbit-vol
+              mountPath: /etc/rabbitmq/rabbitmq.conf
+              subPath: rabbitmq.conf
           {{- with .Values.rabbitmq.resources }}
           resources:
             {{- toYaml . | nindent 12 }}
           {{- end }}
+
         - name: redis
           image: "{{ .Values.redis.image.repository }}:{{ .Values.redis.image.tag }}"
           imagePullPolicy: {{ .Values.redis.image.PullPolicy }}
@@ -83,6 +88,7 @@ spec:
           resources:
             {{- toYaml . | nindent 12 }}
           {{- end }}
+
       {{- with .Values.affinity }}
       affinity:
         {{- toYaml . | nindent 8 }}
@@ -104,5 +110,10 @@ spec:
             items:
               - key: mysql.cnf
                 path: mysql.cnf
+        - name: config-rabbit-vol
+          configMap:
+            name: {{ .Values.appname }}-rabbitmq-config
+            items:
+              - key: rabbitmq.conf
+                path: rabbitmq.conf
       restartPolicy: Always
-      
