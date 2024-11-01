@@ -121,20 +121,44 @@ class UrlMapSmartApiFetcher(object):
         else:
             return "transltr.io" in server
 
-    def _by_infores_latest(self, j, maturity):
+    def _by_infores_latest(self, j, maturity,version):
         byIrid = {}
         for irhit in self._irhits_from_res(j):
             if maturity == irhit["maturity"]:
-                if irhit["version"] == '1.3.0':
-                    key = self._key_of_irhit(irhit)
-                    if key is not None:
-                        irhit0 = byIrid[key] if key in byIrid else None
-                        if irhit0 is None or self._whichItrb(irhit, irhit0):
-                            byIrid[key] = irhit
+                key = self._key_of_irhit(irhit)
+                if key is not None:
+                    #if we already have an entry for this infores, we hold it in irhitExtant, else None
+                    irhitExtant = byIrid[key] if key in byIrid else None
+
+                    #if we didn't already have anything for this infores, add what we have and move to the next
+                    if irhitExtant is None:
+                        byIrid[key] = irhit
+                        continue
+                    if version is not None:
+                        currentVersionCorrect = "version" in irhit.keys() and irhit["version"]==version
+                        extantVersionCorrect = "version" in irhitExtant.keys() and irhitExtant["version"]==version
+                        #if the current one and the one we have are both the right version, take the newest
+                        if currentVersionCorrect and extantVersionCorrect and self._newer(irhit, irhitExtant):
+                            byIrid[key]=irhit
+                        #if the current one is the correct version and the one we have isn't, replace what we have
+                        elif currentVersionCorrect and not extantVersionCorrect:
+                            byIrid[key]=irhit
+                        #if what we have is the correct version and the current is not, next
+                        elif not currentVersionCorrect and extantVersionCorrect:
+                            continue
+                        #if they're both the wrong version, just take the latest one.
+                        elif not currentVersionCorrect and not extantVersionCorrect and self._newer(irhit, irhitExtant):
+                            byIrid[key]=irhit
+                    #if we don't have a version set, we just take the latest one.
+                    else:
+                        if self._newer(irhit, irhitExtant):
+                            byIrid[key]=irhit
+
+
         logging.info("found {} registrations with maturity={}".format(len(byIrid), maturity))
         return byIrid
 
-    def get_map(self, maturity):
+    def get_map(self, maturity, version):
         try:
             s = requests.Session()
 
@@ -146,13 +170,13 @@ class UrlMapSmartApiFetcher(object):
 
             s.mount('http://', HTTPAdapter(max_retries=retries))
             m = {}
-            urlRequest = "{}/api/query?q=servers.x-maturity:{}&size=150&fields=_meta,info,servers".format(urlSmartapi, maturity)
+            urlRequest = "{}/api/query?q=servers.x-maturity:{}&size=150&fields=_meta,info,servers&meta=1".format(urlSmartapi, maturity)
             res = s.get(urlRequest, timeout=secsTimeout)
             if not res.ok:
                 logging.warn("After retries, HTTP status {} for {}".format(res.status_code, urlRequest))
                 return None
             j = res.json()
-            for irid, irhit in self._by_infores_latest(j, maturity).items():
+            for irid, irhit in self._by_infores_latest(j, maturity, version).items():
                 m[irid] = irhit
             return m
         # All exceptions that Requests explicitly raises inherit from requests.exceptions.RequestException.
@@ -178,6 +202,7 @@ class SmartApiDiscoverer:
 
     def __init__(self) -> None:
         self._maturity = os.getenv("TR_ENV") if os.getenv("TR_ENV") is not None else "production"
+        self._version = os.getenv("TR_VER") if os.getenv("TR_VER") is not None else None
         # JH: re maturity, see also sys.argv[1] in server.py
         if self._maturity not in ["production", "development", "staging","testing"]:
             logging.warn("Unknown maturity level in TR_ENV: {}".format(self._maturity))
@@ -196,7 +221,7 @@ class SmartApiDiscoverer:
     
     def ensure(self):
         if time.time() >= self._t_next_refresh:
-            map = self._urlmap_fetcher.get_map(self._maturity)
+            map = self._urlmap_fetcher.get_map(self._maturity, self._version)
             if map is not None:
                 self._map_dynamic = map
                 logging.info("set map dynamic")

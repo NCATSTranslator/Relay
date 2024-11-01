@@ -37,16 +37,16 @@ httpclients:
   infores:example:
     endpoint: query 
     params:
-  infores:robokop:
-    endpoint: query 
-    params:
   infores:unsecret-agent:
     endpoint: query 
     params:
   infores:workflow-runner:
     endpoint: query 
     params:
-  infores:cam-kp:
+  infores:cqs:
+    endpoint: asyncquery
+    params:
+  infores:automat-cam-kp:
     endpoint: query 
     params: limit=100
   infores:connections-hypothesis:
@@ -58,15 +58,6 @@ httpclients:
   infores:genetics-data-provider:
     endpoint: query 
     params:
-  infores:icees-asthma:
-    endpoint: query 
-    params: reasoner=true&verbose=false
-  infores:icees-dili:
-    endpoint: query 
-    params: reasoner=true&verbose=false
-  infores:icees-pcd:
-    endpoint: query
-    params: reasoner=true&verbose=false
   infores:molepro:
     endpoint: query 
     params:
@@ -76,3 +67,8 @@ httpclients:
   infores:automat-text-mining-provider:
     endpoint: query 
     params:
+
+inactive_clients:
+  - infores:aragorn-ranker-exp
+  - infores:tr_ara_ncats
+  - infores:tr_ara_wfr

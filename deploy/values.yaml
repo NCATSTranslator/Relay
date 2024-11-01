@@ -12,18 +12,20 @@ arsserver:
     PullPolicy: Always
   containerPort: 8000  
   env:
-    TR_ENV: TR_ENV_VALUE 
+    TR_ENV: TR_ENV_VALUE
+    TR_APPRAISE: TR_APPRAISE_VALUE
 
 celeryworker:
   image:
     repository: 853771734544.dkr.ecr.us-east-1.amazonaws.com/translator-ars
     tag: DOCKER_VERSION_VALUE
     PullPolicy: Always
-
+  env:
+    TR_APPRAISE: TR_APPRAISE_VALUE
 rabbitmq:
   image:
     repository: 853771734544.dkr.ecr.us-east-1.amazonaws.com/translator-rabbitmq
-    tag: 3.8
+    tag: 3.13
     PullPolicy: Always
   containerPort: 5672  
 
@@ -33,6 +35,22 @@ redis:
     tag: 6.2
     PullPolicy: Always
   containerPort: 6379
+
+affinity:
+  # this ensures pod only runs on node with label application=managed-app
+  nodeAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      nodeSelectorTerms:
+      - matchExpressions:
+        - key: application
+          operator: In
+          values:
+          - ars   
+tolerations:
+  - key: "transltr"
+    value: "ars"
+    operator: "Equal"
+    effect: "NoSchedule"
 
 service:
   type: ClusterIP
@@ -49,5 +67,6 @@ ingress:
     alb.ingress.kubernetes.io/actions.ssl-redirect: '{"Type": "redirect", "RedirectConfig": { "Protocol": "HTTPS", "Port": "443", "StatusCode": "HTTP_301"}}'
     alb.ingress.kubernetes.io/success-codes: '200'  
     alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/load-balancer-attributes: idle_timeout.timeout_seconds=600
   host: ARS_HOSTNAME_VALUE    
 

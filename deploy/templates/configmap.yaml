@@ -6,3 +6,21 @@ metadata:
     {{- include "ars.labels" . | nindent 4 }}
 data:
   {{- (.Files.Glob "configs/*.py").AsConfig | nindent 2 }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata: 
+  name: {{ .Values.appname }}-cnf-config
+  labels:
+    {{- include "ars.labels" . | nindent 4 }}
+data:
+  {{- (.Files.Glob "configs/*.cnf").AsConfig | nindent 2 }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Values.appname }}-rabbitmq-config
+  labels:
+    {{- include "ars.labels" . | nindent 4 }}
+data:
+  {{- (.Files.Glob "configs/*.conf").AsConfig | nindent 2 }}

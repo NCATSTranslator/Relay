@@ -11,6 +11,9 @@ https://docs.djangoproject.com/en/1.11/ref/settings/
 """
 
 import os
+from tr_sys.tr_sys.otel_config import configure_opentelemetry
+
+configure_opentelemetry()
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -48,7 +51,6 @@ INSTALLED_APPS = [
     'tr_ara_explanatory_exp.explanatory_exp_app.AppConfig',
     'tr_ara_improving.improving_app.AppConfig',
     'tr_ara_ncats.ncats_app.AppConfig',
-    'tr_ara_robokop.robokop_app.AppConfig',
     'tr_ara_unsecret.unsecret_app.AppConfig',
     'tr_ara_wfr.wfr_app.AppConfig',
     'tr_kp_genetics.genetics_app.AppConfig',
@@ -58,9 +60,6 @@ INSTALLED_APPS = [
     'tr_kp_openpredict.openpredict_app.AppConfig',
     'tr_ara_aragorn_exp.aragorn_exp_app.AppConfig',
     'tr_kp_chp.chp_app.AppConfig',
-    'tr_kp_icees.icees_app.AppConfig',
-    'tr_kp_icees_dili.icees_dili_app.AppConfig',
-    'tr_kp_icees_pcd.icees_pcd_app.AppConfig',
     'django_celery_results',
     'markdownify',
 ]
@@ -211,6 +210,7 @@ CELERY_CACHE_BACKEND = 'django-cache'
 CELERY_BROKER_URL = 'pyamqp://rabbitmq:5672'
 
 # Other important shared settings
+DATA_UPLOAD_MAX_MEMORY_SIZE=1073741824
 
 USE_CELERY = True
 DEFAULT_HOST = 'http://arsserver:8000'

@@ -11,7 +11,9 @@ https://docs.djangoproject.com/en/1.11/ref/settings/
 """
 
 import os
+from .otel_config import configure_opentelemetry
 
+configure_opentelemetry()
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -48,9 +50,9 @@ INSTALLED_APPS = [
     'tr_ara_explanatory_exp.explanatory_exp_app.AppConfig',
     'tr_ara_improving.improving_app.AppConfig',
     'tr_ara_ncats.ncats_app.AppConfig',
-    'tr_ara_robokop.robokop_app.AppConfig',
     'tr_ara_unsecret.unsecret_app.AppConfig',
     'tr_ara_wfr.wfr_app.AppConfig',
+    'tr_ara_cqs.cqs_app.AppConfig',
     'tr_kp_genetics.genetics_app.AppConfig',
     'tr_kp_molecular.molecular_app.AppConfig',
     'tr_kp_cam.cam_app.AppConfig',
@@ -59,9 +61,6 @@ INSTALLED_APPS = [
     'tr_kp_cohd.cohd_app.AppConfig',
     'tr_ara_aragorn_exp.aragorn_exp_app.AppConfig',
     'tr_kp_chp.chp_app.AppConfig',
-    'tr_kp_icees.icees_app.AppConfig',
-    'tr_kp_icees_dili.icees_dili_app.AppConfig',
-    'tr_kp_icees_pcd.icees_pcd_app.AppConfig',
     'django_celery_results',
     'markdownify',
     'django_celery_beat',
@@ -150,7 +149,7 @@ LOGGING = {
         'handlers': ['console'],
         'level': 'DEBUG',
     },
-    'loggers': {
+     'loggers': {
         'tr_ars.tasks': {
             'level': 'DEBUG',
             'handlers': ['console'],
@@ -160,7 +159,6 @@ LOGGING = {
             'handlers': ['console']
         }
     }
-
 }
 
 # Password validation
@@ -222,6 +220,7 @@ CELERY_IMPORTS = [
 ]
 # Other important shared settings
 DATA_UPLOAD_MAX_MEMORY_SIZE=1073741824
+CELERY_TASK_ALWAYS_EAGER=False
 
 USE_CELERY = True
 DEFAULT_HOST = 'http://localhost:8000'

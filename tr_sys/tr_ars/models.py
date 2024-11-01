@@ -3,7 +3,7 @@ from django.db import models
 from django.utils import timezone
 from django.core import serializers
 import uuid, logging, json
-
+import gzip
 logger = logging.getLogger(__name__)
 
 # Create your models here.
@@ -71,27 +71,96 @@ class Message(ARSModel):
         ('U', 'Unknown')
     )
     
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False, db_index=True)
     name = models.SlugField('Message name', null=False)
     code = models.PositiveSmallIntegerField('HTTP status code',
                                             null=False, default=200)
-    status = models.CharField(max_length=2, choices=STATUS)
+    status = models.CharField(max_length=2, choices=STATUS, db_index=True)
     actor = models.ForeignKey(Actor, null=False, on_delete=models.CASCADE)
-    timestamp = models.DateTimeField(auto_now_add=True)
+    timestamp = models.DateTimeField(auto_now_add=True,db_index=True)
     updated_at = models.DateTimeField(auto_now=True)
-    data = models.JSONField('data payload', null=True)
+    #data = models.JSONField('data payload', null=True)
+    data = models.BinaryField('data payload', null=True)
     url = models.URLField('location of data', max_length=256, null=True)
     ref = models.ForeignKey('self', null=True, blank=True,
                             on_delete=models.CASCADE)
     result_count = models.IntegerField(null=True, default=None)
     result_stat = models.JSONField(null=True)
+    retain = models.BooleanField('flag to retain data', default=False)
+    merge_semaphore=models.BooleanField('flag to indicate that merging is currently in progress',default=False)
+    merged_version = models.ForeignKey('self', related_name="version_merged",null=True, blank=True,
+                                     on_delete=models.CASCADE)
+    merged_versions_list= models.JSONField('Ordered list of merged_version PKs', null=True)
+
 
     def __str__(self):
         return "message[%s]{name:%s, status:%s}" % (self.id,
                                                     self.name, self.status)
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # # Decompress the compressed data when initializing the model instance
+        if self.data and self.data is not None:
+            self.original_data = self.data
+        else:
+            self.original_data = {}
+
+    def save(self, *args, **kwargs):
+        # Compress the data before saving
+        if self.original_data:
+            logger.info('Compressing the data at save call')
+            self.save_compressed_dict(self.original_data)
+            self.original_data = {}  # Clear original data to avoid redundancy
+
+        super().save(*args, **kwargs)
+
+    def save_compressed_dict(self, data):
+        try:
+            if isinstance(data, (bytes, bytearray)) and data is not None and data.startswith(b'\x1f\x8b'):
+                logger.info('data already compressed, no action needed')
+                self.data = data
+            else:
+                logger.info('compressing the data with pk: %s' % str(self.pk))
+                # Convert dictionary to JSON string
+                json_data = json.dumps(data)
+
+                # Compress JSON string using gzip
+                compressed_data = gzip.compress(json_data.encode('utf-8'))
+
+                # Save compressed data to the model field
+                self.data = compressed_data
+        except Exception as e:
+            print("Error compressing data:", e)
+
+    def decompress_dict(self):
+        try:
+            #check to see if you are dealing with dictionary or compressed data?
+            if isinstance(self.data, dict):
+                original_data = self.data
+            elif isinstance(self.data, (bytes, bytearray)) and self.data is not None:
+                #logger.info('decompressing the data if binary %s'% str(self.pk))
+                if self.data.startswith(b'\x1f\x8b'):
+                    # Decompress the compressed data
+                    decompressed_data = gzip.decompress(self.data)
+
+                    # Convert decompressed bytes to JSON string
+                    json_data = decompressed_data.decode('utf-8')
+
+                    # Convert JSON string back to dictionary
+                    original_data = json.loads(json_data)
+                else:
+                    # Convert plain text bytes to JSON string
+                    json_data = self.data.decode('utf-8')
+                    # Convert JSON string back to dictionary
+                    original_data = json.loads(json_data)
+
+            return original_data
+        except Exception as e:
+            print("Error decompressing data:", e)
+            return {}
     @classmethod
     def create(self, *args, **kwargs):
         # convert status long name to code for saving
+        logger.info('creating Message model instance')
         if 'status' in kwargs:
             for elem in Message.STATUS:
                 if elem[1] == kwargs['status']:
@@ -99,6 +168,7 @@ class Message(ARSModel):
         return Message(*args, **kwargs)
 
     def to_dict(self):
+        logger.info('running to_dict call on message object with pk %s'% str(self.pk))
         jsonobj = ARSModel.to_dict(self)
         # convert status code to long name for display
         if 'fields' in jsonobj:
@@ -106,6 +176,8 @@ class Message(ARSModel):
                 for elem in Message.STATUS:
                     if elem[0] == jsonobj['fields']['status']:
                         jsonobj['fields']['status'] = elem[1]
+            if 'data' in jsonobj['fields'] and jsonobj['fields']['data'] is not None:
+                jsonobj['fields']['data'] = self.decompress_dict()
         return jsonobj
 
 

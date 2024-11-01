@@ -78,12 +78,14 @@ pipeline {
                 configFileProvider([
                     configFile(fileId: 'values-ci.yaml', targetLocation: 'deploy/values-ncats.yaml'),
                     configFile(fileId: 'prepare.sh', targetLocation: 'deploy/prepare.sh'),
-                    configFile(fileId: 'ars-settings.py', targetLocation: 'deploy/configs/settings.py')
+                    configFile(fileId: 'ars-settings.py', targetLocation: 'deploy/configs/settings.py'),
+                    configFile(fileId: 'rabbitmq.conf', targetLocation: 'deploy/configs/rabbitmq.conf'),
+                    configFile(fileId: 'mysql.cnf', targetLocation: 'deploy/configs/mysql.cnf')
                 ]){
                     script {
                         sh '''
                         aws --region ${AWS_REGION} eks update-kubeconfig --name ${KUBERNETES_BLUE_CLUSTER_NAME}
-                        cd deploy && /bin/bash prepare.sh && /bin/bash deploy.sh 
+                        cd deploy && kubectl delete deployment ars -n ars && /bin/bash prepare.sh && /bin/bash deploy.sh 
                         '''
                     }
                 }
@@ -101,7 +103,7 @@ pipeline {
                     "TARGET_HOST=ars.ci.transltr.io"
                 ]) {
                     script {
-                        sleep(time:2, unit:"MINUTES")
+                        sleep(time:5, unit:"MINUTES")
                         withPythonEnv('python3.9') {
                             def statusCode = sh(script: "pytest tr_sys/tr_ars/tests/integration/test_integration.py", returnStatus:true)
                             print(statusCode)
@@ -158,7 +160,7 @@ pipeline {
                         }
                     }
                     catch (err){
-                        echo err
+                        print err
                     }
                 }
             }

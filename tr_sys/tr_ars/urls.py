@@ -13,10 +13,15 @@ apipatterns = [
     re_path(r'^channels/?$', api.channels, name='ars-channels'),
     path('agents/<name>', api.get_agent, name='ars-agent'),
     path('messages/<uuid:key>', api.message, name='ars-message'),
-    re_path(r'^reports/?$', api.reports, name='ars-reports'),
+    re_path(r'^filters/?$', api.filters, name='ars-filters'),
+    path('filter/<uuid:key>', api.filter, name='ars-filter'),
     path('reports/<inforesid>',api.get_report,name='ars-report'),
-    re_path(r'^status/?$', api.status, name='ars-status'),
-    re_path(r'^timeoutTest/?$', api.timeoutTest, name='ars-timeout')
+    re_path(r'^timeoutTest/?$', api.timeoutTest, name='ars-timeout'),
+    path('merge/<uuid:key>', api.merge, name='ars-merge'),
+    path('retain/<uuid:key>', api.retain, name='ars-retain'),
+    path('block/<uuid:key>', api.block, name='ars-block'),
+    path('latest_pk/<int:n>', api.latest_pk, name='ars-latestPK'),
+    path('post_process/<uuid:key>', api.post_process, name='ars-post_process_debug')
 ]
 
 

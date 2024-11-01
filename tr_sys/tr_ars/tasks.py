@@ -2,7 +2,7 @@
 from __future__ import absolute_import, unicode_literals
 import logging, requests, sys, json
 from celery import shared_task
-from tr_ars.models import Message, Actor
+from tr_ars.models import Message, Actor, Agent
 from tr_ars import utils
 from celery.utils.log import get_task_logger
 from django.conf import settings
@@ -11,14 +11,29 @@ import html
 from tr_smartapi_client.smart_api_discover import SmartApiDiscover
 import traceback
 from django.utils import timezone
-
-
+from django.shortcuts import get_object_or_404
+from opentelemetry import trace
+from opentelemetry.propagate import inject
+# Ensure that the tracing context is properly propagated within tasks
+from opentelemetry.context import attach, detach, set_value, get_current
 
 logger = get_task_logger(__name__)
-#logger.propagate = True
+
+def propagate_context(func):
+    def wrapper(*args, **kwargs):
+        token = attach(get_current())
+        try:
+            return func(*args, **kwargs)
+        finally:
+            detach(token)
+    return wrapper
+
 
 @shared_task(name="send-message-to-actor")
 def send_message(actor_dict, mesg_dict, timeout=300):
+    tracer = trace.get_tracer(__name__)
+    infores=actor_dict['fields']['inforesid']
+    agent= infores.split(':')[1]
     logger.info(mesg_dict)
     url = settings.DEFAULT_HOST + actor_dict['fields']['url']
     logger.debug('sending message %s to %s...' % (mesg_dict['pk'], url))
@@ -31,7 +46,8 @@ def send_message(actor_dict, mesg_dict, timeout=300):
     }
     mesg = Message.create(actor=Actor.objects.get(pk=actor_dict['pk']),
                           name=mesg_dict['fields']['name'], status='R',
-                          ref=Message.objects.get(pk=mesg_dict['pk']))
+                          ref=get_object_or_404(Message.objects.filter(pk=mesg_dict['pk'])))
+
     if mesg.status == 'R':
         mesg.code = 202
     mesg.save()
@@ -49,109 +65,204 @@ def send_message(actor_dict, mesg_dict, timeout=300):
     endpoint=SmartApiDiscover().endpoint(inforesid)
     params=SmartApiDiscover().params(inforesid)
     query_endpoint = (endpoint if endpoint is not None else "") + (("?"+params) if params is not None else "")
+    task_id=str(mesg.pk)
+    with tracer.start_as_current_span(f"{agent}") as span:
+        logger.debug(f"CURRENT span during task execution: {span}")
+        span.set_attribute("pk", str(mesg.pk))
+        span.set_attribute("ref_pk", str(mesg.ref_id))
+        span.set_attribute("agent", agent)
+        # Make HTTP request and trace it
+        try:
+            logger.debug(f"CURRENT span before request post call: {span}")
+            #having to manually generate the traceparent_id since the automatic generation is disabled
+            span_context = span.get_span_context()
+            trace_id = span_context.trace_id
+            span_id = span_context.span_id
+            trace_flags = span_context.trace_flags
+            # Format the traceparent header
+            traceparent_header = (f"00-{trace_id:032x}-{span_id:016x}-{trace_flags:02x}")
+            logging.info('POSTing to agent %s pk:%s with traceparent: %s '% (agent,task_id, traceparent_header))
+            r = requests.post(url, json=data, timeout=timeout)
+            span.set_attribute("http.url", url)
+            span.set_attribute("http.status_code", r.status_code)
+            span.set_attribute("http.method", "POST")
+            span.set_attribute("task.id", task_id)
+            #span.set_attribute("celery.task_id", send_message.request.id)
+            logger.debug('%d: receive message from actor %s...\n%s.\n'
+                         % (r.status_code, url, str(r.text)[:500]))
+            status_code = r.status_code
+            url = r.url
+            if 'tr_ars.url' in r.headers:
+                url = r.headers['tr_ars.url']
+            # status defined in https://github.com/NCATSTranslator/ReasonerAPI/blob/master/TranslatorReasonerAPI.yaml
+            # paths: /query: post: responses:
+            # 200 = OK. There may or may not be results. Note that some of the provided
+            #             identifiers may not have been recognized.
+            # 202 = Accepted. Poll /aresponse for results.
+            # 400 = Bad request. The request is invalid according to this OpenAPI
+            #             schema OR a specific identifier is believed to be invalid somehow
+            #             (not just unrecognized).
+            # 500 = Internal server error.
+            # 501 = Not implemented.
+            # Message.STATUS
+            # ('D', 'Done'),
+            # ('S', 'Stopped'),
+            # ('R', 'Running'),
+            # ('E', 'Error'),
+            # ('W', 'Waiting'),
+            # ('U', 'Unknown')
+            if r.status_code == 200:
+                rdata = dict()
+                try:
+                    rdata = r.json()
+                except json.decoder.JSONDecodeError:
+                    status = 'E'
+                # now create a new message here
+                if(endpoint)=="asyncquery":
+                    if(callback is not None):
+                        try:
+                            ar = requests.get(callback, json=data, timeout=timeout)
+                            arj=ar.json()
+                            if utils.get_safe(rdata,"fields","data", "message") is None:
+                                logger.debug("data field empty")
+                                status = 'R'
+                                status_code = 202
+                            else:
+                                logger.debug("data field contains "+ arj["fields"]["data"]["message"])
+                                status = 'D'
+                                status_code = 200
+                        except json.decoder.JSONDecodeError:
+                            status = 'E'
+                            status_code = 422
 
-    try:
-        r = requests.post(url, json=data, timeout=timeout)
-        logger.debug('%d: receive message from actor %s...\n%s.\n'
-                     % (r.status_code, url, str(r.text)[:500]))
-        status_code = r.status_code
-        url = r.url
-        if 'tr_ars.url' in r.headers:
-            url = r.headers['tr_ars.url']
-        # status defined in https://github.com/NCATSTranslator/ReasonerAPI/blob/master/TranslatorReasonerAPI.yaml
-        # paths: /query: post: responses:
-        # 200 = OK. There may or may not be results. Note that some of the provided
-        #             identifiers may not have been recognized.
-        # 202 = Accepted. Poll /aresponse for results.
-        # 400 = Bad request. The request is invalid according to this OpenAPI
-        #             schema OR a specific identifier is believed to be invalid somehow
-        #             (not just unrecognized).
-        # 500 = Internal server error.
-        # 501 = Not implemented.
-        # Message.STATUS
-        # ('D', 'Done'),
-        # ('S', 'Stopped'),
-        # ('R', 'Running'),
-        # ('E', 'Error'),
-        # ('W', 'Waiting'),
-        # ('U', 'Unknown')
-        if r.status_code == 200:
-            rdata = dict()
-            try:
-                rdata = r.json()
-            except json.decoder.JSONDecodeError:
-                status = 'E'
-            # now create a new message here
-            if(endpoint)=="asyncquery":
-
-                if(callback is not None):
-                    ar = requests.get(callback, json=data, timeout=timeout)
-                    arj=ar.json()
-                    if(arj["fields"]["data"] is None or
-                            arj["fields"]["data"]["message"] is None):
-                        logger.debug("data field empty")
-                        status = 'R'
-                        status_code = 202
-                    else:
-                        logger.debug("data field contains "+ arj["fields"]["data"]["message"])
-                        status = 'D'
-                        status_code = 200
-            else:
-                logger.debug("Not async? "+query_endpoint)
-                status = 'D'
-                status_code = 200
-                results = utils.get_safe(rdata,"message","results")
-                if results is not None:
-                    mesg.result_count = len(rdata["message"]["results"])
-                    if len(results)>0:
-                        rdata["message"]["results"] = utils.normalizeScores(results)
+                else:
+                    logger.debug("Not async for agent: %s and endpoint: %s? " % (inforesid,query_endpoint))
+                    status = 'D'
+                    status_code = 200
+                    results = utils.get_safe(rdata,"message","results")
+                    kg = utils.get_safe(rdata,"message", "knowledge_graph")
+                    #before we do basically anything else, we normalize
+                    #no sense in processing something without results
+                    if results is not None and len(results)>0:
+                        mesg.result_count = len(rdata["message"]["results"])
                         scorestat = utils.ScoreStatCalc(results)
                         mesg.result_stat = scorestat
-            if 'tr_ars.message.status' in r.headers:
-                status = r.headers['tr_ars.message.status']
+                        parent_pk = mesg.ref.id
+                        #message_to_merge = utils.get_safe(rdata,"message")
+                        message_to_merge=rdata
+                        agent_name = str(mesg.actor.agent.name)
+                        child_pk=str(mesg.pk)
+                        logger.info("Running pre_merge_process for agent %s with %s" % (agent_name, len(results)))
+                        utils.pre_merge_process(message_to_merge,child_pk, agent_name, inforesid)
+                    #Whether we did any additional processing or not, we need to save what we have
+                    mesg.code = status_code
+                    mesg.status = status
+                    mesg.save_compressed_dict(rdata)
+                    #mesg.data = rdata
+                    mesg.url = url
+                    mesg.save()
+                    logger.debug('+++ message saved: %s' % (mesg.pk))
+            else:
+                #if the tool returned something other than 200, we log as appropriate and then save
+                if 'tr_ars.message.status' in r.headers:
+                    status = r.headers['tr_ars.message.status']
+                if r.status_code == 202:
+                    status = 'R'
+                    url = url[:url.rfind('/')] + '/aresponse/' + r.text
+                if r.status_code >= 400:
+                    if r.status_code != 503:
+                        status = 'E'
+                    rdata['logs'] = []
+                    rdata['logs'].append(html.escape(r.text))
+                    for key in r.headers:
+                        if key.lower().find('tr_ars') > -1:
+                            rdata['logs'].append(key+": "+r.headers[key])
+                mesg.code = status_code
+                mesg.status = status
+                mesg.save_compressed_dict(rdata)
+                #mesg.data = rdata
+                mesg.url = url
+                mesg.save()
+                logger.debug('+++ message saved: %s' % (mesg.pk))
+        #This exception is meant to handle unexpected errors in the ORIGINAL return from the ARA
+        except Exception as e:
+            logger.error("Unexpected error 2: {}".format(traceback.format_exception(type(e), e, e.__traceback__)))
+            logger.exception("Can't send message to actor %s\n%s for pk: %s"
+                             % (url,sys.exc_info(),mesg.pk))
+            span.set_attribute("error", True)
+            span.set_attribute("error.message", str(e))
+            status_code = 500
+            status = 'E'
+            mesg.code = status_code
+            mesg.status = status
+            mesg.save_compressed_dict(rdata)
+            #mesg.data = rdata
+            mesg.url = url
+            mesg.save()
+            logger.debug('+++ message saved: %s' % (mesg.pk))
 
+        agent_name = str(mesg.actor.agent.name)
+        if mesg.code == 200 and results is not None and len(results)>0:
+            valid = utils.validate(message_to_merge)
+            if valid:
+                if agent_name.startswith('ara-'):
+                    logger.info("pre async call for agent %s" % agent_name)
+                    # logging.debug("Merge starting for "+str(mesg.pk))
+                    # new_merged = utils.merge_received(parent_pk,message_to_merge['message'], agent_name)
+                    # logging.debug("Merge complete for "+str(new_merged.pk))
+                    # utils.post_process(new_merged.data,new_merged.pk, agent_name)
+                    # logging.debug("Post processing done for "+str(new_merged.pk))
+                    #parent = get_object_or_404(Message.objects.filter(pk=parent_pk))
+                    #logging.info(f'parent merged_versions_list before going into merge&post-process for pk: %s are %s' % (parent_pk,parent.merged_versions_list))
+                    #utils.merge_and_post_process(parent_pk,message_to_merge['message'],agent_name)
+                    #utils.merge_and_post_process(parent_pk,message_to_merge['message'],agent_name)
+                    utils.merge_and_post_process.apply_async((parent_pk,message_to_merge['message'],agent_name))
+                    logger.info("post async call for agent %s" % agent_name)
+            else:
+                logger.debug("Validation problem found for agent %s with pk %s" % (agent_name, str(mesg.ref_id)))
+                code = 422
+                status = 'E'
+                mesg.code = code
+                mesg.status = status
+                mesg.save()
         else:
-            if r.status_code == 202:
-                status = 'W'
-                url = url[:url.rfind('/')] + '/aresponse/' + r.text
-            if r.status_code >= 400:
-                if r.status_code != 503:
-                    status = 'E'
-                rdata['logs'] = []
-                rdata['logs'].append(html.escape(r.text))
-                for key in r.headers:
-                    if key.lower().find('tr_ars') > -1:
-                        rdata['logs'].append(key+": "+r.headers[key])
-    except Exception as e:
-        logger.error("Unexpected error 2: {}".format(traceback.format_exception(type(e), e, e.__traceback__)))
-        logger.exception("Can't send message to actor %s\n%s"
-                         % (url,sys.exc_info()))
-        status_code = 598
-        status = 'E'
-
-    mesg.code = status_code
-    mesg.status = status
-    mesg.data = rdata
-    mesg.url = url
-    mesg.save()
-    logger.debug('+++ message saved: %s' % (mesg.pk))
+            logging.debug("Skipping merge and post for "+str(mesg.pk)+
+                          " because the contributing message is in state: "+str(mesg.code))
 
 @shared_task(name="catch_timeout")
 def catch_timeout_async():
     now =timezone.now()
-    time_threshold = now - timezone.timedelta(minutes=60)
-    messages = Message.objects.filter(timestamp__lt=time_threshold, status__in='R')
+    logging.info(f'Checking timeout at {now}')
+    time_threshold = now - timezone.timedelta(minutes=10)
+    max_time = now-timezone.timedelta(minutes=5)
+    max_time_merged=now-timezone.timedelta(minutes=8)
+
+    messages = Message.objects.filter(timestamp__gt=time_threshold, status__in='R').values_list('actor','id','timestamp','updated_at')
     for mesg in messages:
-        agent = str(mesg.actor.agent.name)
-        if agent == 'ars-default-agent':
+        mpk=mesg[0]
+        id = mesg[1]
+        actor = Agent.objects.get(pk=mpk)
+        timestamp=mesg[2]
+
+        logging.info(f'actor: {actor} id: {mesg[1]} timestamp: {mesg[2]} updated_at {mesg[3]}')
+
+        #exempting parents from timing out
+        if actor.name == 'ars-default-agent':
             continue
-        else:
-            status = mesg.status
-            if status == 'R':
-                logger.info(f'for actor: {mesg.actor}, the status is {mesg.status}')
-                logger.info('the ARA tool has not sent their response back after 10min, setting status to 598')
-                mesg.code = 598
-                mesg.status = 'E'
-                mesg.save()
+
+        elif actor.name == 'ars-ars-agent':
+            if timestamp < max_time_merged:
+                logging.info('merge_agent pk: %s has been running more than 8 min, setting its code to 598')
+                message = get_object_or_404(Message.objects.filter(pk=mesg[1]))
+                message.code = 598
+                message.status = 'E'
+                message.save(update_fields=['status','code'])
             else:
-                logger.error('ARS encountered unrecognizable status')
+                continue
+        else:
+            if timestamp < max_time:
+                logging.info(f'for actor: {actor.name}, and pk {str(id)} the status is still "Running" after 5 min, setting code to 598')
+                message = get_object_or_404(Message.objects.filter(pk=mesg[1]))
+                message.code = 598
+                message.status = 'E'
+                message.save(update_fields=['status','code'])
