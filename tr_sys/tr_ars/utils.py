@@ -1,5 +1,6 @@
 import copy
 import json
+import gzip
 import logging
 import traceback
 import os, sys
@@ -20,7 +21,20 @@ from objsize import get_deep_size
 from django.shortcuts import get_object_or_404
 from .scoring import compute_from_results
 from collections import Counter
-
+from reasoner_pydantic import (
+    Query as vQuery,
+    Message as vMessage,
+    QNode as vQNode,
+    KnowledgeGraph as vKnowledgeGraph,
+    Node as vNode,
+    Result as vResult,
+    NodeBinding as vNodeBinding,
+    Response as vResponse
+)
+from biothings_annotator import annotator
+from pydantic import ValidationError
+from opentelemetry import trace
+tracer = trace.get_tracer(__name__)
 
 ARS_ACTOR = {
     'channel': [],
@@ -32,9 +46,9 @@ ARS_ACTOR = {
     'inforesid': 'ARS'
 }
 
-NORMALIZER_URL=os.getenv("TR_NORMALIZER") if os.getenv("TR_NORMALIZER") is not None else "https://nodenormalization-sri.renci.org/1.4/get_normalized_nodes"
-ANNOTATOR_URL=os.getenv("TR_ANNOTATOR") if os.getenv("TR_ANNOTATOR") is not None else "https://biothings.ncats.io/annotator/"
-APPRAISER_URL=os.getenv("TR_APPRAISE") if os.getenv("TR_APPRAISE") is not None else "http://localhost:9096/get_appraisal"
+NORMALIZER_URL=os.getenv("TR_NORMALIZER") if os.getenv("TR_NORMALIZER") is not None else "https://nodenorm.ci.transltr.io/get_normalized_nodes"
+ANNOTATOR_URL=os.getenv("TR_ANNOTATOR") if os.getenv("TR_ANNOTATOR") is not None else "https://biothings.ncats.io/curie"
+APPRAISER_URL=os.getenv("TR_APPRAISE") if os.getenv("TR_APPRAISE") is not None else "https://answerappraiser.ci.transltr.io/get_appraisal"
 
 
 class QueryGraph():
@@ -245,36 +259,6 @@ class TranslatorMessage():
     def __json__(self):
         return self.to_dict()
 
-def getCommonNodeIds(messageList):
-    if len(messageList)==0:
-        return set()
-    idSet = set(messageList[0].getKnowledgeGraph().getAllIds())
-    commonSet =set()
-    for msg in messageList[1:]:
-        currentSet = set(msg.getKnowledgeGraph().getAllIds())
-        inter = currentSet.intersection(idSet)
-        commonSet.update(inter)
-        idSet.update(currentSet)
-
-    return commonSet
-
-def getCommonNodes(messageList):
-    commonMap ={}
-    commonIds = getCommonNodeIds(messageList)
-    for mesg in messageList:
-        kg= mesg.getKnowledgeGraph()
-        for id in commonIds:
-            kgNode = kg.getNodeById(id)
-            if kgNode is not None:
-                if id not in commonMap:
-                    commonMap[id]=[kgNode]
-                else:
-                    commonMap[id].append(kgNode)
-
-    return commonMap
-
-
-
 def mergeMessages(messageList,pk):
     messageListCopy = copy.deepcopy(messageList)
     message = messageListCopy.pop()
@@ -314,8 +298,6 @@ def mergeMessagesRecursive(mergedMessage,messageList,pk):
     else:
         currentMessage = messageList.pop()
         #merge Knowledge Graphs
-
-        #mergedKnowledgeGraph = mergeKnowledgeGraphs(currentMessage.getKnowledgeGraph(),mergedMessage.getKnowledgeGraph())
         logging.info(f'Merging knowledge graphs for {pk}')
         ckg = currentMessage.getKnowledgeGraph().getRaw()
         mkg = mergedMessage.getKnowledgeGraph().getRaw()
@@ -335,8 +317,6 @@ def mergeMessagesRecursive(mergedMessage,messageList,pk):
         mergedAux=mergedMessage.getAuxiliaryGraphs()
         mergeDicts(currentAux,mergedAux)
         logging.info(f'Merging aux graphs complete for {pk}')
-
-
         logging.info(f'Merging: creating and converting for {pk}')
 
         values = mergedResultMap.values()
@@ -355,15 +335,36 @@ def mergeDicts(dcurrent,dmerged):
         dmerged ={}
     for key in dcurrent.keys():
         cv=dcurrent[key]
-        #print("key is "+str(key))
         if key in dmerged.keys():
-
             mv=dmerged[key]
+            if key == 'node_bindings':
+                cvv = [{node_key:node_value[0]} for node_key, node_value in cv.items() if 'id' in node_value[0]]
+                mvv = [{node_key:node_value[0]} for node_key, node_value in mv.items() if 'id' in node_value[0]]
+                if (all(isinstance(x, dict) for x in mvv)
+                    and all(isinstance(y, dict) for y in cvv)):
+                    cmap={}
+                    mmap={}
+                    for cd in cvv:
+                        for cd_key, cd_val in cd.items():
+                            if 'id' in cd_val:
+                                cmap[cd_val['id']]=cd_val
+                    for md in mvv:
+                        for md_key, md_val in md.items():
+                            if 'id' in md_val:
+                                mmap[md_val['id']]=md_val
+
+                    for ck in cmap.keys():
+                        if ck in mmap.keys():
+                            mmap[ck]=mergeDicts(cmap[ck],mmap[ck])
+                    else:
+                            mmap[ck]=cmap[ck]
+                    #dmerged[key]=list(mmap.values())
+                    # return dmerged
             #analyses are a special case in which we just append them at the result level
-            if key == 'analyses':
+            elif key == 'analyses':
                 dmerged[key]=mv+cv
                 return dmerged
-            if (isinstance(cv,dict) and isinstance(mv,dict)):
+            elif (isinstance(cv,dict) and isinstance(mv,dict)):
                 #print("merging dicts")
                 dmerged[key]=mergeDicts(cv,mv)
             elif isinstance(mv,list) and not isinstance(cv,list):
@@ -439,75 +440,6 @@ def mergeDicts(dcurrent,dmerged):
     return dmerged
 
 
-def mergeResults(r1, r2):
-    return Results(r1.getRaw()+r2.getRaw())
-def mergeKnowledgeGraphs(kg1, kg2):
-    #mergedNodes = []
-    mergedNodes ={}
-    firstIds = set(kg1.getAllIds())
-    try:
-        idTest = kg2.getAllIds()
-        secondIds = set(idTest)
-    except Exception as e:
-        logging.error("Unexpected error 4: {}".format(traceback.format_exception(type(e), e, e.__traceback__)))
-        raise e
-    intersection = firstIds.intersection(secondIds)
-    firstOnly = firstIds.difference(secondIds)
-    secondOnly = secondIds.difference(firstIds)
-    for id in firstOnly:
-        mergedNodes[id]=kg1.getNodeById(id)
-    for id in secondOnly:
-        mergedNodes[id]=kg2.getNodeById(id)
-    for id in intersection:
-        mergedNode = {}
-        firstNode = kg1.getNodeById(id)
-        secondNode = kg2.getNodeById(id)
-        firstKeySet =set(firstNode.keys())
-        secondKeySet = set(secondNode.keys())
-        keyIntersection = firstKeySet.intersection(secondKeySet)
-        firstOnlyKeys=firstKeySet.difference(secondKeySet)
-        secondOnlyKeys=secondKeySet.difference(firstKeySet)
-        for key in firstOnlyKeys:
-            mergedNode[key]=firstNode.get(key)
-        for key in secondOnlyKeys:
-            mergedNode[key]=secondNode.get(key)
-        for key in keyIntersection:
-            if firstNode.get(key)!= secondNode.get(key):
-                mergedNode[key]=[firstNode.get(key),secondNode.get(key)]
-            else:
-                mergedNode[key]=firstNode.get(key)
-            mergedNodes[id]=mergedNode
-
-    #Since edges don't have the same guarantee of identifiers matching as nodes, we'll just combine them naively and
-    #eat the redundancy if we have two functionally identical edges for now]
-    test =kg1.getEdges()
-    mergedEdges=kg1.getEdges()|kg2.getEdges()
-    mergedKg={
-        "nodes":mergedNodes,
-        "edges":mergedEdges
-    }
-    return KnowledgeGraph(mergedKg)
-
-def sharedResultsJson(sharedResultsMap):
-    results=[]
-    sharedResultsMap={k: v for k, v in sorted(sharedResultsMap.items(), key=lambda item: item[1],reverse=True)}
-    for k,v in sharedResultsMap.items():
-        tuples=[]
-        for tuple in k:
-            pass
-            tupleDict = {
-                "source":tuple[0],
-                "relation":tuple[1],
-                "target":tuple[2]
-            }
-            tuples.append(tupleDict)
-        result = {
-            "results":tuples,
-            "count":v
-        }
-        results.append(json.dumps(result,indent=2))
-    return results
-
 def pre_merge_process(data,key, agent_name,inforesid):
     mesg = get_object_or_404(Message.objects.filter(pk=key))
     logging.info("Pre node norm for "+str(key))
@@ -540,93 +472,131 @@ def pre_merge_process(data,key, agent_name,inforesid):
         logging.exception("Error in ARS score normalization")
         raise e
 
+def post_process(mesg,key, agent_name):
 
-def post_process(data,key, agent_name):
-    code =200
-    mesg = get_object_or_404(Message.objects.filter(pk=key))
+    data = mesg.decompress_dict()
+
+    logging.info("pre blocklist for "+str(key))
+    try:
+        remove_blocked(mesg, data)
+    except Exception as e:
+        status='E'
+        code=444
+        logging.info(e.__cause__)
+        logging.exception(f"Problem with block list removal for agent: {agent_name} pk: {str(key)}")
+        mesg.status=status
+        mesg.code=code
+        mesg.save()
+
+    logging.info("pre scrub null for agent %s and pk %s" % (agent_name, str(key)))
+    try:
+        scrub_null_attributes(data)
+    except Exception as e:
+        status='E'
+        code=444
+        logging.exception(f"Problem with the second scrubbing of null attributes for agent: {agent_name} pk: {str(key)}")
+        post_processing_error(mesg,data,"Error in second scrubbing of null attributes")
+        log_tuple =[
+            "Error in second scrubbing of null attributes",
+            datetime.now().strftime('%H:%M:%S'),
+            "DEBUG"
+        ]
+        add_log_entry(data,log_tuple)
+        mesg.status=status
+        mesg.code=code
+        mesg.save()
+
+
+
     logging.info("Pre node annotation for agent %s pk: %s" % (agent_name, str(key)))
     try:
         annotate_nodes(mesg,data,agent_name)
         logging.info("node annotation successful for agent %s and pk: %s" % (agent_name, str(key)))
     except Exception as e:
-        post_processing_error(mesg,data,"Error in annotation of nodes")
-        logging.error("Error with node annotations for "+str(key))
-        logging.exception("problem with node annotation post process function")
-        raise e
-    logging.info("pre scrub null for agent %s and pk %s" % (agent_name, str(key)))
-    try:
-        scrub_null_attributes(data)
-    except Exception as e:
-        logging.info("Problem with the second scrubbing of null attributes")
-    logging.info("pre blocklist for "+str(key))
-    try:
-        remove_blocked(mesg, data)
-    except Exception as e:
-        logging.info(e.__cause__)
-        logging.info("Problem with block list removal")
+        status='E'
+        code=444
+        log_tuple =[
+            f'node annotation internal error: {str(e)}',
+            datetime.now().strftime('%H:%M:%S'),
+            "DEBUG"
+        ]
+        add_log_entry(data,log_tuple)
+        logging.exception(f"problem with node annotation for agent: {agent_name} pk: {str(key)}")
+        mesg.status=status
+        mesg.code=code
+        mesg.save()
+
+
     logging.info("pre appraiser for agent %s and pk %s" % (agent_name, str(key)))
     try:
         appraise(mesg,data,agent_name)
-        logging.info("appraiser successful for agent %s and pk %s" % (agent_name, str(key)))
     except Exception as e:
-        code = 422
-        results = get_safe(data,"message","results")
-        default_ordering_component = {
-            "novelty": 0,
-            "confidence": 0,
-            "clinical_evidence": 0
-        }
-        if results is not None:
-            for result in results:
-                if 'ordering_components' not in result.keys():
-                    result['ordering_components']=default_ordering_component
-                else:
-                    continue
-        else:
-            logging.error('results returned from appraiser is None')
+        logging.ERROR("appraiser failed mesg for agent %s is %s: %s"% (agent_name, mesg.code, mesg.status))
 
-        #post_processing_error(mesg,data,"Error in appraiser")
-        logging.error("Error with appraise for "+str(key))
-        logging.exception("Error in appraiser post process function")
-        #raise e
-    try:
-        results = get_safe(data,"message","results")
-        if results is not None:
-            logging.info("+++ pre-scoring for agent: %s & pk: %s" % (agent_name, key))
-            new_res=scoring.compute_from_results(results)
-            data['message']['results']=new_res
-            logging.info("scoring succeeded for agent %s and pk %s" % (agent_name, key))
-        else:
-            logging.error('results from appraiser returns None, cant do the scoring')
-        print()
-    except Exception as e:
-        post_processing_error(mesg,data,"Error in f-score calculation")
-        logging.exception("Error in f-score calculation")
-        raise e
+    if mesg.code == 422:
+        return mesg, mesg.code, mesg.status
+    else:
+        try:
+            results = get_safe(data,"message","results")
+            if results is not None:
+                logging.info("+++ pre-scoring for agent: %s & pk: %s" % (agent_name, key))
+                new_res=scoring.compute_from_results(results)
+                data['message']['results']=new_res
+                logging.info("scoring succeeded for agent %s and pk %s" % (agent_name, key))
+            else:
+                logging.error('results from appraiser returns None, cant do the scoring')
+            print()
+        except Exception as e:
+            status='E'
+            code = 422
+            mesg.save(update_fields=['status','code'])
+            log_tuple =[
+                "Error in f-score calculation: "+ str(e),
+                datetime.now().strftime('%H:%M:%S'),
+                "ERROR"
+            ]
+            add_log_entry(data,log_tuple)
+            logging.exception("Error in f-score calculation")
+            mesg.save_compressed_dict(data)
+            return mesg, code, status
 
-    try:
-        mesg.result_count = len(new_res)
-        mesg.result_stat = ScoreStatCalc(new_res)
-    except Exception as e:
-        logging.exception("Error in ScoreStatCalculation or result count")
-        raise e
-        mesg.status ='E'
-        mesg.code=400
-        mesg.save(update_fields=['status','code'])
-    try:
-        mesg.status='D'
-        mesg.code=200
-        mesg.save_compressed_dict(data)
-        logging.info("Time before save")
-        with transaction.atomic():
-            mesg.save()
-        logging.info("Time after save")
-    except DatabaseError as e:
-        mesg.status ='E'
-        mesg.code=422
-        logging.error("Final save failed")
-        mesg.save(update_fields=['status','code'])
-        
+        try:
+            mesg.result_count = len(new_res)
+            mesg.result_stat = ScoreStatCalc(new_res)
+            logging.info("scoring stat calculation succeeded  for agent %s and pk %s" % (agent_name, key))
+        except Exception as e:
+            logging.exception("Error in ScoreStatCalculation or result count")
+            post_processing_error(mesg,data,"Error in score stat calculation")
+            log_tuple =[
+                "Error in score stat calculation",
+                datetime.now().strftime('%H:%M:%S'),
+                "DEBUG"
+            ]
+            add_log_entry(data,log_tuple)
+            status ='E'
+            code=444
+            mesg.save_compressed_dict(data)
+            return mesg, code, status
+
+        try:
+            mesg.save_compressed_dict(data)
+            logging.info("Time before save")
+            logging.info('the mesg before save code: %s and status: %s'%(mesg.code, mesg.status))
+            with transaction.atomic():
+                if mesg.code == 202:
+                    code = 200
+                    status='D'
+                mesg.code=code
+                mesg.status=status
+                mesg.save()
+            logging.info("Time after save")
+
+        except DatabaseError as e:
+            status ='E'
+            code=422
+            logging.error("Final save failed")
+        return mesg, code, status
+
 def lock_merge(message):
     pass
     if message.merge_semaphore is True:
@@ -638,7 +608,7 @@ def lock_merge(message):
 
 @shared_task(name="merge_and_post_process")
 def merge_and_post_process(parent_pk,message_to_merge, agent_name, counter=0):
-
+    merged=None
     logging.info(f"Starting merge for %s with parent PK: %s"% (agent_name,parent_pk))
     logging.info(f"Before atomic transaction for %s with parent PK: %s"% (agent_name,parent_pk))
     with transaction.atomic():
@@ -663,31 +633,22 @@ def merge_and_post_process(parent_pk,message_to_merge, agent_name, counter=0):
                 merged.status='E'
                 merged.code = 422
                 merged.save()
-
     else:
-        #If there is currently a merge happening, we wait until it finishes to do our merge
         if counter < 5:
-            logging.debug("Merged_version locked for %s.  Attempt %s:" % (agent_name, str(counter)))
+            logging.info("Merged_version locked for %s.  Attempt %s:" % (agent_name, str(counter)))
             sleeptime.sleep(5)
             counter = counter + 1
             merge_and_post_process(parent_pk,message_to_merge, agent_name, counter)
         else:
-            logging.debug("Merging failed for %s %s" % (agent_name, str(parent_pk)))
+            logging.info("Merging failed for %s %s" % (agent_name, str(parent_pk)))
 
     if merged is not None:
-        try:
-            logging.info('merged data for agent %s with pk %s is returned & ready to be preprocessed' % (agent_name, str(merged.id)))
-            merged_data = merged.decompress_dict()
-            post_process(merged_data,merged.id, agent_name)
-            logging.info('post processing complete for agent %s with pk %s is returned & ready to be preprocessed' % (agent_name, str(merged.id)))
-
-        except Exception as e:
-            logging.info("Problem with post processing for agent %s pk: %s " % (agent_name, (parent_pk)))
-            logging.info(e, exc_info=True)
-            logging.info('error message %s' % str(e))
-            merged.status='E'
-            merged.code = 422
-            merged.save()
+        logging.info('merged data for agent %s with pk %s is returned & ready to be preprocessed' % (agent_name, str(merged.id)))
+        merged, code, status = post_process(merged,merged.id, agent_name)
+        logging.info('post processing complete for agent %s with pk %s is returned & ready to be preprocessed' % (agent_name, str(merged.id)))
+        merged.status = status
+        merged.code = code
+        merged.save()
 
 def remove_blocked(mesg, data, blocklist=None):
     try:
@@ -702,12 +663,11 @@ def remove_blocked(mesg, data, blocklist=None):
         nodes = get_safe(data,"message","knowledge_graph","nodes")
         edges = get_safe(data,"message","knowledge_graph","edges")
         aux_graphs = get_safe(data,"message","auxiliary_graphs")
-        removed_ids=[]
+        analyses_count = 0
         removed_nodes=[]
-
         #The set of ids of nodes that need to be removed is the intersection of the Nodes keys and the blocklist
         if nodes is not None:
-            nodes_to_remove= list(set(blocklist) & set(nodes.keys()))
+            nodes_to_remove= list(set(blocklist.keys()) & set(nodes.keys()))
             #We remove those nodes first from the knowledge graph
             for node in nodes_to_remove:
                 removed_nodes.append(nodes[node])
@@ -716,22 +676,48 @@ def remove_blocked(mesg, data, blocklist=None):
             #Then we find any edges that have them as a subject or object and remove those
             edges_to_remove=[]
             for edge_id, edge in edges.items():
-
+                #we will add the things to remove here, but actually remove them later because edges_to_remove
+                #can get more things added to it because of instance in which we removed all the support graphs
+                #but we can't look for that until we have aux_graphs_to_remove
                 if edge['subject'] in nodes_to_remove or edge['object'] in nodes_to_remove:
                     edges_to_remove.append(edge_id)
-            for edge_id in edges_to_remove:
-                del edges[edge_id]
+
 
             if aux_graphs is not None:
                 aux_graphs_to_remove=[]
                 for aux_id, aux_graph in aux_graphs.items():
 
-                    edges = get_safe(aux_graph,"edges")
-                    overlap = list(set(edges) & set(edges_to_remove))
-                    if len(overlap)>0:
+                    aux_edges = get_safe(aux_graph,"edges")
+                    overlap = list(set(aux_edges) & set(edges_to_remove))
+                    #If we're removing ALL the edges, then the whole aux graph has to go
+                    if len(overlap)==len(aux_edges):
                         aux_graphs_to_remove.append(aux_id)
+                    #otherwise, we just remove the offending edges
+                    if len(overlap)>0:
+                        for edge_id in overlap:
+                            aux_edges.remove(edge_id)
                 for aux_id in aux_graphs_to_remove:
                     del aux_graphs[aux_id]
+                #Some edges in the knowledge graph may reference aux graphs in an attribute called support_graphs
+                #If so, we need to remove any references there to ones we removed here
+
+                for edge_id,edge in edges.items():
+                    if 'attributes' in edge.keys() and edge['attributes'] is not None:
+                        attributes=get_safe(edge,"attributes")
+                        for attribute in attributes:
+                            if 'attribute_type_id' in attribute.keys():
+                                type_id = attribute['attribute_type_id']
+                                if type_id is not None and type_id=='biolink:support_graphs':
+                                    overlap = list(set(attribute['value']) & set(aux_graphs_to_remove))
+                                    if len(overlap)>0:
+                                        for graph in overlap:
+                                            attribute['value'].remove(graph)
+                                        #If we removed ALL the support graphs, the edge itself is no good
+                                        if len(attribute['value'])==0 and edge_id not in edges_to_remove:
+                                            edges_to_remove.append(edge_id)
+            #Now that we have ALL of the edges to remove, we do the actual removing
+            for edge_id in edges_to_remove:
+                del edges[edge_id]
             #We do the same for results
             if results is not None:
                 results_to_remove = []
@@ -742,9 +728,8 @@ def remove_blocked(mesg, data, blocklist=None):
                             nb=node_bindings[k]
                             for c in nb:
                                 the_id = get_safe(c,"id")
-
-                            if the_id in nodes_to_remove and result not in results_to_remove:
-                                results_to_remove.append(result)
+                                if the_id in nodes_to_remove and result not in results_to_remove:
+                                    results_to_remove.append(result)
 
 
                     analyses=get_safe(result,"analyses")
@@ -759,7 +744,7 @@ def remove_blocked(mesg, data, blocklist=None):
                                         if binding['id'] in edges_to_remove:
                                             if(len(bindings)>1):
                                                 bindings_to_remove.append(binding)
-                                            else:
+                                            elif analysis not in analyses_to_remove:
                                                 analyses_to_remove.append(analysis)
                                     for br in bindings_to_remove:
                                         bindings.remove(br)
@@ -773,8 +758,9 @@ def remove_blocked(mesg, data, blocklist=None):
                                 for sg in support_graphs_to_remove:
                                     support_graphs.remove(sg)
                         for analysis in analyses_to_remove:
+                            analyses_count+=1
                             analyses.remove(analysis)
-                        if len(analyses)<1 and result not in results_to_remove:
+                        if len(analyses)==0 and result not in results_to_remove:
                             #if removing the bad analyses leaves us with a result that would have none, we remove the result
                             results_to_remove.append(result)
                 for result in results_to_remove:
@@ -792,6 +778,25 @@ def remove_blocked(mesg, data, blocklist=None):
             "DEBUG"
         ]
         add_log_entry(data,log_tuple)
+
+        aux_count = len(aux_graphs_to_remove)
+        nodes_count=len(nodes_to_remove)
+        edges_count = len(edges_to_remove)
+        results_count = len(results_to_remove)
+
+        log_json = {
+            "nodes":nodes_count,
+            "edges":edges_count,
+            "results":results_count,
+            "auxiliary_graphs":aux_count,
+            "analyses":analyses_count
+        }
+        log_tuple_counts =[
+            'Removed the following counts: '+ str(log_json),
+            datetime.now().strftime('%H:%M:%S'),
+            "DEBUG"
+        ]
+        add_log_entry(data,log_tuple_counts)
         #mesg.status='D'
         #mesg.code=200
         mesg.save_compressed_dict(data)
@@ -868,94 +873,137 @@ def scrub_null_attributes(data):
 
 
 
-def appraise(mesg,data, agent_name,retry_counter=0):
-    headers = {'Content-type': 'application/json', 'Accept': 'text/plain'}
-    json_data = json.dumps(data)
-    logging.info('sending data for agent: %s to APPRAISER URL: %s' % (agent_name, APPRAISER_URL))
-    try:
-        with requests.post(APPRAISER_URL,data=json_data,headers=headers, stream=True) as r:
-            logging.info("Appraiser being called at: "+APPRAISER_URL)
-            logging.info('the response for agent %s to appraiser code is: %s' % (agent_name, r.status_code))
-            if r.status_code==200:
-                rj = r.json()
-                #for now, just update the whole message, but we could be more precise/efficient
-                logging.info("Updating message with appraiser data for agent %s and pk %s " % (agent_name, str(mesg.id)))
-                data['message']['results']=rj['message']['results']
-                logging.info("Updating message with appraiser data complete for "+str(mesg.id))
-            else:
-                retry_counter +=1
-                logging.info("Received Error state from appraiser for agent %s and pk %s  Code %s Attempt %s" % (agent_name,str(mesg.id),str(r.status_code),str(retry_counter)))
-                logging.info("JSON fields "+str(json_data)[:100])
-                if retry_counter<3:
-                    appraise(mesg,data, agent_name,retry_counter)
-                else:
-                    logging.error("3 consecutive Errors from appraise for agent %s and pk %s " % (agent_name,str(mesg.id)))
-                    raise Exception
-    except Exception as e:
+def appraise(mesg, data, agent_name, compress = True):
+    CopyForMax = copy.deepcopy(data)
+    CopyForMax['pk']=str(mesg.id)
+    if compress:
+        headers = {'Accept': 'gzip','Content-Encoding': 'gzip'}
+        json_data = json.dumps(CopyForMax)
+        data_payload = gzip.compress(json_data.encode('utf-8'))
+    else:
+        headers = {'Content-type': 'application/json', 'Accept': 'text/plain'}
+        data_payload = json.dumps(CopyForMax)
 
-        logging.error("Problem with appraiser for agent %s and pk %s " % (agent_name,str(mesg.id)))
-        logging.error(type(e).__name__)
-        logging.error(e.args)
-        logging.error("Adding default ordering_components for agent %s and pk %s " % (agent_name,str(mesg.id)))
-        raise e
-        
+    logging.info('sending data for agent: %s to APPRAISER URL: %s' % (agent_name, APPRAISER_URL))
+    with tracer.start_as_current_span("get_appraisal") as span:
+        try:
+            with requests.post(APPRAISER_URL,data=data_payload,headers=headers, stream=True,timeout=600) as r:
+                logging.info("Appraiser being called at: "+APPRAISER_URL)
+                logging.info('the response for agent %s to appraiser code is: %s' % (agent_name, r.status_code))
+                if r.status_code==200:
+                    if compress:
+                        rj = json.loads(gzip.decompress(r.content).decode('utf-8'))
+                    else:
+                        rj = r.json()
+                    #for now, just update the whole message, but we could be more precise/efficient
+                    logging.info("Updating message with appraiser data for agent %s and pk %s " % (agent_name, str(mesg.id)))
+                    data['message']['results']=rj['message']['results']
+                    logging.info("Updating message with appraiser data complete for "+str(mesg.id))
+                else:
+                    logging.info("Received Error state from appraiser for agent %s and pk %s  Code %s Attempt %s" % (agent_name,str(mesg.id),str(r.status_code),str(retry_counter)))
+                    logging.info("JSON fields "+str(data_payload)[:100])
+                    logging.error("Error from appraise for agent %s and pk %s " % (agent_name,str(mesg.id)))
+                    raise Exception
+
+        except Exception as e:
+            logging.error("Problem with appraiser for agent %s and pk %s of type %s" % (agent_name,str(mesg.id),type(e).__name__))
+            logging.error("Adding default ordering_components for agent %s and pk %s " % (agent_name,str(mesg.id)))
+            span.set_attribute("error", True)
+            span.set_attribute("exception", str(e))
+            results = get_safe(data,"message","results")
+            default_ordering_component = {
+                "novelty": 0,
+                "confidence": 0,
+                "clinical_evidence": 0
+            }
+            if results is not None:
+                for result in results:
+                    if 'ordering_components' not in result.keys():
+                        result['ordering_components']=default_ordering_component
+                    else:
+                        continue
+            else:
+                logging.error('results returned from appraiser is None')
+            log_tuple =[
+                "Error in Appraiser "+ str(e),
+                datetime.now().strftime('%H:%M:%S'),
+                "ERROR"
+            ]
+            add_log_entry(data,log_tuple)
+            mesg.save_compressed_dict(data)
+            mesg.status='E'
+            mesg.code = 422
+            mesg.save(update_fields=['status','code'])
+def sperate_annotated_nodes(nodes):
+    try:
+        unannotated=[]
+        for curie,value in nodes.items():
+            if 'attribute' in value.keys() and value['attributes'] == []:
+                unannotated.append(curie)
+            else:
+                annotated=False
+                for attribute in value['attributes']:
+                    if 'attribute_type_id' in attribute.keys() and attribute['attribute_type_id'] == 'biothings_annotations':
+                        annotated=True
+                if not annotated:
+                    unannotated.append(curie)
+    except Exception as e:
+        print(e)
+
+    return unannotated
 
 def annotate_nodes(mesg,data,agent_name):
     #TODO pull this URL from SmartAPI
-    headers = {'Content-type': 'application/json', 'Accept': 'text/plain'}
+    headers = {'Content-type': 'application/json'}
     nodes = get_safe(data,"message","knowledge_graph","nodes")
+    curie_list = sperate_annotated_nodes(nodes)
     if nodes is not None:
         nodes_message = {
-            "message":
-                {
-                    "knowledge_graph":{
-                        "nodes":nodes
-                    }
-                }
+            "ids": curie_list
         }
         #we have to scrub input for invalid CURIEs or we'll get a 500 back from the annotator
         curie_pattern = re.compile("[\w\.]+:[\w\.]+")
         invalid_nodes={}
-
-        for key in nodes_message['message']['knowledge_graph']['nodes'].keys():
+        with open(f'{agent_name}_annotator_curie_list.json', 'w') as json_file:
+            json.dump(nodes_message, json_file, indent=4)
+        for key in nodes_message['ids']:
             if not curie_pattern.match(str(key)):
-                invalid_nodes[key]=nodes_message['message']['knowledge_graph']['nodes'][key]
+                invalid_nodes[key]=nodes[key]
         if len(invalid_nodes)!=0:
             for key in invalid_nodes.keys():
-                del nodes_message['message']['knowledge_graph']['nodes'][key]
+                nodes_message['ids'].remove(key)
 
-
-        json_data = json.dumps(nodes_message)
-        try:
-            logging.info('posting data to the annotator URL %s' % ANNOTATOR_URL)
-            # with open(str(mesg.pk)+'_'+agent_name+"_KG_nodes_annotator.json", "w") as outfile:
-            #     outfile.write(json_data)
-            r = requests.post(ANNOTATOR_URL,data=json_data,headers=headers)
-            r.raise_for_status()
-            rj=r.json()
-            logging.info('the response status for agent %s node annotator is: %s' % (agent_name,r.status_code))
-            if r.status_code==200:
+        #json_data = json.dumps(nodes_message)
+        logging.info('posting data to the annotator URL %s' % ANNOTATOR_URL)
+        logging.info('sending %s curie ides to the annotator'% len(curie_list))
+        with tracer.start_as_current_span("annotator") as span:
+            try:
+                atr = annotator.Annotator()
+                rj = atr.annotate_curie_list(curie_list)
+                # r = requests.post(ANNOTATOR_URL,json=nodes_message,headers=headers)
+                # r.raise_for_status()
+                # rj=r.json()
+                #logging.info('the response status for agent %s node annotator' % (agent_name))
                 for key, value in rj.items():
-                    if 'attributes' in value.keys() and value['attributes'] is not None:
-                        for attribute in value['attributes']:
-                            if attribute is not None:
-                                add_attribute(data['message']['knowledge_graph']['nodes'][key],attribute)
-                            
+                    if isinstance(value, list) and 'notfound' in value[0].keys() and value[0]['notfound'] == True:
+                            pass
+                    elif isinstance(value, dict) and value == {}:
+                        pass
+                    else:
+                        attribute={
+                            "attribute_type_id": "biothings_annotations",
+                            "value": value
+                        }
+                        add_attribute(data['message']['knowledge_graph']['nodes'][key],attribute)
                     #Not sure about adding back clearly borked nodes, but it is in keeping with policy of non-destructiveness
                 if len(invalid_nodes)>0:
                     data['message']['knowledge_graph']['nodes'].update(invalid_nodes)
-            else:
-                post_processing_error(mesg,data,"Error in annotation of nodes")
-        except Exception as e:
-            logging.info('node annotation internal error msg is for agent %s with pk: %s is  %s' % (agent_name,str(mesg.pk),str(e)))
-            logging.exception("error in node annotation internal function")
-
-            raise e
-        #else:
-         #   with open(str(mesg.actor)+".json", "w") as outfile:
-          #      outfile.write(json_data)
-           # post_processing_error(mesg,data,"Error in annotation of nodes")
-
+            except Exception as e:
+                logging.info('node annotation internal error msg is for agent %s with pk: %s is  %s' % (agent_name,str(mesg.pk),str(e)))
+                logging.exception("error in node annotation internal function")
+                span.set_attribute("error", True)
+                span.set_attribute("exception", str(e))
+                raise e
 
 def normalize_scores(data,key, agent_name):
     res=get_safe(data,"message","results")
@@ -977,7 +1025,7 @@ def normalize_nodes(data,agent_name,key):
         if res is not None:
             logging.info('going to normalize ids for agent: %s and pk: %s' % (agent_name, key))
             try:
-                kg, res = canonizeMessageTest(kg, res)
+                kg, res = canonizeMessage(kg, res)
             except Exception as e:
                 logging.error('Failed to normalize ids for agent: %s and pk: %s' % (agent_name, key))
                 logging.exception('failed to normalize ids for agent: %s and pk: %s' % (agent_name, key))
@@ -1025,7 +1073,7 @@ def post_processing_error(mesg,data,text):
     mesg.code = 206
     log_tuple=[text,
                (mesg.updated_at).strftime('%H:%M:%S'),
-               "WARNING"]
+               "DEBUG"]
     logging.info(f'the log_tuple is %s'% log_tuple)
     add_log_entry(data,log_tuple)
 
@@ -1063,21 +1111,6 @@ def add_attribute(node_or_edge, attribute_json):
     else:
         node_or_edge['attributes']=[template_attribute]
 
-def keys_exist(element, *keys):
-    if not isinstance(element, dict):
-        raise AttributeError('keys_exists() expects dict as first argument.')
-    if len(keys) == 0:
-        raise AttributeError('keys_exists() expects at least two arguments, one given.')
-
-    _element = element
-    for key in keys:
-        try:
-            _element = _element[key]
-            if _element is None:
-                return False
-        except KeyError:
-            return False
-    return True
 
 def get_safe(element,*keys):
     '''
@@ -1115,31 +1148,17 @@ def canonize(curies):
         "drug_chemical_conflate":True
     }
     logging.info('the normalizer_URL is %s' % NORMALIZER_URL)
-    r = requests.post(NORMALIZER_URL,json.dumps(j))
-    rj=r.json()
-    return rj
+    with tracer.start_as_current_span("get_normalized_node") as span:
+        try:
+            r = requests.post(NORMALIZER_URL,json.dumps(j))
+            rj=r.json()
+            return rj
+        except Exception as e:
+            span.set_attribute("error", True)
+            span.set_attribute("exception", str(e))
+            raise
 
-
-def canonizeResults(results):
-    canonical_results=[]
-    for result in results:
-        canonical_result=set
-        node_bindings = result.getNodeBindings()
-        for binding in node_bindings:
-            curie = get_safe(binding,"id")
-            canonical=canonize(curie)
-            canonical_result.append(canonical)
-        canonical_results.append(frozenset(canonical_result))
-    return canonical_results
-
-def canonizeKnowledgeGraph(kg):
-    nodes = kg.getNodes()
-    ids = list(nodes.keys())
-    if len(ids)>0:
-        canonical = canonize(ids)
-
-
-def canonizeMessageTest(kg,results):
+def canonizeMessage(kg,results):
 
     nodes = kg['nodes']
     edges = kg['edges']
@@ -1153,7 +1172,7 @@ def canonizeMessageTest(kg,results):
                 if new_name is not None and ('name' not in nodes[canon] or ('name' in nodes[canon] and nodes[canon]['name']!= new_name)):
                     nodes[canon]['name'] = new_name
                 elif new_name is None and ('name' not in nodes[canon]):
-                    nodes[canon]['name']="NameUnknown"
+                    nodes[canon]['name']=str(canon)
                 if canonical[canon] is not None and canon != canonical[canon]["id"]["identifier"]:
                     changes[canon]=canonical[canon]
                     new_id = changes[canon]['id']['identifier']
@@ -1245,37 +1264,6 @@ def canonizeMessageTest(kg,results):
         # print(res)
     return kg, results
 
-def canonizeMessage(msg):
-    #kg = msg.getKnowledgeGraph()
-    nodes = msg.getKnowledgeGraph().getNodes()
-    ids=list(nodes.keys())
-    if len(ids)>0:
-        canonical = canonize(ids)
-        #changes= copy.deepcopy(canonical)'
-        changes = {}
-        for key,value in canonical.items():
-            if value is not None and key != value["id"]["identifier"]:
-                changes[key]=value
-        results = msg.getResults()
-        bindings = results.getNodeBindings()
-        for binding in bindings:
-            for key in binding.keys():
-                id_list = binding[key]
-                for id_dict in id_list:
-                    if id_dict['id'] in changes:
-                        #print("Changing "+str(id_dict['id'])+" to "+ str(changes[id_dict['id']]['id']['identifier'])+" at "+str(bindings.index(binding)))
-                        id_dict['id']=changes[id_dict['id']]['id']['identifier']
-        for change in changes:
-            if change in nodes:
-                new_id = changes[change]['id']['identifier']
-                #print("Changing "+(str(change))+" to "+str(new_id))
-                nodes[new_id]=nodes.pop(change)
-
-def findSharedResults(sharedResults,messageList):
-    canonicalResults=[]
-    for message in messageList:
-        results = canonizeResults(message.getResults())
-        canonicalResults.append(results)
 
 def ScoreStatCalc(results):
     stat={}
@@ -1363,15 +1351,6 @@ def normalizeScores(results):
                 result["normalized_score"]=ranked.pop(0)
     return results
 
-def getChildrenFromParent(pk):
-    children = Message.objects.filter(ref__pk=pk)
-    messageList=[]
-    if children is not None:
-        for child in children:
-            childPk=child.id
-            messageList.append(get_object_or_404(Message.objects.filter(pk=childPk)))
-    return messageList
-
 def createMessage(actor,parent_pk):
 
     message = Message.create(code=202, status='Running',
@@ -1380,45 +1359,18 @@ def createMessage(actor,parent_pk):
     return message
 
 
-@app.task(name="merge")
-def merge(pk,merged_pk):
-    messageList= getChildrenFromParent(pk)
-    mergedComplete = get_object_or_404(Message.objects.filter(pk=merged_pk))
-
-    newList =[]
-    for message in messageList:
-        mesg=get_safe(message.to_dict(),"fields","data","message")
-        if mesg is not None:
-            t_mesg=TranslatorMessage(message.to_dict()["fields"]["data"]["message"])
-        else:
-            continue
-        if t_mesg.getKnowledgeGraph() is not None:
-            newList.append(t_mesg)
-
-    merged = mergeMessages(newList)
-    mergedComplete.data=merged.to_dict()
-    mergedComplete.code = 200
-    mergedComplete.status = 'D'
-    mergedComplete.save()
-
 @app.task(name="merge_received")
 def merge_received(parent,message_to_merge, agent_name, counter=0):
     current_merged_pk=parent.merged_version_id
     logging.info("Beginning merge for agent %s with current_pk: %s" %(agent_name,str(current_merged_pk)))
-    #to_merge_message= Message.objects.get(pk=pk_to_merge)
-    #to_merge_message_dict=get_safe(to_merge_message.to_dict(),"fields","data","message")
     t_to_merge_message=TranslatorMessage(message_to_merge)
     new_merged_message = createMessage(get_ars_actor(),str(parent.pk))
     logging.info("the merged_pk for agent %s is %s" % (agent_name, str(new_merged_message.pk)))
     new_merged_message.save()
-    # #Since we've started a merge, we lock the parent PK for the duration (this is a soft lock)
-    # parent.merge_semaphore=True
-    # parent.save()
     try:
         #If at least one merger has already occurred, we merge the newcomer into that
         if current_merged_pk is not None :
             current_merged_message=get_object_or_404(Message.objects.filter(pk=current_merged_pk))
-            #current_merged_decomp_message = current_merged_message.decompress_json()
             current_message_dict = get_safe(current_merged_message.to_dict(),"fields","data","message")
             t_current_merged_message=TranslatorMessage(current_message_dict)
             if current_message_dict is not None:
@@ -1511,4 +1463,14 @@ def specific_node_filter(results, forbbiden_node):
         if any(item in ids for item in forbbiden_node):
             results.remove(result)
     return results
+
+def validate(response):
+    try:
+        logging.debug("Validating response")
+        pyd_response = vResponse.parse_obj(response)
+        return True
+    except ValidationError as e:
+        logging.debug("Validation problem found")
+        return False
+
 

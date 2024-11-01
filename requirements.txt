@@ -2,7 +2,7 @@ requests
 django>=3.1
 django-cors-headers>=3.7
 python-Levenshtein-wheels
-celery==4.4.7
+celery==5.4.0
 django-celery-results
 django-markdownify >= 0.9.2
 attrs >= 20.3.0
@@ -19,3 +19,14 @@ django-celery-beat
 statistics
 sympy
 objsize
+reasoner-pydantic
+opentelemetry-api
+opentelemetry-sdk
+opentelemetry-instrumentation
+opentelemetry-instrumentation-django
+opentelemetry-exporter-jaeger
+opentelemetry-exporter-otlp-proto-grpc
+opentelemetry-instrumentation-requests
+opentelemetry-instrumentation-celery
+brotli
+git+https://github.com/biothings/biothings_annotator#egg=biothings_annotator

@@ -28,7 +28,7 @@ def compute_from_results(results):
         result['sugeno']=sugeno_score
         result['weighted_mean']=weighted_mean
 
-    final_ranks = compute_sugeno_weighted_mean_rank(sugeno_scores,weighted_means)[2]
+    final_ranks = compute_sugeno_rank(sugeno_scores)
     for i, rank in enumerate(final_ranks):
         #casting to int because some come through as pandas int64
         results[i]["rank"]=int(rank)
@@ -66,7 +66,7 @@ def weight_sets(lambda_val, weight_confidence, weight_novelty, weight_clinical, 
 '''
 THIS FUNCTION COMPUTES THE SUGENO INTEGRAL FOR 4 WEIGHTS CONTRIBUTING TO EACH OF THE FACTORS AND 4 SCORES FOR A RESULT
 '''
-def compute_sugeno(score_confidence, score_novelty, score_clinical, score_blank_factor, weight_confidence=1.0, weight_novelty=0.1, weight_clinical=1.0, weight_blank_factor=0.0):
+def compute_sugeno(score_confidence, score_novelty, score_clinical, score_blank_factor, weight_confidence=1.0, weight_novelty=0.0, weight_clinical=1.0, weight_blank_factor=0.0):
     x = symbols('lambda')
     polynomial = expand(((1+weight_confidence*x)*(1+weight_novelty*x)*(1+weight_clinical*x)*(1+weight_blank_factor*x))-(1+x))
     simplified_polynomial = simplify(polynomial)
@@ -92,7 +92,7 @@ def compute_sugeno(score_confidence, score_novelty, score_clinical, score_blank_
 '''
 THIS FUNCTION COMPUTES THE WEIGHTED MEAN FOR 4 WEIGHTS CONTRIBUTING TO EACH OF THE FACTORS AND 4 SCORES FOR A RESULT
 '''
-def compute_weighted_mean(score_confidence, score_novelty, score_clinical, score_blank_factor, weight_confidence=1.0, weight_novelty=0.1, weight_clinical=1.0, weight_blank_factor=0.0):
+def compute_weighted_mean(score_confidence, score_novelty, score_clinical, score_blank_factor, weight_confidence=1.0, weight_novelty=0.0, weight_clinical=1.0, weight_blank_factor=0.0):
     weighted_mean = (score_confidence*weight_confidence + score_novelty*weight_novelty + score_clinical*weight_clinical + score_blank_factor*weight_blank_factor)/(weight_confidence+weight_novelty+ weight_clinical+weight_blank_factor)
     return weighted_mean
 
@@ -125,3 +125,11 @@ def compute_sugeno_weighted_mean_rank(sugeno_scores, weighted_mean_scores):
                 sugeno_weighted_mean_rank[j] = i + weight_order_copy[idj]
     return sugeno_rank, weighted_mean_rank, sugeno_weighted_mean_rank
 
+'''
+THIS FUNCTION PRODUCES THE RANKING ORDER BASED ON SUGENO SCORES ONLY
+'''
+def compute_sugeno_rank(sugeno_scores):
+    sugeno_sorted = sorted(enumerate(sugeno_scores), key=lambda x: x[1], reverse=True)
+    ranks = {index: rank + 1 for rank, (index, value) in enumerate(sugeno_sorted)}
+    indexed_ranks = [ranks[index] for index in range(len(sugeno_scores))]
+    return indexed_ranks

@@ -1,9 +1,0 @@
-{
-    "channel": "general",
-    "agent": {
-        "name": "ara-bte",
-        "uri": "http://localhost:8000/ara-bte/api/"
-    },
-    "path": "runquery",
-    "remote": "https://api.bte.ncats.io/v1/query"
-}
