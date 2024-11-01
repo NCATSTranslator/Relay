@@ -14,7 +14,7 @@ from .models import Message, Channel
 from scipy.stats import rankdata
 from celery import shared_task
 from tr_sys.celery import app
-import typingpre
+import typing
 import time as sleeptime
 import re
 from objsize import get_deep_size
