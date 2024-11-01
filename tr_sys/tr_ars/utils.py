@@ -14,7 +14,7 @@ from .models import Message, Channel
 from scipy.stats import rankdata
 from celery import shared_task
 from tr_sys.celery import app
-import typing
+import typingpre
 import time as sleeptime
 import re
 from objsize import get_deep_size
@@ -259,36 +259,6 @@ class TranslatorMessage():
     def __json__(self):
         return self.to_dict()
 
-def getCommonNodeIds(messageList):
-    if len(messageList)==0:
-        return set()
-    idSet = set(messageList[0].getKnowledgeGraph().getAllIds())
-    commonSet =set()
-    for msg in messageList[1:]:
-        currentSet = set(msg.getKnowledgeGraph().getAllIds())
-        inter = currentSet.intersection(idSet)
-        commonSet.update(inter)
-        idSet.update(currentSet)
-
-    return commonSet
-
-def getCommonNodes(messageList):
-    commonMap ={}
-    commonIds = getCommonNodeIds(messageList)
-    for mesg in messageList:
-        kg= mesg.getKnowledgeGraph()
-        for id in commonIds:
-            kgNode = kg.getNodeById(id)
-            if kgNode is not None:
-                if id not in commonMap:
-                    commonMap[id]=[kgNode]
-                else:
-                    commonMap[id].append(kgNode)
-
-    return commonMap
-
-
-
 def mergeMessages(messageList,pk):
     messageListCopy = copy.deepcopy(messageList)
     message = messageListCopy.pop()
@@ -328,8 +298,6 @@ def mergeMessagesRecursive(mergedMessage,messageList,pk):
     else:
         currentMessage = messageList.pop()
         #merge Knowledge Graphs
-
-        #mergedKnowledgeGraph = mergeKnowledgeGraphs(currentMessage.getKnowledgeGraph(),mergedMessage.getKnowledgeGraph())
         logging.info(f'Merging knowledge graphs for {pk}')
         ckg = currentMessage.getKnowledgeGraph().getRaw()
         mkg = mergedMessage.getKnowledgeGraph().getRaw()
@@ -349,8 +317,6 @@ def mergeMessagesRecursive(mergedMessage,messageList,pk):
         mergedAux=mergedMessage.getAuxiliaryGraphs()
         mergeDicts(currentAux,mergedAux)
         logging.info(f'Merging aux graphs complete for {pk}')
-
-
         logging.info(f'Merging: creating and converting for {pk}')
 
         values = mergedResultMap.values()
@@ -473,75 +439,6 @@ def mergeDicts(dcurrent,dmerged):
         #print("value is now "+str(dmerged[key]))
     return dmerged
 
-
-def mergeResults(r1, r2):
-    return Results(r1.getRaw()+r2.getRaw())
-def mergeKnowledgeGraphs(kg1, kg2):
-    #mergedNodes = []
-    mergedNodes ={}
-    firstIds = set(kg1.getAllIds())
-    try:
-        idTest = kg2.getAllIds()
-        secondIds = set(idTest)
-    except Exception as e:
-        logging.error("Unexpected error 4: {}".format(traceback.format_exception(type(e), e, e.__traceback__)))
-        raise e
-    intersection = firstIds.intersection(secondIds)
-    firstOnly = firstIds.difference(secondIds)
-    secondOnly = secondIds.difference(firstIds)
-    for id in firstOnly:
-        mergedNodes[id]=kg1.getNodeById(id)
-    for id in secondOnly:
-        mergedNodes[id]=kg2.getNodeById(id)
-    for id in intersection:
-        mergedNode = {}
-        firstNode = kg1.getNodeById(id)
-        secondNode = kg2.getNodeById(id)
-        firstKeySet =set(firstNode.keys())
-        secondKeySet = set(secondNode.keys())
-        keyIntersection = firstKeySet.intersection(secondKeySet)
-        firstOnlyKeys=firstKeySet.difference(secondKeySet)
-        secondOnlyKeys=secondKeySet.difference(firstKeySet)
-        for key in firstOnlyKeys:
-            mergedNode[key]=firstNode.get(key)
-        for key in secondOnlyKeys:
-            mergedNode[key]=secondNode.get(key)
-        for key in keyIntersection:
-            if firstNode.get(key)!= secondNode.get(key):
-                mergedNode[key]=[firstNode.get(key),secondNode.get(key)]
-            else:
-                mergedNode[key]=firstNode.get(key)
-            mergedNodes[id]=mergedNode
-
-    #Since edges don't have the same guarantee of identifiers matching as nodes, we'll just combine them naively and
-    #eat the redundancy if we have two functionally identical edges for now]
-    test =kg1.getEdges()
-    mergedEdges=kg1.getEdges()|kg2.getEdges()
-    mergedKg={
-        "nodes":mergedNodes,
-        "edges":mergedEdges
-    }
-    return KnowledgeGraph(mergedKg)
-
-def sharedResultsJson(sharedResultsMap):
-    results=[]
-    sharedResultsMap={k: v for k, v in sorted(sharedResultsMap.items(), key=lambda item: item[1],reverse=True)}
-    for k,v in sharedResultsMap.items():
-        tuples=[]
-        for tuple in k:
-            pass
-            tupleDict = {
-                "source":tuple[0],
-                "relation":tuple[1],
-                "target":tuple[2]
-            }
-            tuples.append(tupleDict)
-        result = {
-            "results":tuples,
-            "count":v
-        }
-        results.append(json.dumps(result,indent=2))
-    return results
 
 def pre_merge_process(data,key, agent_name,inforesid):
     mesg = get_object_or_404(Message.objects.filter(pk=key))
@@ -1128,7 +1025,7 @@ def normalize_nodes(data,agent_name,key):
         if res is not None:
             logging.info('going to normalize ids for agent: %s and pk: %s' % (agent_name, key))
             try:
-                kg, res = canonizeMessageTest(kg, res)
+                kg, res = canonizeMessage(kg, res)
             except Exception as e:
                 logging.error('Failed to normalize ids for agent: %s and pk: %s' % (agent_name, key))
                 logging.exception('failed to normalize ids for agent: %s and pk: %s' % (agent_name, key))
@@ -1214,21 +1111,6 @@ def add_attribute(node_or_edge, attribute_json):
     else:
         node_or_edge['attributes']=[template_attribute]
 
-def keys_exist(element, *keys):
-    if not isinstance(element, dict):
-        raise AttributeError('keys_exists() expects dict as first argument.')
-    if len(keys) == 0:
-        raise AttributeError('keys_exists() expects at least two arguments, one given.')
-
-    _element = element
-    for key in keys:
-        try:
-            _element = _element[key]
-            if _element is None:
-                return False
-        except KeyError:
-            return False
-    return True
 
 def get_safe(element,*keys):
     '''
@@ -1276,27 +1158,7 @@ def canonize(curies):
             span.set_attribute("exception", str(e))
             raise
 
-
-def canonizeResults(results):
-    canonical_results=[]
-    for result in results:
-        canonical_result=set
-        node_bindings = result.getNodeBindings()
-        for binding in node_bindings:
-            curie = get_safe(binding,"id")
-            canonical=canonize(curie)
-            canonical_result.append(canonical)
-        canonical_results.append(frozenset(canonical_result))
-    return canonical_results
-
-def canonizeKnowledgeGraph(kg):
-    nodes = kg.getNodes()
-    ids = list(nodes.keys())
-    if len(ids)>0:
-        canonical = canonize(ids)
-
-
-def canonizeMessageTest(kg,results):
+def canonizeMessage(kg,results):
 
     nodes = kg['nodes']
     edges = kg['edges']
@@ -1402,37 +1264,6 @@ def canonizeMessageTest(kg,results):
         # print(res)
     return kg, results
 
-def canonizeMessage(msg):
-    #kg = msg.getKnowledgeGraph()
-    nodes = msg.getKnowledgeGraph().getNodes()
-    ids=list(nodes.keys())
-    if len(ids)>0:
-        canonical = canonize(ids)
-        #changes= copy.deepcopy(canonical)'
-        changes = {}
-        for key,value in canonical.items():
-            if value is not None and key != value["id"]["identifier"]:
-                changes[key]=value
-        results = msg.getResults()
-        bindings = results.getNodeBindings()
-        for binding in bindings:
-            for key in binding.keys():
-                id_list = binding[key]
-                for id_dict in id_list:
-                    if id_dict['id'] in changes:
-                        #print("Changing "+str(id_dict['id'])+" to "+ str(changes[id_dict['id']]['id']['identifier'])+" at "+str(bindings.index(binding)))
-                        id_dict['id']=changes[id_dict['id']]['id']['identifier']
-        for change in changes:
-            if change in nodes:
-                new_id = changes[change]['id']['identifier']
-                #print("Changing "+(str(change))+" to "+str(new_id))
-                nodes[new_id]=nodes.pop(change)
-
-def findSharedResults(sharedResults,messageList):
-    canonicalResults=[]
-    for message in messageList:
-        results = canonizeResults(message.getResults())
-        canonicalResults.append(results)
 
 def ScoreStatCalc(results):
     stat={}
@@ -1520,15 +1351,6 @@ def normalizeScores(results):
                 result["normalized_score"]=ranked.pop(0)
     return results
 
-def getChildrenFromParent(pk):
-    children = Message.objects.filter(ref__pk=pk)
-    messageList=[]
-    if children is not None:
-        for child in children:
-            childPk=child.id
-            messageList.append(get_object_or_404(Message.objects.filter(pk=childPk)))
-    return messageList
-
 def createMessage(actor,parent_pk):
 
     message = Message.create(code=202, status='Running',
@@ -1537,45 +1359,18 @@ def createMessage(actor,parent_pk):
     return message
 
 
-@app.task(name="merge")
-def merge(pk,merged_pk):
-    messageList= getChildrenFromParent(pk)
-    mergedComplete = get_object_or_404(Message.objects.filter(pk=merged_pk))
-
-    newList =[]
-    for message in messageList:
-        mesg=get_safe(message.to_dict(),"fields","data","message")
-        if mesg is not None:
-            t_mesg=TranslatorMessage(message.to_dict()["fields"]["data"]["message"])
-        else:
-            continue
-        if t_mesg.getKnowledgeGraph() is not None:
-            newList.append(t_mesg)
-
-    merged = mergeMessages(newList)
-    mergedComplete.data=merged.to_dict()
-    mergedComplete.code = 200
-    mergedComplete.status = 'D'
-    mergedComplete.save()
-
 @app.task(name="merge_received")
 def merge_received(parent,message_to_merge, agent_name, counter=0):
     current_merged_pk=parent.merged_version_id
     logging.info("Beginning merge for agent %s with current_pk: %s" %(agent_name,str(current_merged_pk)))
-    #to_merge_message= Message.objects.get(pk=pk_to_merge)
-    #to_merge_message_dict=get_safe(to_merge_message.to_dict(),"fields","data","message")
     t_to_merge_message=TranslatorMessage(message_to_merge)
     new_merged_message = createMessage(get_ars_actor(),str(parent.pk))
     logging.info("the merged_pk for agent %s is %s" % (agent_name, str(new_merged_message.pk)))
     new_merged_message.save()
-    # #Since we've started a merge, we lock the parent PK for the duration (this is a soft lock)
-    # parent.merge_semaphore=True
-    # parent.save()
     try:
         #If at least one merger has already occurred, we merge the newcomer into that
         if current_merged_pk is not None :
             current_merged_message=get_object_or_404(Message.objects.filter(pk=current_merged_pk))
-            #current_merged_decomp_message = current_merged_message.decompress_json()
             current_message_dict = get_safe(current_merged_message.to_dict(),"fields","data","message")
             t_current_merged_message=TranslatorMessage(current_message_dict)
             if current_message_dict is not None:
