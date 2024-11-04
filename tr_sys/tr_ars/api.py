@@ -476,6 +476,8 @@ def message(req, key):
                     inforesid =actor.inforesid
                     span.set_attribute("agent", inforesid)
                     logging.info('received msg from agent: %s with parent pk: %s' % (str(inforesid), str(mesg.ref_id)))
+                    if mesg.status=='D':
+                        return HttpResponse('ARS has already received %s results from pk: %s' % (str(len(res)), str(key)))
                     if mesg.result_count is not None and mesg.result_count >0:
                         return HttpResponse('ARS already has a response with: %s results for pk %s \nWe are temporarily '
                                            'disallowing subsequent updates to PKs which already have results\n'

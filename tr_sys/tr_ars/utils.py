@@ -1470,7 +1470,10 @@ def validate(response):
         pyd_response = vResponse.parse_obj(response)
         return True
     except ValidationError as e:
-        logging.debug("Validation problem found")
+        logging.debug("Validation problem found %s" % str(e))
+        return False
+    except Exception as e:
+        logging.debug("error: %s" % str(e))
         return False
 
 
