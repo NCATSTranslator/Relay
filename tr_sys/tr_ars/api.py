@@ -475,7 +475,7 @@ def message(req, key):
                     actor = Actor.objects.get(pk=mesg.actor_id)
                     inforesid =actor.inforesid
                     span.set_attribute("agent", inforesid)
-                    logging.info('received msg from agent: %s with parent pk: %s' % (str(inforesid), str(mesg.ref_id)))
+                    logging.info('received msg from agent: %s with parent pk: %s and result: %s' % (str(inforesid), str(mesg.ref_id),str(len(res))))
                     if mesg.status=='D':
                         return HttpResponse('ARS has already received %s results from pk: %s' % (str(len(res)), str(key)))
                     if mesg.result_count is not None and mesg.result_count >0:
