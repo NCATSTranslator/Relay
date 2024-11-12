@@ -25,15 +25,12 @@ from django.urls import include, path, reverse
 from tr_ara_aragorn.aragorn_app import AppConfig as AragornApp
 from tr_ara_arax.arax_app import AppConfig as ARAXApp
 from tr_ara_bte.bte_app import AppConfig as BTEApp
-from tr_ara_explanatory.explanatory_app import AppConfig as ExplanatoryApp
 from tr_ara_improving.improving_app import AppConfig as ImprovingApp
-from tr_ara_ncats.ncats_app import AppConfig as NCATSApp
-from tr_ara_aragorn_exp.aragorn_exp_app import AppConfig as AragornExpApp
 from tr_ara_unsecret.unsecret_app import AppConfig as UnsecretApp
 from tr_ara_wfr.wfr_app import AppConfig as WfrApp
-from tr_ara_explanatory_exp.explanatory_exp_app import AppConfig as ExplanatoryExpApp
 from tr_ara_cqs.cqs_app import AppConfig as CqsApp
 from tr_kp_genetics.genetics_app import AppConfig as GeneticsApp
+from tr_kp_clinical.clinical_app import AppConfig as ClinicalApp
 from tr_kp_molecular.molecular_app import AppConfig as MolecularApp
 from tr_kp_cam.cam_app import AppConfig as CamApp
 from tr_kp_textmining.textmining_app import AppConfig as TextMiningApp
@@ -51,15 +48,12 @@ patterns = [
     re_path(AragornApp.regex_path, include(AragornApp.name)),
     re_path(ARAXApp.regex_path, include(ARAXApp.name)),
     re_path(BTEApp.regex_path, include(BTEApp.name)),
-    re_path(ExplanatoryApp.regex_path,include(ExplanatoryApp.name)),
-    re_path(ExplanatoryExpApp.regex_path, include(ExplanatoryExpApp.name)),
     re_path(ImprovingApp.regex_path, include(ImprovingApp.name)),
-    re_path(NCATSApp.regex_path, include(NCATSApp.name)),
-    re_path(AragornExpApp.regex_path, include(AragornExpApp.name)),
     re_path(WfrApp.regex_path, include(WfrApp.name)),
     re_path(CqsApp.regex_path, include(CqsApp.name)),
     re_path(UnsecretApp.regex_path, include(UnsecretApp.name)),
     re_path(GeneticsApp.regex_path, include(GeneticsApp.name)),
+    re_path(ClinicalApp.regex_path, include(ClinicalApp.name)),
     re_path(MolecularApp.regex_path, include(MolecularApp.name)),
     re_path(CamApp.regex_path, include(CamApp.name)),
     re_path(TextMiningApp.regex_path, include(TextMiningApp.name)),

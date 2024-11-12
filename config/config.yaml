@@ -14,27 +14,13 @@ httpclients:
     # https://aragorn.renci.org/1.2
     endpoint: asyncquery 
     params:
-  # MW says aragorn_exp_app is experimental.  If so, we don't need a second official infores key.
-  #   https://aragorn.renci.org/query
-  infores:aragorn-ranker-exp:
-    method: query
-    params:
   infores:arax:
     endpoint: asyncquery 
     params:
   infores:biothings-explorer:
     endpoint: asyncquery 
     params:
-  infores:explanatory-agent:
-    endpoint: query 
-    params:
-  infores:explanatory-agent-creative-mode:
-    endpoint: asyncquery
-    params:
   infores:improving-agent:
-    endpoint: query 
-    params:
-  infores:example:
     endpoint: query 
     params:
   infores:unsecret-agent:
@@ -58,14 +44,17 @@ httpclients:
   infores:genetics-data-provider:
     endpoint: query 
     params:
+  infores:multiomics-clinicaltrials:
+    endpoint: query
+    params:
   infores:molepro:
     endpoint: query 
     params:
   infores:openpredict:
     endpoint: query 
     params:
-  infores:automat-text-mining-provider:
-    endpoint: query 
+  infores:text-mining-provider-targeted:
+    endpoint: query
     params:
 
 inactive_clients:

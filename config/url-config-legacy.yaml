@@ -7,22 +7,18 @@
 
 # url-config-legacy.yaml is not a way for the ARS to avoid a successful request to smart-api.info in order
 # to be ready to serve requests.
-infores:aragorn: https://aragorn.renci.org/1.2
-# MW says aragorn_exp_app is experimental.  If so, we don't need a second official infores key.
-infores:aragorn-ranker-exp: https://aragorn.renci.org
-infores:arax: https://arax.ncats.io/api/arax/v1.2
-infores:biothings-explorer: https://api.bte.ncats.io/v1
-infores:explanatory-agent: https://explanatory-agent.azurewebsites.net/v1.2
-infores:explanatory-agent-creative-mode: https://explanatory-agent-creative.azurewebsites.net/ARA/v1.3
-infores:improving-agent: https://ia.ci.transltr.io/api/v1.3
-infores:example: http://transltr.io:7073
+infores:aragorn: https://aragorn.ci.transltr.io/aragorn
+infores:arax: https://arax.ci.transltr.io/api/arax/v1.4
+infores:biothings-explorer: https://bte.ci.transltr.io/v1
+infores:improving-agent: https://ia.ci.transltr.io/api/v1.5/
 infores:unsecret-agent: https://medikanren-trapi.ci.transltr.io
-infores:workflow-runner: https://translator-workflow-runner.renci.org
-infores:cqs: https://cqs-dev.apps.renci.org/v0.2/asyncquery
-infores:automat-cam-kp: https://automat.ci.transltr.io/cam-kp/1.4
-infores:connections-hypothesis: http://chp.thayer.dartmouth.edu
-infores:cohd: https://cohd.io/api
-infores:genetics-data-provider: https://translator.broadinstitute.org/genetics_provider/trapi/v1.1
-infores:molepro: https://translator.broadinstitute.org/molepro/trapi/v1.2
-infores:openpredict: https://openpredict.semanticscience.org
-infores:automat-text-mining-provider: https://api.bte.ncats.io/v1/smartapi/978fe380a147a8641caf72320862697b
+infores:workflow-runner: https://translator-workflow-runner.ci.transltr.io
+infores:cqs: https://cqs.ci.transltr.io
+infores:automat-cam-kp: https://automat.ci.transltr.io/cam-kp
+infores:connections-hypothesis: https://chp-api.ci.transltr.io
+infores:cohd: https://cohd-api.ci.transltr.io/api
+infores:genetics-data-provider: https://genetics-kp.ci.transltr.io/genetics_provider/trapi/v1.5
+infores:multiomics-clinicaltrials: https://multiomics.ci.transltr.io/ctkp
+infores:molepro: https://molepro-trapi.ci.transltr.io/molepro/trapi/v1.5
+infores:openpredict: https://openpredict.ci.transltr.io
+infores:text-mining-provider-targeted: https://biothings.ci.transltr.io/text_mining_targeted_association
