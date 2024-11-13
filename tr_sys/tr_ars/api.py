@@ -100,9 +100,9 @@ def submit(req):
             # derive query_type
             node_count=len(data['message']['query_graph']['nodes'].keys())
             edge_count=len(data['message']['query_graph']['edges'].keys())
-            if node_count==3 and edge_count==2:
+            if node_count==3 and edge_count==3:
                 params = {"query_type":"pathfinder"}
-            if node_count==2 and edge_count==1:
+            else:
                 params = {"query_type":"standard"}
             # if 'message' not in data:
             #     return HttpResponse('Not a valid Translator query json', status=400)
