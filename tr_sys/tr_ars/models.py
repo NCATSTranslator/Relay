@@ -91,6 +91,7 @@ class Message(ARSModel):
     merged_version = models.ForeignKey('self', related_name="version_merged",null=True, blank=True,
                                      on_delete=models.CASCADE)
     merged_versions_list= models.JSONField('Ordered list of merged_version PKs', null=True)
+    params = models.JSONField(null=True)
 
 
     def __str__(self):

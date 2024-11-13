@@ -46,7 +46,8 @@ def send_message(actor_dict, mesg_dict, timeout=300):
     }
     mesg = Message.create(actor=Actor.objects.get(pk=actor_dict['pk']),
                           name=mesg_dict['fields']['name'], status='R',
-                          ref=get_object_or_404(Message.objects.filter(pk=mesg_dict['pk'])))
+                          ref=get_object_or_404(Message.objects.filter(pk=mesg_dict['pk'])),
+                          params=mesg_dict['fields']['params'])
 
     if mesg.status == 'R':
         mesg.code = 202
@@ -236,15 +237,17 @@ def catch_timeout_async():
     time_threshold = now - timezone.timedelta(minutes=10)
     max_time = now-timezone.timedelta(minutes=5)
     max_time_merged=now-timezone.timedelta(minutes=8)
+    max_time_pathfinder = now-timezone.timedelta(minutes=10)
 
-    messages = Message.objects.filter(timestamp__gt=time_threshold, status__in='R').values_list('actor','id','timestamp','updated_at')
+    messages = Message.objects.filter(timestamp__gt=time_threshold, status__in='R').values_list('actor','id','timestamp','updated_at','params')
     for mesg in messages:
         mpk=mesg[0]
         id = mesg[1]
         actor = Agent.objects.get(pk=mpk)
         timestamp=mesg[2]
+        query_type=mesg[4]['query_type']
 
-        logging.info(f'actor: {actor} id: {mesg[1]} timestamp: {mesg[2]} updated_at {mesg[3]}')
+        logging.info(f'actor: {actor} id: {mesg[1]} timestamp: {mesg[2]} updated_at {mesg[3]} query_type {query_type}')
 
         #exempting parents from timing out
         if actor.name == 'ars-default-agent':
@@ -260,8 +263,15 @@ def catch_timeout_async():
             else:
                 continue
         else:
-            if timestamp < max_time:
-                logging.info(f'for actor: {actor.name}, and pk {str(id)} the status is still "Running" after 5 min, setting code to 598')
+            if query_type == 'standard' and timestamp < max_time:
+                logging.info(f'for actor: {actor.name}, and pk {str(id)} of query type: {query_type},the status is still "Running" after 5 min, setting code to 598')
+                message = get_object_or_404(Message.objects.filter(pk=mesg[1]))
+                message.code = 598
+                message.status = 'E'
+                message.save(update_fields=['status','code'])
+
+            elif query_type == 'pathfinder' and timestamp < max_time_pathfinder:
+                logging.info(f'for actor: {actor.name}, and pk {str(id)} of query type: {query_type},the status is still "Running" after 10 min, setting code to 598')
                 message = get_object_or_404(Message.objects.filter(pk=mesg[1]))
                 message.code = 598
                 message.status = 'E'

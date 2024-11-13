@@ -5,6 +5,7 @@ from django.shortcuts import redirect, get_object_or_404
 from django.urls import path, re_path, include, reverse
 from django.utils import timezone
 from tr_ars import utils
+from tr_ars import tasks
 from utils2 import urlRemoteFromInforesid
 from .models import Agent, Message, Channel, Actor
 import json, sys, logging
@@ -12,7 +13,7 @@ import traceback
 from inspect import currentframe, getframeinfo
 from tr_ars import status_report
 from datetime import datetime, timedelta
-#from tr_ars.tasks import send_message
+#from tr_ars.tasks import catch_timeout_async
 import ast
 from tr_smartapi_client.smart_api_discover import ConfigFile
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
@@ -96,6 +97,13 @@ def submit(req):
         try:
             logger.debug('++ submit: %s' % req.body)
             data = json.loads(req.body)
+            # derive query_type
+            node_count=len(data['message']['query_graph']['nodes'].keys())
+            edge_count=len(data['message']['query_graph']['edges'].keys())
+            if node_count==3 and edge_count==2:
+                params = {"query_type":"pathfinder"}
+            if node_count==2 and edge_count==1:
+                params = {"query_type":"standard"}
             # if 'message' not in data:
             #     return HttpResponse('Not a valid Translator query json', status=400)
             # create a head message
@@ -110,7 +118,7 @@ def submit(req):
                 if(isinstance(wf,list)):
                     if(len(wf)>0):
                         message = Message.create(code=202, status='Running', data=data,
-                                                 actor=get_workflow_actor())
+                                                 actor=get_workflow_actor(), params=params),
                         logger.debug("Sending message to workflow runner")#TO-DO CHANGE
                         # message.save()
                         # send_message(get_workflow_actor().to_dict(),message.to_dict())
@@ -118,7 +126,7 @@ def submit(req):
                         #                     content_type='application/json', status=201)
             else:
                 message = Message.create(code=202, status='Running', data=data,
-                                         actor=get_default_actor())
+                                         actor=get_default_actor(), params=params)
 
             if 'name' in data:
                 message.name = data['name']
@@ -812,6 +820,7 @@ def timeoutTest(req,time=300):
         #utils.validate(message)
         pass
     else:
+        #tasks.catch_timeout_async()
         pass
         #utils.remove_blocked()
 def block(req,key):
