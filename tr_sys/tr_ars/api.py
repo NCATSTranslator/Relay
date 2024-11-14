@@ -118,7 +118,7 @@ def submit(req):
                 if(isinstance(wf,list)):
                     if(len(wf)>0):
                         message = Message.create(code=202, status='Running', data=data,
-                                                 actor=get_workflow_actor(), params=params),
+                                                 actor=get_workflow_actor(), params=params)
                         logger.debug("Sending message to workflow runner")#TO-DO CHANGE
                         # message.save()
                         # send_message(get_workflow_actor().to_dict(),message.to_dict())
