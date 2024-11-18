@@ -19,6 +19,7 @@ infores:connections-hypothesis: https://chp-api.ci.transltr.io
 infores:cohd: https://cohd-api.ci.transltr.io/api
 infores:genetics-data-provider: https://genetics-kp.ci.transltr.io/genetics_provider/trapi/v1.5
 infores:multiomics-clinicaltrials: https://multiomics.ci.transltr.io/ctkp
+infores:multiomics-drugapprovals: https://multiomics.ci.transltr.io/dakp
 infores:molepro: https://molepro-trapi.ci.transltr.io/molepro/trapi/v1.5
 infores:openpredict: https://openpredict.ci.transltr.io
 infores:text-mining-provider-targeted: https://biothings.ci.transltr.io/text_mining_targeted_association

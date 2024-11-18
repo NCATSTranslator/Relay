@@ -31,6 +31,7 @@ from tr_ara_wfr.wfr_app import AppConfig as WfrApp
 from tr_ara_cqs.cqs_app import AppConfig as CqsApp
 from tr_kp_genetics.genetics_app import AppConfig as GeneticsApp
 from tr_kp_clinical.clinical_app import AppConfig as ClinicalApp
+from tr_kp_drug.drug_app import AppConfig as DrugApp
 from tr_kp_molecular.molecular_app import AppConfig as MolecularApp
 from tr_kp_cam.cam_app import AppConfig as CamApp
 from tr_kp_textmining.textmining_app import AppConfig as TextMiningApp
@@ -54,6 +55,7 @@ patterns = [
     re_path(UnsecretApp.regex_path, include(UnsecretApp.name)),
     re_path(GeneticsApp.regex_path, include(GeneticsApp.name)),
     re_path(ClinicalApp.regex_path, include(ClinicalApp.name)),
+    re_path(DrugApp.regex_path, include(DrugApp.name)),
     re_path(MolecularApp.regex_path, include(MolecularApp.name)),
     re_path(CamApp.regex_path, include(CamApp.name)),
     re_path(TextMiningApp.regex_path, include(TextMiningApp.name)),
