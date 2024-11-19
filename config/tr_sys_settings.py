@@ -52,6 +52,7 @@ INSTALLED_APPS = [
     'tr_ara_wfr.wfr_app.AppConfig',
     'tr_kp_genetics.genetics_app.AppConfig',
     'tr_kp_clinical.clinical_app.AppConfig',
+    'tr_kp_drug.drug_app.AppConfig',
     'tr_kp_molecular.molecular_app.AppConfig',
     'tr_kp_cam.cam_app.AppConfig',
     'tr_kp_textmining.textmining_app.AppConfig',

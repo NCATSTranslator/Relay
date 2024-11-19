@@ -47,6 +47,9 @@ httpclients:
   infores:multiomics-clinicaltrials:
     endpoint: query
     params:
+  infores:multiomics-drugapprovals:
+    endpoint: query
+    params:
   infores:molepro:
     endpoint: query 
     params:
