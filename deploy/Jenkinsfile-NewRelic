@@ -1,0 +1,169 @@
+pipeline {
+    options {
+        timestamps()
+        skipDefaultCheckout()
+        disableConcurrentBuilds()
+    }
+    agent {
+        node { label 'translator && aws && build && ars' }
+    }
+    parameters {
+        string(name: 'BUILD_VERSION', defaultValue: '', description: 'The build version to deploy (optional)')
+        string(name: 'AWS_REGION', defaultValue: 'us-east-1', description: 'AWS Region to deploy')
+    }
+    triggers {
+        pollSCM('H/5 * * * *')
+    }
+    environment {
+        DOCKER_REPO_NAME = "translator-ars"
+        KUBERNETES_BLUE_CLUSTER_NAME = "translator-eks-ci-blue-cluster"
+        KUBERNETES_GREEN_CLUSTER_NAME = "translator-eks-ci-green-cluster"
+    }
+    stages {
+        stage('Build Version'){
+            when { expression { return !params.BUILD_VERSION } }
+            steps{
+                script {
+                    BUILD_VERSION_GENERATED = VersionNumber(
+                        versionNumberString: 'v${BUILD_YEAR, XX}.${BUILD_MONTH, XX}${BUILD_DAY, XX}.${BUILDS_TODAY}',
+                        projectStartDate:    '1970-01-01',
+                        skipFailedBuilds:    true)
+                    currentBuild.displayName = BUILD_VERSION_GENERATED
+                    env.BUILD_VERSION = BUILD_VERSION_GENERATED
+                    env.BUILD = 'true'
+                }
+            }
+        }
+        stage('Checkout source code') {
+            steps {
+                cleanWs()
+                checkout scm
+            }
+        }
+        stage("Pytest Unit Testing") {
+            steps {
+                script {
+                    withPythonEnv('python3.9') {
+                        sh 'python --version'
+                        sh 'pip install -r requirements.txt'
+                        def statusCode = sh(script: "pytest tr_sys/tr_ars/tests/unit/test_unit.py", returnStatus:true)
+                        if (statusCode != 0) {
+                            error 'unit test failed, exiting ....'
+                        }
+                    }
+                }
+            }
+        }       
+        stage('Build Docker') {
+           when { expression { return env.BUILD == 'true' }}
+            steps {
+                withEnv([
+                    "IMAGE_NAME=853771734544.dkr.ecr.us-east-1.amazonaws.com/translator-ars",
+                    "BUILD_VERSION=" + (params.BUILD_VERSION ?: env.BUILD_VERSION)
+                ]) {
+                    script {
+                        docker.build("${env.IMAGE_NAME}", "--build-arg SOURCE_FOLDER=./${BUILD_VERSION} --no-cache ./")
+                        sh '''
+                        docker login -u AWS -p $(aws ecr get-login-password --region us-east-1) 853771734544.dkr.ecr.us-east-1.amazonaws.com
+                        '''
+                        docker.image("${env.IMAGE_NAME}").push("${BUILD_VERSION}")
+                    }
+                }
+            }    
+        }
+        stage('Deploy to AWS EKS Blue') {
+            agent { label 'translator && ci && deploy'}
+            steps {
+                checkout scm
+                configFileProvider([
+                    configFile(fileId: 'values-ci.yaml', targetLocation: 'deploy/values-ncats.yaml'),
+                    configFile(fileId: 'prepare.sh', targetLocation: 'deploy/prepare.sh'),
+                    configFile(fileId: 'ars-settings.py', targetLocation: 'deploy/configs/settings.py'),
+                    configFile(fileId: 'rabbitmq.conf', targetLocation: 'deploy/configs/rabbitmq.conf'),
+                    configFile(fileId: 'mysql.cnf', targetLocation: 'deploy/configs/mysql.cnf')
+                ]){
+                    script {
+                        sh '''
+                        aws --region ${AWS_REGION} eks update-kubeconfig --name ${KUBERNETES_BLUE_CLUSTER_NAME}
+                        ### cd deploy && kubectl delete deployment ars -n ars && /bin/bash prepare.sh && /bin/bash deploy.sh 
+                        '''
+                    }
+                }
+            }
+            post {
+                always {
+                    echo " Clean up the workspace in deploy node!"
+                    cleanWs()
+                }
+            }
+        }
+        stage("Pytest Integration Testing") {
+            steps {
+                withEnv([
+                    "TARGET_HOST=ars.ci.transltr.io"
+                ]) {
+                    script {
+                        sleep(time:5, unit:"MINUTES")
+                        withPythonEnv('python3.9') {
+                            def statusCode = sh(script: "pytest tr_sys/tr_ars/tests/integration/test_integration.py", returnStatus:true)
+                            print(statusCode)
+                            if (statusCode != 0) {
+                                error 'integration test failed, exiting ....'
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        stage('Performance Testing') {
+            steps {
+                script {
+                    sleep(time:2, unit:"MINUTES")
+                    def data = readJSON(text: """
+                    {
+                        "message": {
+                            "query_graph": {
+                                "edges": {
+                                    "e01": {
+                                        "object": "n0",
+                                        "subject": "n1",
+                                        "predicates": [
+                                            "biolink:entity_negatively_regulates_entity"
+                                        ]
+                                    }
+                                },
+                                "nodes": {
+                                    "n0": {
+                                        "ids": [
+                                            "NCBIGene:23221"
+                                        ],
+                                        "categories": [
+                                            "biolink:Gene"
+                                        ]
+                                    },
+                                    "n1": {
+                                        "categories": [
+                                            "biolink:Gene"
+                                        ]
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    """
+                    )
+                    writeJSON(file: 'test_data.json', json: data)
+                    try{
+                        int status = sh(script: "curl -H 'Content-Type: application/json' -X POST -d @test_data.json https://ars.ci.transltr.io/ars/api/submit -o /dev/null -w '%{http_code}'", returnStdout: true)
+                        if (status != 200 && status != 201) {
+                            error("Returned status code = $status ")
+                        }
+                    }
+                    catch (err){
+                        print err
+                    }
+                }
+            }
+        }
+    }
+}
