@@ -195,9 +195,7 @@ class Message(ARSModel):
         if self.callbacks is not None:
             for callback in self.callbacks:
                 try:
-                    with requests.post(callback,data=notification) as r:
-                        if r.status_code != 200:
-                            logger.info("Problem notifiying %s about %s" % (callback, str(self.pk)))
+                    requests.post(callback,data=notification)
                 except Exception as e:
                     logger.info("Unexpected error notifiying %s about %s" % (callback, str(self.pk)))
 
