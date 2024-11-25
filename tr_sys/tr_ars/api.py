@@ -896,6 +896,34 @@ def post_process(req, key):
         actor_name = mesg.actor
         utils.post_process(data['message'],key,actor_name)
 
+@csrf_exempt
+def subscribe(req):
+    if req.method=='POST':
+        try:
+            data = json.loads(req.body)
+            url = data['callback_url']
+            pks= data['pks']
+            for key in pks:
+                mesg = get_object_or_404(Message.objects.filter(pk=key))
+                if mesg.callbacks is None:
+                    mesg.callbacks=[url]
+                else:
+                    if url not in mesg.callbacks:
+                        mesg.callbacks = mesg.callbacks.append(url)
+                mesg.save()
+        except ValueError as ve:
+            logger.error("Error parsing JSON for subscription")
+            logger.error(str(ve.with_traceback()))
+            return HttpResponse("Problem parsing subscription JSON", status =405)
+        except Exception as e:
+            logger.error("Unknown error adding subscriber to %s")
+            logger.error(str(e.with_traceback()))
+            return HttpResponse("Unknown problem processing subscription", status =405)
+    else:
+        return HttpResponse('Only POST is permitted!', status=405)
+    return HttpResponse(status=200)
+
+
 
 
 apipatterns = [
@@ -915,6 +943,7 @@ apipatterns = [
     path('retain/<uuid:key>', retain, name='ars-retain'),
     path('block/<uuid:key>', block, name='ars-block'),
     path('latest_pk/<int:n>', latest_pk, name='ars-latestPK'),
+    path('subscribe/', subscribe, name='ars-subscribe'),
     path('post_process/<uuid:key>', post_process, name='ars-post_process_debug')
 
 

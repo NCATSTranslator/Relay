@@ -1,4 +1,6 @@
 from json import JSONDecodeError
+
+import requests as requests
 from django.db import models
 from django.utils import timezone
 from django.core import serializers
@@ -92,6 +94,7 @@ class Message(ARSModel):
                                      on_delete=models.CASCADE)
     merged_versions_list= models.JSONField('Ordered list of merged_version PKs', null=True)
     params = models.JSONField(null=True)
+    callbacks= models.JSONField(null=True)
 
 
     def __str__(self):
@@ -107,11 +110,13 @@ class Message(ARSModel):
 
     def save(self, *args, **kwargs):
         # Compress the data before saving
+        logger.info("Entering save")
         if self.original_data:
             logger.info('Compressing the data at save call')
             self.save_compressed_dict(self.original_data)
             self.original_data = {}  # Clear original data to avoid redundancy
-
+        if self.should_notify():
+            self.notify_subscribers()
         super().save(*args, **kwargs)
 
     def save_compressed_dict(self, data):
@@ -180,5 +185,26 @@ class Message(ARSModel):
             if 'data' in jsonobj['fields'] and jsonobj['fields']['data'] is not None:
                 jsonobj['fields']['data'] = self.decompress_dict()
         return jsonobj
+
+    def notify_subscribers(self):
+        notification = {
+            "pk": self.pk,
+            "code": self.code
+        }
+
+        if self.callbacks is not None:
+            for callback in self.callbacks:
+                try:
+                    with requests.post(callback,data=notification) as r:
+                        if r.status_code != 200:
+                            logger.info("Problem notifiying %s about %s" % (callback, str(self.pk)))
+                except Exception as e:
+                    logger.info("Unexpected error notifiying %s about %s" % (callback, str(self.pk)))
+
+    def should_notify(self):
+        if self.status in ('D','E'):
+            return True
+        else:
+            return False
 
 
