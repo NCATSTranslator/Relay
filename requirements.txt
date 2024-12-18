@@ -30,4 +30,3 @@ opentelemetry-instrumentation-requests
 opentelemetry-instrumentation-celery
 brotli
 git+https://github.com/biothings/biothings_annotator#egg=biothings_annotator
-newrelic
