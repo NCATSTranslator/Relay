@@ -7,7 +7,7 @@ from django.utils import timezone
 from tr_ars import utils
 from tr_ars import tasks
 from utils2 import urlRemoteFromInforesid
-from .models import Agent, Message, Channel, Actor
+from .models import Agent, Message, Channel, Actor, Client
 import json, sys, logging
 import traceback
 from inspect import currentframe, getframeinfo
@@ -482,6 +482,14 @@ def message(req, key):
                     kg = utils.get_safe(data,"message", "knowledge_graph")
                     actor = Actor.objects.get(pk=mesg.actor_id)
                     inforesid =actor.inforesid
+                    parent=get_object_or_404(Message.objects.filter(pk=mesg.ref_id))
+                    notification = {
+                        "event_type":"ara_response_complete",
+                        "ara_name":actor.inforesid,
+                        "child_pk":str(mesg.pk),
+                        "ara_n_results":len(res)
+                    }
+                    parent.notify_subscribers(notification)
                     span.set_attribute("agent", inforesid)
                     logging.info('received msg from agent: %s with parent pk: %s and result: %s' % (str(inforesid), str(mesg.ref_id),str(len(res))))
                     if mesg.status=='D':
@@ -896,6 +904,59 @@ def post_process(req, key):
         actor_name = mesg.actor
         utils.post_process(data['message'],key,actor_name)
 
+@csrf_exempt
+def subscribe(req):
+    if req.method=='POST':
+        try:
+            data = json.loads(req.body)
+            url = data['callback_url']
+            pks= data['pks']
+            for key in pks:
+                mesg = get_object_or_404(Message.objects.filter(pk=key))
+                if mesg.callbacks is None:
+                    mesg.callbacks=[url]
+                else:
+                    if url not in mesg.callbacks:
+                        mesg.callbacks = mesg.callbacks.append(url)
+                mesg.save()
+        except ValueError as ve:
+            logger.error("Error parsing JSON for subscription")
+            logger.error(str(ve.with_traceback()))
+            return HttpResponse("Problem parsing subscription JSON", status =405)
+        except Exception as e:
+            logger.error("Unknown error adding subscriber to %s")
+            logger.error(str(e.with_traceback()))
+            return HttpResponse("Unknown problem processing subscription", status =405)
+    else:
+        return HttpResponse('Only POST is permitted!', status=405)
+    return HttpResponse(status=200)
+
+@csrf_exempt
+def unsubscribe(req,key):
+    if req.method=='POST':
+        try:
+            data = json.loads(req.body)
+            pks= data['pks']
+            client = get_object_or_404(Client.objects.filter(client_id=key))
+            #remove from the client
+            client.subscriptions=[item for item in client.subscriptions if item in pks]
+            #remove from each Message
+            for pk in pks:
+                mesg = get_object_or_404(Message.objects.filter(pk=pk))
+                mesg.callbacks.remove(client.callback_url)
+                mesg.save()
+        except ValueError as ve:
+            logger.error("Error parsing JSON for unsubscription")
+            logger.error(str(ve.with_traceback()))
+            return HttpResponse("Problem parsing unsubscription JSON", status =405)
+        except Exception as e:
+            logger.error("Unknown error removing subscriber to %s")
+            logger.error(str(e.with_traceback()))
+            return HttpResponse("Unknown problem processing subscription", status =405)
+    else:
+        return HttpResponse('Only POST is permitted!', status=405)
+
+
 
 
 apipatterns = [
@@ -915,6 +976,7 @@ apipatterns = [
     path('retain/<uuid:key>', retain, name='ars-retain'),
     path('block/<uuid:key>', block, name='ars-block'),
     path('latest_pk/<int:n>', latest_pk, name='ars-latestPK'),
+    path('subscribe/', subscribe, name='ars-subscribe'),
     path('post_process/<uuid:key>', post_process, name='ars-post_process_debug')
 
 

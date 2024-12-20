@@ -21,6 +21,7 @@ apipatterns = [
     path('retain/<uuid:key>', api.retain, name='ars-retain'),
     path('block/<uuid:key>', api.block, name='ars-block'),
     path('latest_pk/<int:n>', api.latest_pk, name='ars-latestPK'),
+    path('subscribe/', api.subscribe, name='ars-subscribe'),
     path('post_process/<uuid:key>', api.post_process, name='ars-post_process_debug')
 ]
 
