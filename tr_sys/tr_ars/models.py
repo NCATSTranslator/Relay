@@ -139,7 +139,7 @@ class Message(ARSModel):
             else:
                 logger.info('compressing the data with pk: %s' % str(self.pk))
                 # Convert dictionary to JSON string
-                json_data = json.dumps(data)
+                json_data = json.dumps(data, default=str)
 
                 # Compress JSON string using gzip
                 compressed_data = gzip.compress(json_data.encode('utf-8'))
@@ -207,7 +207,7 @@ class Message(ARSModel):
         }
 
         if additional_notification_fields is not None:
-            for k,v in additional_notification_fields:
+            for k,v in additional_notification_fields.items():
                 notification[k]=v
 
         if self.callbacks is not None:

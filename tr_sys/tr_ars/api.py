@@ -482,7 +482,7 @@ def message(req, key):
                     kg = utils.get_safe(data,"message", "knowledge_graph")
                     actor = Actor.objects.get(pk=mesg.actor_id)
                     inforesid =actor.inforesid
-                    parent=get_object_or_404(Message.objects.filter(pk=mesg.ref))
+                    parent=get_object_or_404(Message.objects.filter(pk=mesg.ref_id))
                     notification = {
                         "event_type":"ara_response_complete",
                         "ara_name":actor.inforesid,
