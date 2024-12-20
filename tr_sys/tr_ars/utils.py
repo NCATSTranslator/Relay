@@ -609,7 +609,9 @@ def lock_merge(message):
 @shared_task(name="merge_and_post_process")
 def merge_and_post_process(parent_pk,message_to_merge, agent_name, counter=0):
     merged=None
+
     logging.info(f"Starting merge for %s with parent PK: %s"% (agent_name,parent_pk))
+
     logging.info(f"Before atomic transaction for %s with parent PK: %s"% (agent_name,parent_pk))
     with transaction.atomic():
         parent = get_object_or_404(Message.objects.select_for_update().filter(pk=parent_pk))
@@ -621,9 +623,23 @@ def merge_and_post_process(parent_pk,message_to_merge, agent_name, counter=0):
 
     if lock_state is False:
         try:
+
+            notification={
+                "event_type":"merged_version_begun",
+                "complete":False,
+                "merged_version":None,
+                "merged_version_list":parent.merged_versions_list
+            }
+            parent.notify_subscribers(notification)
+
             logging.info(f"Before merging for %s with parent PK: %s"% (agent_name,parent_pk))
             merged, parent = merge_received(parent,message_to_merge, agent_name)
             logging.info(f"After merging for %s with parent PK: %s"% (agent_name,parent_pk))
+
+            notification["event_type"]="merged_version_available"
+            notification["merged_version"]=str(merged.pk)
+            parent.notify_subscribers(notification)
+
             parent.save()
         except Exception as e:
             logging.info("Problem with merger for agent %s pk: %s " % (agent_name, (parent_pk)))
@@ -643,6 +659,7 @@ def merge_and_post_process(parent_pk,message_to_merge, agent_name, counter=0):
             logging.info("Merging failed for %s %s" % (agent_name, str(parent_pk)))
 
     if merged is not None:
+
         logging.info('merged data for agent %s with pk %s is returned & ready to be preprocessed' % (agent_name, str(merged.id)))
         merged, code, status = post_process(merged,merged.id, agent_name)
         logging.info('post processing complete for agent %s with pk %s is returned & ready to be preprocessed' % (agent_name, str(merged.id)))
