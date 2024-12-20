@@ -9,13 +9,25 @@ import gzip
 logger = logging.getLogger(__name__)
 
 # Create your models here.
+
+
 class ARSModel(models.Model):
     class Meta:
         abstract = True
-
     def to_dict(self):
         return json.loads(serializers.serialize('json', [self]))[0]
-    
+
+class Client(ARSModel):
+    client_id= models.TextField('name of client',null =False)
+    client_secret=models.TextField('hash of client secret', null = False)
+    callback_url=models.URLField('default URL for the client',null=False,max_length=256)
+    date_created=models.DateTimeField(auto_now=False)
+    date_secret_updated=models.DateTimeField()
+    active=models.BooleanField(default=False)
+    subscriptions = models.JSONField('List of pks to which a client is curently subscribed',null = True)
+
+
+
 class Agent(ARSModel):
     name = models.SlugField('agent unique name',
                             null=False, unique=True, max_length=128)
@@ -186,11 +198,17 @@ class Message(ARSModel):
                 jsonobj['fields']['data'] = self.decompress_dict()
         return jsonobj
 
-    def notify_subscribers(self):
+    def notify_subscribers(self, additional_notification_fields=None):
+
         notification = {
             "pk": self.pk,
+            "timestamp":timezone.now(),
             "code": self.code
         }
+
+        if additional_notification_fields is not None:
+            for k,v in additional_notification_fields:
+                notification[k]=v
 
         if self.callbacks is not None:
             for callback in self.callbacks:
