@@ -7,7 +7,7 @@ from django.utils import timezone
 from tr_ars import utils
 from tr_ars import tasks
 from utils2 import urlRemoteFromInforesid
-from .models import Agent, Message, Channel, Actor
+from .models import Agent, Message, Channel, Actor, Client
 import json, sys, logging
 import traceback
 from inspect import currentframe, getframeinfo
@@ -482,6 +482,14 @@ def message(req, key):
                     kg = utils.get_safe(data,"message", "knowledge_graph")
                     actor = Actor.objects.get(pk=mesg.actor_id)
                     inforesid =actor.inforesid
+                    parent=get_object_or_404(Message.objects.filter(pk=mesg.ref_id))
+                    notification = {
+                        "event_type":"ara_response_complete",
+                        "ara_name":actor.inforesid,
+                        "child_pk":str(mesg.pk),
+                        "ara_n_results":len(res)
+                    }
+                    parent.notify_subscribers(notification)
                     span.set_attribute("agent", inforesid)
                     logging.info('received msg from agent: %s with parent pk: %s and result: %s' % (str(inforesid), str(mesg.ref_id),str(len(res))))
                     if mesg.status=='D':
@@ -816,8 +824,12 @@ def answers(req, key):
 @csrf_exempt
 def timeoutTest(req,time=300):
     if req.method == 'POST':
-        #message = json.loads(req.body)
-        #utils.validate(message)
+        # message = json.loads(req.body)
+        # # Append the notification to a text file
+        # with open("notifications.log", "a") as file:
+        #     file.write(json.dumps(message) + "\n")
+        # #utils.validate(message)
+        # return HttpResponse(status=200)
         pass
     else:
         #tasks.catch_timeout_async()
@@ -896,7 +908,93 @@ def post_process(req, key):
         actor_name = mesg.actor
         utils.post_process(data['message'],key,actor_name)
 
+@csrf_exempt
+def subscribe(req):
+    if req.method=='POST':
+        try:
+            already_complete=[]
+            data = json.loads(req.body)
+            pks= data['pks']
+            client_id = req.headers.get('client_id')
+            client = get_object_or_404(Client.objects.filter(client_id=client_id))
+            for key in pks:
+                mesg = get_object_or_404(Message.objects.filter(pk=key))
+                if mesg.status in ('D','E'):
+                    already_complete.append(key)
+                else:
+                    #update both client and message
+                    mesg.clients.add(client)
+                    if client.subscriptions == None:
+                        client.subscriptions = [key]
+                    elif key not in client.subscriptions:
+                        client.subscriptions.append(key)
+                mesg.save()
+                client.save()
+            if already_complete != []:
+                if len(already_complete) == len(pks):
+                    return HttpResponse("All the subscribed PKs have already been completed, Please check their results")
+                else:
+                    return HttpResponse("following PKs are already processed %s going to subscribed to the rest" % (already_complete))
 
+        except ValueError as ve:
+            logger.error("Error parsing JSON for subscription")
+            logger.error(str(ve.with_traceback()))
+            return HttpResponse("Problem parsing subscription JSON", status =405)
+        except Exception as e:
+            logger.error("Unknown error adding subscriber to %s")
+            logger.error(str(e.with_traceback()))
+            return HttpResponse("Unknown problem processing subscription", status =405)
+    else:
+        return HttpResponse('Only POST is permitted!', status=405)
+    return HttpResponse(status=200)
+
+@csrf_exempt
+def unsubscribe(req=None, key=None):
+    if req is not None:
+        if req.method=='POST':
+            try:
+                data = json.loads(req.body)
+                pks= data['pks']
+                logger.info("Unsubscribing the following Pks: %s" %pks)
+                client_secret = data['client_secret']
+                for pk in pks:
+                    mesg = get_object_or_404(Message.objects.filter(pk=pk))
+                    client = get_object_or_404(Client.objects.filter(client_secret=client_secret))
+                    #checking to see if Client is related to the message
+                    if mesg.clients.filter(id=client.id).exists():
+                        mesg.clients.remove(client)
+                        client.subscriptions.remove(pk)
+                        client.save()
+                    else:
+                        logger.error("PK: %s doesnt have the provided client subscribed")
+            except ValueError as ve:
+                logger.error("Error parsing JSON for unsubscription")
+                logger.error(str(ve.with_traceback()))
+                return HttpResponse("Problem parsing unsubscription JSON", status =405)
+            except Exception as e:
+                logger.error("Unknown error removing subscriber to %s")
+                logger.error(str(e.with_traceback()))
+                return HttpResponse("Unknown problem processing subscription", status =405)
+        else:
+            return HttpResponse('Only POST is permitted!', status=405)
+        return HttpResponse(status=200)
+    else:
+        try:
+            logger.info("auto-unsubscribing message pk:%s" % str(key))
+            mesg = get_object_or_404(Message.objects.filter(pk=key))
+            all_subscribed_clients = mesg.clients.all()
+            for subscriber in all_subscribed_clients:
+                logger.info("client to be removed %s" % subscriber.client_id)
+                subscriptions = subscriber.subscriptions or [] #this assigns subscripotions to [] incase its null
+                if str(key) in subscriptions:
+                    logger.info("removing pk %s from client subscription"% str(key))
+                    subscriptions.remove(str(key))
+                    subscriber.subscriptions = subscriptions
+                    subscriber.save()
+                #removing client from mesg
+                mesg.clients.remove(subscriber)
+        except Exception as e:
+            logger.error("Error during auto-unsubscribing pk %s" % key)
 
 apipatterns = [
     path('', index, name='ars-api'),
@@ -915,9 +1013,9 @@ apipatterns = [
     path('retain/<uuid:key>', retain, name='ars-retain'),
     path('block/<uuid:key>', block, name='ars-block'),
     path('latest_pk/<int:n>', latest_pk, name='ars-latestPK'),
+    path('subscribe/', subscribe, name='ars-subscribe'),
+    path('unsubscribe/', unsubscribe, name='ars-unsubscribe'),
     path('post_process/<uuid:key>', post_process, name='ars-post_process_debug')
-
-
 
 ]
 

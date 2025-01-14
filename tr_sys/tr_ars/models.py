@@ -1,19 +1,30 @@
 from json import JSONDecodeError
+
+import requests as requests
 from django.db import models
 from django.utils import timezone
 from django.core import serializers
 import uuid, logging, json
 import gzip
 logger = logging.getLogger(__name__)
-
 # Create your models here.
+
+
 class ARSModel(models.Model):
     class Meta:
         abstract = True
-
     def to_dict(self):
         return json.loads(serializers.serialize('json', [self]))[0]
-    
+
+class Client(ARSModel):
+    client_id= models.TextField('name of client',null =False)
+    client_secret=models.TextField('hash of client secret', null = False)
+    callback_url=models.URLField('default URL for the client',null=False,max_length=256)
+    date_created=models.DateTimeField(auto_now_add=True) #Automatically set at creation
+    date_secret_updated=models.DateTimeField(auto_now=True)
+    active=models.BooleanField(default=False)
+    subscriptions = models.JSONField('List of pks to which a client is curently subscribed',null=True)
+
 class Agent(ARSModel):
     name = models.SlugField('agent unique name',
                             null=False, unique=True, max_length=128)
@@ -92,6 +103,7 @@ class Message(ARSModel):
                                      on_delete=models.CASCADE)
     merged_versions_list= models.JSONField('Ordered list of merged_version PKs', null=True)
     params = models.JSONField(null=True)
+    clients = models.ManyToManyField(Client, related_name="messages")
 
 
     def __str__(self):
@@ -107,11 +119,13 @@ class Message(ARSModel):
 
     def save(self, *args, **kwargs):
         # Compress the data before saving
+        logger.info("Entering save")
         if self.original_data:
             logger.info('Compressing the data at save call')
             self.save_compressed_dict(self.original_data)
             self.original_data = {}  # Clear original data to avoid redundancy
-
+        if self.should_notify():
+            self.notify_subscribers()
         super().save(*args, **kwargs)
 
     def save_compressed_dict(self, data):
@@ -122,7 +136,7 @@ class Message(ARSModel):
             else:
                 logger.info('compressing the data with pk: %s' % str(self.pk))
                 # Convert dictionary to JSON string
-                json_data = json.dumps(data)
+                json_data = json.dumps(data, default=str)
 
                 # Compress JSON string using gzip
                 compressed_data = gzip.compress(json_data.encode('utf-8'))
@@ -180,5 +194,26 @@ class Message(ARSModel):
             if 'data' in jsonobj['fields'] and jsonobj['fields']['data'] is not None:
                 jsonobj['fields']['data'] = self.decompress_dict()
         return jsonobj
+
+    def notify_subscribers(self, additional_notification_fields=None):
+        from .tasks import notify_subscribers_task
+        if self.status == 'D':
+            additional_notification_fields = {
+                "event_type":"parent_msg_done_processing",
+                "complete" : True
+            }
+        if self.status == 'E':
+            additional_notification_fields = {
+                "event_type":"Irrecoverable_error_finished_processing",
+                "complete" : True
+            }
+        #offload to a celery task
+        notify_subscribers_task.apply_async((self.pk, self.code, additional_notification_fields))
+
+    def should_notify(self):
+        if self.status in ('D','E'):
+            return True
+        else:
+            return False
 
 

@@ -16,7 +16,7 @@ from opentelemetry import trace
 from opentelemetry.propagate import inject
 # Ensure that the tracing context is properly propagated within tasks
 from opentelemetry.context import attach, detach, set_value, get_current
-
+import time as sleeptime
 logger = get_task_logger(__name__)
 
 def propagate_context(func):
@@ -149,7 +149,7 @@ def send_message(actor_dict, mesg_dict, timeout=300):
                         scorestat = utils.ScoreStatCalc(results)
                         mesg.result_stat = scorestat
                         parent_pk = mesg.ref.id
-                        #message_to_merge = utils.get_safe(rdata,"message")
+                        parent = Message.objects.filter(pk=parent_pk)
                         message_to_merge=rdata
                         agent_name = str(mesg.actor.agent.name)
                         child_pk=str(mesg.pk)
@@ -197,7 +197,6 @@ def send_message(actor_dict, mesg_dict, timeout=300):
             mesg.code = status_code
             mesg.status = status
             mesg.save_compressed_dict(rdata)
-            #mesg.data = rdata
             mesg.url = url
             mesg.save()
             logger.debug('+++ message saved: %s' % (mesg.pk))
@@ -276,3 +275,36 @@ def catch_timeout_async():
                 message.code = 598
                 message.status = 'E'
                 message.save(update_fields=['status','code'])
+
+@shared_task(name="notify_subscribers")
+def notify_subscribers_task(pk, status_code, additional_notification_fields=None, count=0):
+    from .models import Message
+    try:
+        message = get_object_or_404(Message.objects.filter(pk=pk))
+        notification = {
+            "pk": str(message.pk),
+            "timestamp": timezone.now().isoformat(),
+            "code": status_code
+        }
+
+        if additional_notification_fields:
+            for k, v in additional_notification_fields.items():
+                notification[k] = v
+
+        all_subscribed_clients = message.clients.all()
+        for client in all_subscribed_clients:
+            callback = client.callback_url
+            try:
+                r = requests.post(callback, data=json.dumps(notification), headers={"Content-Type": "application/json"})
+                if r.status_code != 200:
+                    if count <= 10:
+                        count = count + 1
+                        delay = 5 * pow(2, count)
+                        sleeptime.sleep(delay)
+                        notify_subscribers_task.apply_async((message.pk, additional_notification_fields, count))
+            except Exception as e:
+                logger.info("Unexpected error notifying %s about %s: %s" % (callback, str(message.pk), str(e)))
+
+    except Message.DoesNotExist:
+        logger.error(f"Message with ID {pk} does not exist")
+
