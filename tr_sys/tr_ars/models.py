@@ -7,7 +7,6 @@ from django.core import serializers
 import uuid, logging, json
 import gzip
 logger = logging.getLogger(__name__)
-
 # Create your models here.
 
 
@@ -21,12 +20,10 @@ class Client(ARSModel):
     client_id= models.TextField('name of client',null =False)
     client_secret=models.TextField('hash of client secret', null = False)
     callback_url=models.URLField('default URL for the client',null=False,max_length=256)
-    date_created=models.DateTimeField(auto_now=False)
-    date_secret_updated=models.DateTimeField()
+    date_created=models.DateTimeField(auto_now_add=True) #Automatically set at creation
+    date_secret_updated=models.DateTimeField(auto_now=True)
     active=models.BooleanField(default=False)
-    subscriptions = models.JSONField('List of pks to which a client is curently subscribed',null = True)
-
-
+    subscriptions = models.JSONField('List of pks to which a client is curently subscribed',null=True)
 
 class Agent(ARSModel):
     name = models.SlugField('agent unique name',
@@ -106,7 +103,7 @@ class Message(ARSModel):
                                      on_delete=models.CASCADE)
     merged_versions_list= models.JSONField('Ordered list of merged_version PKs', null=True)
     params = models.JSONField(null=True)
-    callbacks= models.JSONField(null=True)
+    clients = models.ManyToManyField(Client, related_name="messages")
 
 
     def __str__(self):
@@ -199,23 +196,19 @@ class Message(ARSModel):
         return jsonobj
 
     def notify_subscribers(self, additional_notification_fields=None):
-
-        notification = {
-            "pk": self.pk,
-            "timestamp":timezone.now(),
-            "code": self.code
-        }
-
-        if additional_notification_fields is not None:
-            for k,v in additional_notification_fields.items():
-                notification[k]=v
-
-        if self.callbacks is not None:
-            for callback in self.callbacks:
-                try:
-                    requests.post(callback,data=notification)
-                except Exception as e:
-                    logger.info("Unexpected error notifiying %s about %s" % (callback, str(self.pk)))
+        from .tasks import notify_subscribers_task
+        if self.status == 'D':
+            additional_notification_fields = {
+                "event_type":"parent_msg_done_processing",
+                "complete" : True
+            }
+        if self.status == 'E':
+            additional_notification_fields = {
+                "event_type":"Irrecoverable_error_finished_processing",
+                "complete" : True
+            }
+        #offload to a celery task
+        notify_subscribers_task.apply_async((self.pk, self.code, additional_notification_fields))
 
     def should_notify(self):
         if self.status in ('D','E'):
