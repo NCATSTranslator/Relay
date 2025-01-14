@@ -915,8 +915,8 @@ def subscribe(req):
             already_complete=[]
             data = json.loads(req.body)
             pks= data['pks']
-            client_secret = data['client_secret']
-            client = get_object_or_404(Client.objects.filter(client_secret=client_secret))
+            client_id = req.headers.get('client_id')
+            client = get_object_or_404(Client.objects.filter(client_id=client_id))
             for key in pks:
                 mesg = get_object_or_404(Message.objects.filter(pk=key))
                 if mesg.status in ('D','E'):
