@@ -10,4 +10,26 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
+            migrations.CreateModel(
+            name='Client',
+            fields=[
+                ('id', models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+                ('client_id', models.TextField(verbose_name='name of client')),
+                ('client_secret', models.TextField(verbose_name='hash of client secret')),
+                ('callback_url', models.URLField(max_length=256, verbose_name='default URL for the client')),
+                ('date_created', models.DateTimeField()),
+                ('date_secret_updated', models.DateTimeField()),
+                ('active', models.BooleanField(default=False)),
+                ('subscriptions', models.JSONField(null=True, verbose_name='List of pks to which a client is curently subscribed')),
+            ],
+            options={
+                'abstract': False,
+            },
+        ),
+        migrations.AddField(
+            model_name='message',
+            name='clients',
+            field=models.ManyToManyField(blank=True, related_name='messages', to='tr_ars.Client'),
+        ),
     ]
+    
