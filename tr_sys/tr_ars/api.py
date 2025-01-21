@@ -20,6 +20,7 @@ from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapProp
 from opentelemetry import trace
 from opentelemetry.propagate import extract
 from opentelemetry.context import attach, detach
+import hashlib
 #from reasoner_validator import validate_Message, ValidationError, validate_Query
 tracer = trace.get_tracer(__name__)
 logger = logging.getLogger(__name__)
@@ -916,26 +917,33 @@ def subscribe(req):
             data = json.loads(req.body)
             pks= data['pks']
             client_id = req.headers.get('client_id')
+            client_secret = req.headers.get('client_secret')
+            hash_object = hashlib.sha256(client_secret.encode())
+            hash_code = hash_object.hexdigest()
             client = get_object_or_404(Client.objects.filter(client_id=client_id))
-            for key in pks:
-                mesg = get_object_or_404(Message.objects.filter(pk=key))
-                if mesg.status in ('D','E'):
-                    already_complete.append(key)
-                else:
-                    #update both client and message
-                    mesg.clients.add(client)
-                    if client.subscriptions == None:
-                        client.subscriptions = [key]
-                    elif key not in client.subscriptions:
-                        client.subscriptions.append(key)
-                mesg.save()
-                client.save()
-            if already_complete != []:
-                if len(already_complete) == len(pks):
-                    return HttpResponse("All the subscribed PKs have already been completed, Please check their results")
-                else:
-                    return HttpResponse("following PKs are already processed %s going to subscribed to the rest" % (already_complete))
-
+            client_hash = client.client_secret
+            if hash_code == client_hash:
+                for key in pks:
+                    mesg = get_object_or_404(Message.objects.filter(pk=key))
+                    if mesg.status in ('D','E'):
+                        already_complete.append(key)
+                    else:
+                        #update both client and message
+                        mesg.clients.add(client)
+                        if client.subscriptions == None:
+                            client.subscriptions = [key]
+                        elif key not in client.subscriptions:
+                            client.subscriptions.append(key)
+                    mesg.save()
+                    client.save()
+                if already_complete != []:
+                    if len(already_complete) == len(pks):
+                        return HttpResponse("All the subscribed PKs have already been completed, Please check their results")
+                    else:
+                        return HttpResponse("following PKs are already processed %s going to subscribed to the rest" % (already_complete))
+            else:
+                logger.error("Client %s doesnt have correct credential to subscribe to ARS" % client_id)
+                return HttpResponse("Unknown Subscriber",status=405)
         except ValueError as ve:
             logger.error("Error parsing JSON for subscription")
             logger.error(str(ve.with_traceback()))
@@ -955,18 +963,26 @@ def unsubscribe(req=None, key=None):
             try:
                 data = json.loads(req.body)
                 pks= data['pks']
-                logger.info("Unsubscribing the following Pks: %s" %pks)
-                client_secret = data['client_secret']
-                for pk in pks:
-                    mesg = get_object_or_404(Message.objects.filter(pk=pk))
-                    client = get_object_or_404(Client.objects.filter(client_secret=client_secret))
-                    #checking to see if Client is related to the message
-                    if mesg.clients.filter(id=client.id).exists():
-                        mesg.clients.remove(client)
-                        client.subscriptions.remove(pk)
-                        client.save()
-                    else:
-                        logger.error("PK: %s doesnt have the provided client subscribed")
+                logger.info("Unsubscribing the following Pks: %s" % pks)
+                client_id = req.headers.get('client_id')
+                client_secret = req.headers.get('client_secret')
+                hash_object = hashlib.sha256(client_secret.encode())
+                hash_code = hash_object.hexdigest()
+                client = get_object_or_404(Client.objects.filter(client_id=client_id))
+                client_hash = client.client_secret
+                if hash_code == client_hash:
+                    for pk in pks:
+                        mesg = get_object_or_404(Message.objects.filter(pk=pk))
+                        #checking to see if Client is related to the message
+                        if mesg.clients.filter(id=client.id).exists():
+                            mesg.clients.remove(client)
+                            client.subscriptions.remove(pk)
+                            client.save()
+                        else:
+                            logger.error("PK: %s doesnt have the provided client subscribed")
+                else:
+                    logger.error("Client %s doesnt have correct credential to subscribe to ARS" % client_id)
+                    return HttpResponse("Unknown Subscriber",status=405)
             except ValueError as ve:
                 logger.error("Error parsing JSON for unsubscription")
                 logger.error(str(ve.with_traceback()))
