@@ -23,7 +23,7 @@ class Client(ARSModel):
     date_created=models.DateTimeField(auto_now_add=True) #Automatically set at creation
     date_secret_updated=models.DateTimeField(auto_now=True)
     active=models.BooleanField(default=False)
-    subscriptions = models.JSONField('List of pks to which a client is curently subscribed',null=True)
+    subscriptions = models.JSONField('List of pks to which a client is curently subscribed',null=True,blank=True)
 
 class Agent(ARSModel):
     name = models.SlugField('agent unique name',
