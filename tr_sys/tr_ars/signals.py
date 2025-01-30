@@ -7,7 +7,7 @@ from .models import Actor, Agent, Message, Channel
 from .pubsub import send_messages
 from .utils import get_safe
 logger = logging.getLogger(__name__)
-from .api import unsubscribe
+from .api import query_event_unsubscribe
 
 @receiver(post_save, sender=Actor)
 def actor_post_save(sender, instance, **kwargs):
@@ -72,9 +72,9 @@ def message_post_save(sender, instance, **kwargs):
                 pmessage.status = 'D'
                 pmessage.code = 200
                 pmessage.save(update_fields=['status','code'])
-                unsubscribe(None, pmessage.pk)
+                query_event_unsubscribe(None, pmessage.pk)
             elif pmessage.status == 'E':
-                unsubscribe(None, pmessage.pk)
+                query_event_unsubscribe(None, pmessage.pk)
 
 
 @receiver(pre_save, sender=Message)

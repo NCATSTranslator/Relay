@@ -286,7 +286,6 @@ def notify_subscribers_task(pk, status_code, additional_notification_fields=None
             "timestamp": timezone.now().isoformat(),
             "code": status_code
         }
-
         if additional_notification_fields:
             for k, v in additional_notification_fields.items():
                 notification[k] = v
@@ -301,7 +300,7 @@ def notify_subscribers_task(pk, status_code, additional_notification_fields=None
                         count = count + 1
                         delay = 5 * pow(2, count)
                         sleeptime.sleep(delay)
-                        notify_subscribers_task.apply_async((message.pk, additional_notification_fields, count))
+                        notify_subscribers_task.apply_async((message.pk, status_code,additional_notification_fields, count))
             except Exception as e:
                 logger.info("Unexpected error notifying %s about %s: %s" % (callback, str(message.pk), str(e)))
 

@@ -20,7 +20,9 @@ from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapProp
 from opentelemetry import trace
 from opentelemetry.propagate import extract
 from opentelemetry.context import attach, detach
+import hmac
 import hashlib
+from django.http import Http404
 #from reasoner_validator import validate_Message, ValidationError, validate_Query
 tracer = trace.get_tracer(__name__)
 logger = logging.getLogger(__name__)
@@ -487,7 +489,8 @@ def message(req, key):
                     notification = {
                         "event_type":"ara_response_complete",
                         "ara_name":actor.inforesid,
-                        "child_pk":str(mesg.pk),
+                        "child_uuid":str(mesg.pk),
+                        "ara_response_status": status,
                         "ara_n_results":len(res)
                     }
                     parent.notify_subscribers(notification)
@@ -530,6 +533,14 @@ def message(req, key):
                             mesg.code = code
                             mesg.save_compressed_dict(data)
                             mesg.save()
+                            notification = {
+                                "event_type":"ara_failed_validation",
+                                "ara_name":actor.inforesid,
+                                "child_uuid":str(mesg.pk),
+                                "ara_response_status": status,
+                                "ara_n_results":len(res)
+                            }
+                            parent.notify_subscribers(notification)
                             return HttpResponse("Problem with TRAPI Validation",
                                                 status=422)
 
@@ -824,17 +835,17 @@ def answers(req, key):
 
 @csrf_exempt
 def timeoutTest(req,time=300):
-    if req.method == 'POST':
-        # message = json.loads(req.body)
-        # # Append the notification to a text file
-        # with open("notifications.log", "a") as file:
-        #     file.write(json.dumps(message) + "\n")
-        # #utils.validate(message)
-        # return HttpResponse(status=200)
-        pass
-    else:
-        #tasks.catch_timeout_async()
-        pass
+     # if req.method == 'POST':
+     #    message = json.loads(req.body)
+     #    # Append the notification to a text file
+     #    with open("logs.log", "a") as file:
+     #        file.write(json.dumps(message) + "\n")
+     #    # #utils.validate(message)
+     #    return HttpResponse(status=200)
+     pass
+    # else:
+    #     #tasks.catch_timeout_async()
+    #     pass
         #utils.remove_blocked()
 def block(req,key):
     if req.method == 'GET':
@@ -909,106 +920,184 @@ def post_process(req, key):
         actor_name = mesg.actor
         utils.post_process(data['message'],key,actor_name)
 
-@csrf_exempt
-def subscribe(req):
-    if req.method=='POST':
-        try:
-            already_complete=[]
-            data = json.loads(req.body)
-            pks= data['pks']
-            client_id = req.headers.get('client_id')
-            client_secret = req.headers.get('client_secret')
-            hash_object = hashlib.sha256(client_secret.encode())
-            hash_code = hash_object.hexdigest()
-            client = get_object_or_404(Client.objects.filter(client_id=client_id))
-            client_hash = client.client_secret
-            if hash_code == client_hash:
-                for key in pks:
-                    mesg = get_object_or_404(Message.objects.filter(pk=key))
-                    if mesg.status in ('D','E'):
-                        already_complete.append(key)
-                    else:
-                        #update both client and message
-                        mesg.clients.add(client)
-                        if client.subscriptions == None:
-                            client.subscriptions = [key]
-                        elif key not in client.subscriptions:
-                            client.subscriptions.append(key)
-                    mesg.save()
-                    client.save()
-                if already_complete != []:
-                    if len(already_complete) == len(pks):
-                        return HttpResponse("All the subscribed PKs have already been completed, Please check their results")
-                    else:
-                        return HttpResponse("following PKs are already processed %s going to subscribed to the rest" % (already_complete))
-            else:
-                logger.error("Client %s doesnt have correct credential to subscribe to ARS" % client_id)
-                return HttpResponse("Unknown Subscriber",status=405)
-        except ValueError as ve:
-            logger.error("Error parsing JSON for subscription")
-            logger.error(str(ve.with_traceback()))
-            return HttpResponse("Problem parsing subscription JSON", status =405)
-        except Exception as e:
-            logger.error("Unknown error adding subscriber to %s")
-            logger.error(str(e.with_traceback()))
-            return HttpResponse("Unknown problem processing subscription", status =405)
+def signature_valid(body, event_signature):
+    pks= body['pks']
+    client_id = body['client_id']
+    client = get_object_or_404(Client.objects.filter(client_id=client_id))
+    client_secret = client.client_secret
+    data = json.dumps(body, separators=(",", ":"))
+    digest = hmac.new(client_secret.encode('utf-8'), data.encode('utf-8'), hashlib.sha256).hexdigest()
+    #print(f'Digest is {digest}')
+    if digest == event_signature:
+        return True, client, pks
     else:
-        return HttpResponse('Only POST is permitted!', status=405)
-    return HttpResponse(status=200)
+        return False, client, pks
 
 @csrf_exempt
-def unsubscribe(req=None, key=None):
+def query_event_subscribe(req):
+    if req.method=='POST':
+        try:
+            response={}
+            body = json.loads(req.body)
+            client_signature = req.headers.get('x-event-signature')
+            if client_signature is None:
+                response['message']='Signature not provided'
+                response['timestamp']= timezone.now().isoformat()
+                return HttpResponse(json.dumps(response), status=400)
+
+            valid, client, pks = signature_valid(body, client_signature)
+            if valid:
+                response['success']=[]
+                response['failure']={}
+                for key in pks:
+                    try:
+                        mesg = get_object_or_404(Message.objects.filter(pk=key))
+                        if mesg.status in ('D','E'):
+                            response['failure'][key]="Query already complete"
+                        else:
+                            #update both client and message
+                            mesg.clients.add(client)
+                            if client.subscriptions == None:
+                                client.subscriptions = [key]
+                            elif key not in client.subscriptions:
+                                client.subscriptions.append(key)
+                            elif key in client.subscriptions:
+                                pass
+                            response['success'].append(key)
+                        mesg.save()
+                        client.save()
+                    except Http404:
+                        response['failure'][key]="UUID not found"
+                        continue
+            else:
+                response['message'] = 'Invalid Signature provided'
+
+            response['timestamp']= timezone.now().isoformat()
+
+            if 'message' in response:
+                status = 401
+            elif not response['success']:
+                del response['success']
+                status=400
+            elif response['failure'] == {}:
+                del response['failure']
+                status=200
+            elif response['success'] != [] and response['failure'] != {}:
+                status=207
+            return HttpResponse(json.dumps(response), status=status)
+
+        except json.decoder.JSONDecodeError:
+            response['message']='Invalid JSON format'
+            response['timestamp']= timezone.now().isoformat()
+            return JsonResponse(response,status=400)
+        except Exception as e:
+            logger.error("Unexpected error at subscribe endpoint: {}".format(traceback.format_exception(type(e), e, e.__traceback__)))
+            logger.error(str(e.with_traceback()))
+            response['message']=str(e.with_traceback())
+            response['timestamp']= timezone.now().isoformat()
+            return HttpResponse(json.dumps(response), status =405)
+
+    elif req.method=='GET':
+        try:
+            client_name = req.GET.get('client_id')
+            client_name = client_name.strip('"\'')
+            client = get_object_or_404(Client.objects.filter(client_id=client_name))
+            subscriptions = client.subscriptions
+            response = {
+                'pks': subscriptions,
+                'timestamp': timezone.now().isoformat(),
+            }
+            return HttpResponse(json.dumps(response), status=200)
+
+        except Http404:
+            response ={
+                'message': 'No such client',
+                'timestamp': timezone.now().isoformat(),
+            }
+            return HttpResponse(json.dumps(response), status=404)
+    else:
+        return HttpResponse('Method %s not supported!' % req.method, status=400)
+
+@csrf_exempt
+def query_event_unsubscribe(req=None, key=None):
     if req is not None:
         if req.method=='POST':
             try:
-                data = json.loads(req.body)
-                pks= data['pks']
-                logger.info("Unsubscribing the following Pks: %s" % pks)
-                client_id = req.headers.get('client_id')
-                client_secret = req.headers.get('client_secret')
-                hash_object = hashlib.sha256(client_secret.encode())
-                hash_code = hash_object.hexdigest()
-                client = get_object_or_404(Client.objects.filter(client_id=client_id))
-                client_hash = client.client_secret
-                if hash_code == client_hash:
+                response={}
+                body = json.loads(req.body)
+                client_signature = req.headers.get('x-event-signature')
+                if client_signature is None:
+                    response['message']='Signature not provided'
+                    response['timestamp']= timezone.now().isoformat()
+                    return HttpResponse(json.dumps(response), status=400)
+
+                valid, client, pks = signature_valid(body, client_signature)
+                if valid:
+                    response['success']=[]
+                    response['failure']={}
                     for pk in pks:
-                        mesg = get_object_or_404(Message.objects.filter(pk=pk))
-                        #checking to see if Client is related to the message
-                        if mesg.clients.filter(id=client.id).exists():
-                            mesg.clients.remove(client)
-                            client.subscriptions.remove(pk)
-                            client.save()
-                        else:
-                            logger.error("PK: %s doesnt have the provided client subscribed")
+                        try:
+                            mesg = get_object_or_404(Message.objects.filter(pk=pk))
+                            #checking to see if Client is related to the message
+                            if mesg.clients.filter(id=client.id).exists() and mesg.status not in ('D','E'):
+                                mesg.clients.remove(client)
+                                client.subscriptions.remove(pk)
+                                client.save()
+                                response['success'].append(pk)
+
+                            elif not mesg.clients.filter(id=client.id).exists():
+                                response['success'].append(pk)
+
+                            elif mesg.status in ('D','E'):
+                                response['failure'][pk] = "Failure in auto-subscription upon completion"
+                        except Http404:
+                            response['failure'][key]="UUID not found"
+                            continue
                 else:
-                    logger.error("Client %s doesnt have correct credential to subscribe to ARS" % client_id)
-                    return HttpResponse("Unknown Subscriber",status=405)
-            except ValueError as ve:
-                logger.error("Error parsing JSON for unsubscription")
-                logger.error(str(ve.with_traceback()))
-                return HttpResponse("Problem parsing unsubscription JSON", status =405)
+                    response['message']='Invalid Signature provided'
+
+                response['timestamp'] = timezone.now().isoformat()
+
+                if 'message' in response:
+                    status = 401
+                elif not response['success']:
+                    del response['success']
+                    status=400
+                elif response['failure'] == {}:
+                    del response['failure']
+                    status=200
+                elif response['success'] != [] and response['failure'] != {}:
+                    status=207
+                return HttpResponse(json.dumps(response), status=status)
+
+            except json.decoder.JSONDecodeError:
+                response['message']='Invalid JSON format'
+                response['timestamp']= timezone.now().isoformat()
+                return JsonResponse(response,status=400)
             except Exception as e:
-                logger.error("Unknown error removing subscriber to %s")
+                logger.error("Unexpected error at unsubscribe endpoint: {}".format(traceback.format_exception(type(e), e, e.__traceback__)))
                 logger.error(str(e.with_traceback()))
-                return HttpResponse("Unknown problem processing subscription", status =405)
+                response['message']=str(e.with_traceback())
+                response['timestamp']= timezone.now().isoformat()
+                return HttpResponse(json.dumps(response), status =405)
         else:
             return HttpResponse('Only POST is permitted!', status=405)
-        return HttpResponse(status=200)
+
     else:
         try:
             logger.info("auto-unsubscribing message pk:%s" % str(key))
             mesg = get_object_or_404(Message.objects.filter(pk=key))
             all_subscribed_clients = mesg.clients.all()
-            for subscriber in all_subscribed_clients:
-                logger.info("client to be removed %s" % subscriber.client_id)
-                subscriptions = subscriber.subscriptions or [] #this assigns subscripotions to [] incase its null
+            for subscriber_client in all_subscribed_clients:
+                logger.info("client to be removed %s" % subscriber_client.client_id)
+                subscriptions = subscriber_client.subscriptions or [] #this assigns subscripotions to [] incase its null
                 if str(key) in subscriptions:
                     logger.info("removing pk %s from client subscription"% str(key))
                     subscriptions.remove(str(key))
-                    subscriber.subscriptions = subscriptions
-                    subscriber.save()
+                    subscriber_client.subscriptions = subscriptions
+                    subscriber_client.save()
                 #removing client from mesg
-                mesg.clients.remove(subscriber)
+                mesg.clients.remove(subscriber_client)
         except Exception as e:
             logger.error("Error during auto-unsubscribing pk %s" % key)
 
@@ -1029,8 +1118,8 @@ apipatterns = [
     path('retain/<uuid:key>', retain, name='ars-retain'),
     path('block/<uuid:key>', block, name='ars-block'),
     path('latest_pk/<int:n>', latest_pk, name='ars-latestPK'),
-    path('subscribe/', subscribe, name='ars-subscribe'),
-    path('unsubscribe/', unsubscribe, name='ars-unsubscribe'),
+    re_path(r'^query_event_subscribe?$', query_event_subscribe, name='ars-subscribe'),
+    re_path(r'^query_event_unsubscribe?$', query_event_unsubscribe, name='ars-unsubscribe'),
     path('post_process/<uuid:key>', post_process, name='ars-post_process_debug')
 
 ]
