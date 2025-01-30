@@ -199,12 +199,13 @@ class Message(ARSModel):
         from .tasks import notify_subscribers_task
         if self.status == 'D':
             additional_notification_fields = {
-                "event_type":"parent_msg_done_processing",
+                "event_type":"admin",
                 "complete" : True
             }
         if self.status == 'E':
             additional_notification_fields = {
-                "event_type":"Irrecoverable_error_finished_processing",
+                "event_type":"ars_error",
+                "message":'We had a huge problem',
                 "complete" : True
             }
         #offload to a celery task
