@@ -3,7 +3,7 @@ from django.shortcuts import get_object_or_404
 from django.db.models.signals import post_save, pre_save
 from django.dispatch import receiver
 import sys, logging
-from .models import Actor, Agent, Message, Channel
+from .models import Actor, Agent, Message, Channel, QueryGraphPlus
 from .pubsub import send_messages
 from .utils import get_safe
 logger = logging.getLogger(__name__)
@@ -44,7 +44,7 @@ def message_post_save(sender, instance, **kwargs):
     # check if parent status should be updated to 'Done'
     if message.ref is not None and message.status in ['D', 'S', 'E', 'U']:
         logger.info('+++ checking parent Doneness: %s for message/parent: %s %s' % (message.ref.status, str(message.id), str(message.ref.id)))
-
+        stat_plus={}
         pmessage = message.ref
         if pmessage.status != 'D':
             logger.info('+++ Parent message not Done for: %s' % (str(pmessage.id)))
@@ -73,6 +73,13 @@ def message_post_save(sender, instance, **kwargs):
                 pmessage.code = 200
                 pmessage.save(update_fields=['status','code'])
                 query_event_unsubscribe(None, pmessage.pk)
+                #save the record to query graph plus table
+                for child in children:
+                    stat_plus[child.actor.inforesid]=(child.code, child.result_count, child.result_stat)
+                data=pmessage.decompress_dict()
+                querygraph = QueryGraphPlus.create(query_graph=data['message']['query_graph'], timestamp=pmessage.updated_at, stats=stat_plus)
+                querygraph.save()
+
             elif pmessage.status == 'E':
                 query_event_unsubscribe(None, pmessage.pk)
 

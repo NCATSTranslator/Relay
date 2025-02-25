@@ -16,6 +16,21 @@ class ARSModel(models.Model):
     def to_dict(self):
         return json.loads(serializers.serialize('json', [self]))[0]
 
+class QueryGraphPlus(models.Model):
+
+    timestamp = models.DateTimeField(auto_now_add=True)
+    query_graph = models.JSONField(null=True)
+    stats = models.JSONField(null=True)
+
+    @classmethod
+    def create(self, *args, **kwargs):
+        # convert status long name to code for saving
+        logger.info('creating queryGraphPlus model instance')
+        return QueryGraphPlus(*args, **kwargs)
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+
 class Client(ARSModel):
     client_id= models.TextField('name of client',null =False)
     client_secret=models.TextField('hash of client secret', null = False)
