@@ -21,8 +21,8 @@ apipatterns = [
     path('retain/<uuid:key>', api.retain, name='ars-retain'),
     path('block/<uuid:key>', api.block, name='ars-block'),
     path('latest_pk/<int:n>', api.latest_pk, name='ars-latestPK'),
-    path('subscribe/', api.subscribe, name='ars-subscribe'),
-    path('unsubscribe/', api.unsubscribe, name='ars-unsubscribe'),
+    re_path(r'^query_event_subscribe?$', api.query_event_subscribe, name='ars-subscribe'),
+    re_path(r'^query_event_unsubscribe?$', api.query_event_unsubscribe, name='ars-unsubscribe'),
     path('post_process/<uuid:key>', api.post_process, name='ars-post_process_debug')
 ]
 
