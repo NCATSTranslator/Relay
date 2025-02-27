@@ -1,5 +1,6 @@
 import gzip
 from django.shortcuts import get_object_or_404
+from django.http import HttpResponse
 from django.db.models.signals import post_save, pre_save
 from django.dispatch import receiver
 import sys, logging
@@ -8,6 +9,7 @@ from .pubsub import send_messages
 from .utils import get_safe
 logger = logging.getLogger(__name__)
 from .api import query_event_unsubscribe
+from django.db import IntegrityError, OperationalError
 
 @receiver(post_save, sender=Actor)
 def actor_post_save(sender, instance, **kwargs):
@@ -73,12 +75,24 @@ def message_post_save(sender, instance, **kwargs):
                 pmessage.code = 200
                 pmessage.save(update_fields=['status','code'])
                 query_event_unsubscribe(None, pmessage.pk)
-                #save the record to query graph plus table
-                for child in children:
-                    stat_plus[child.actor.inforesid]=(child.code, child.result_count, child.result_stat)
-                data=pmessage.decompress_dict()
-                querygraph = QueryGraphPlus.create(query_graph=data['message']['query_graph'], timestamp=pmessage.updated_at, stats=stat_plus)
-                querygraph.save()
+
+                try:
+                    for child in children:
+                        stat_plus[child.actor.inforesid]=(child.code, child.result_count, child.result_stat)
+                        if child.actor.agent.name == 'ars-ars-agent':
+                            result_count = child.result_count
+                    data=pmessage.decompress_dict()
+                    querygraph = QueryGraphPlus.create(status=pmessage.status,num_res=result_count,
+                                                       query_graph=data['message']['query_graph'],
+                                                       timestamp=pmessage.updated_at, stats=stat_plus)
+                    querygraph.save()
+
+                except OperationalError as e:
+                    return HttpResponse('DB Operational error : %s' % str(e),status=404)
+                except IntegrityError as e:
+                    return HttpResponse('DB Integrity error :%s with message %s' % (e.__cause__, str(e)), status=400)
+                except Exception as e:
+                    return HttpResponse('failing due to %s with the message %s' % (e.__cause__, str(e)), status=400)
 
             elif pmessage.status == 'E':
                 query_event_unsubscribe(None, pmessage.pk)
