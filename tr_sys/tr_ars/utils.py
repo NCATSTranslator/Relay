@@ -35,6 +35,7 @@ from biothings_annotator import annotator
 from pydantic import ValidationError
 from opentelemetry import trace
 tracer = trace.get_tracer(__name__)
+import asyncio
 
 ARS_ACTOR = {
     'channel': [],
@@ -993,7 +994,7 @@ def annotate_nodes(mesg,data,agent_name):
         with tracer.start_as_current_span("annotator") as span:
             try:
                 atr = annotator.Annotator()
-                rj = atr.annotate_curie_list(curie_list)
+                rj = asyncio.run(atr.annotate_curie_list(curie_list))
                 # r = requests.post(ANNOTATOR_URL,json=nodes_message,headers=headers)
                 # r.raise_for_status()
                 # rj=r.json()
