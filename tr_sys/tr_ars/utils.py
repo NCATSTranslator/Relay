@@ -35,6 +35,7 @@ from biothings_annotator import annotator
 from pydantic import ValidationError
 from opentelemetry import trace
 tracer = trace.get_tracer(__name__)
+import asyncio
 
 ARS_ACTOR = {
     'channel': [],
@@ -993,7 +994,17 @@ def annotate_nodes(mesg,data,agent_name):
         with tracer.start_as_current_span("annotator") as span:
             try:
                 atr = annotator.Annotator()
-                rj = atr.annotate_curie_list(curie_list)
+                loop = asyncio.get_event_loop()
+                # Check if an event loop is already running
+                if loop.is_running():
+                    # Use create_task to schedule the coroutine in the running loop
+                    logging.info('event loop is already running')
+                    rj = asyncio.ensure_future(atr.annotate_curie_list(curie_list))
+                else:
+                    # If no loop is running, create one and run it
+                    logging.info('event loop is not running so creating one')
+                    rj = loop.run_until_complete(atr.annotate_curie_list(curie_list))
+
                 # r = requests.post(ANNOTATOR_URL,json=nodes_message,headers=headers)
                 # r.raise_for_status()
                 # rj=r.json()
@@ -1012,6 +1023,9 @@ def annotate_nodes(mesg,data,agent_name):
                     #Not sure about adding back clearly borked nodes, but it is in keeping with policy of non-destructiveness
                 if len(invalid_nodes)>0:
                     data['message']['knowledge_graph']['nodes'].update(invalid_nodes)
+            # except RuntimeError:
+            #     # If no event loop is running, use `asyncio.run()`
+            #     rj = asyncio.run(atr.annotate_curie_list(curie_list))
             except Exception as e:
                 logging.info('node annotation internal error msg is for agent %s with pk: %s is  %s' % (agent_name,str(mesg.pk),str(e)))
                 logging.exception("error in node annotation internal function")
