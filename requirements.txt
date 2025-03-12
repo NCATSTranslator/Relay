@@ -8,7 +8,7 @@ django-markdownify >= 0.9.2
 attrs >= 20.3.0
 channels==3.0.3
 pymysql==1.1.1
-PyYAML==6.0
+PyYAML>=6.0
 pytest-django
 factory-boy
 selenium
@@ -30,3 +30,4 @@ opentelemetry-instrumentation-requests
 opentelemetry-instrumentation-celery
 brotli
 git+https://github.com/biothings/biothings_annotator#egg=biothings_annotator
+pycryptodome

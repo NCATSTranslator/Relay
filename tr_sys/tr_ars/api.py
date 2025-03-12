@@ -23,6 +23,9 @@ from opentelemetry.context import attach, detach
 import hmac
 import hashlib
 from django.http import Http404
+import base64
+from Crypto.Cipher import AES
+from Crypto.Util.Padding import unpad
 #from reasoner_validator import validate_Message, ValidationError, validate_Query
 tracer = trace.get_tracer(__name__)
 logger = logging.getLogger(__name__)
@@ -920,14 +923,25 @@ def post_process(req, key):
         actor_name = mesg.actor
         utils.post_process(data['message'],key,actor_name)
 
-def signature_valid(body, event_signature):
+def decrypt_secret(encrypted_secret, master_key):
+    """Decrypts the given AES-GCM encrypted data."""
+    encrypted_data = base64.b64decode(encrypted_secret)
+    iv = encrypted_data[:AES.block_size]  # Extract IV
+    cipher = AES.new(master_key, AES.MODE_CBC, iv)
+    decrypted_secret = unpad(cipher.decrypt(encrypted_data[AES.block_size:]), AES.block_size)
+    return decrypted_secret.decode()
+
+def signature_valid(req,body, event_signature):
+
     pks= body['pks']
     client_id = body['client_id']
     client = get_object_or_404(Client.objects.filter(client_id=client_id))
-    client_secret = client.client_secret
-    data = json.dumps(body, separators=(",", ":"))
-    digest = hmac.new(client_secret.encode('utf-8'), data.encode('utf-8'), hashlib.sha256).hexdigest()
-    #print(f'Digest is {digest}')
+    encrpyted_secret = client.client_secret
+    #encoded_master_key = os.getENV('master_key')
+    encoded_master_key='eQ+1+ZoywmRbFf4HFHCzArAVQYi69LYREqaU5f6/Pdg='
+    master_key= base64.b64decode(encoded_master_key)
+    client_secret = decrypt_secret(encrpyted_secret, master_key)
+    digest = hmac.new(client_secret.encode('utf-8'), req.body, hashlib.sha256).hexdigest()
     if digest == event_signature:
         return True, client, pks
     else:
@@ -945,7 +959,7 @@ def query_event_subscribe(req):
                 response['timestamp']= timezone.now().isoformat()
                 return HttpResponse(json.dumps(response), status=400)
 
-            valid, client, pks = signature_valid(body, client_signature)
+            valid, client, pks = signature_valid(req,body, client_signature)
             if valid:
                 response['success']=[]
                 response['failure']={}
