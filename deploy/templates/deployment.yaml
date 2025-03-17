@@ -39,6 +39,8 @@ spec:
               value: {{ .Values.arsserver.env.TR_NORMALIZER }}
             - name: TR_ANNOTATOR
               value: {{ .Values.arsserver.env.TR_ANNOTATOR }}
+            - name : AES_MASTER_KEY
+              value: {{ .Values.arsserver.env.AES_MASTER_KEY}}
           {{- with .Values.arsserver.resources }}
           resources:
             {{- toYaml . | nindent 12 }}
@@ -60,6 +62,8 @@ spec:
               value: {{ .Values.celeryworker.env.TR_NORMALIZER }}
             - name: TR_ANNOTATOR
               value: {{ .Values.celeryworker.env.TR_ANNOTATOR }}
+            - name: AES_MASTER_KEY
+              value: {{ .Values.celeryworker.env.AES_MASTER_KEY }}
           {{- with .Values.celeryworker.resources }}
           resources:
             {{- toYaml . | nindent 12 }}
