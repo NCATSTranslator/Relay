@@ -839,14 +839,17 @@ def answers(req, key):
 
 @csrf_exempt
 def timeoutTest(req,time=300):
-     # if req.method == 'POST':
-     #    message = json.loads(req.body)
-     #    # Append the notification to a text file
-     #    with open("logs.log", "a") as file:
-     #        file.write(json.dumps(message) + "\n")
-     #    # #utils.validate(message)
-     #    return HttpResponse(status=200)
-     pass
+    if req.method == 'POST':
+        #try:
+        #     body = req.body
+        #     data=json.loads(body.decode('utf-8'))
+        #     with open("notification_logs.log", "a") as file:
+        #         json.dump(data, file)
+        #         file.write("\n")
+        #     return JsonResponse({"status": "success"}, status=200)
+        # except json.JSONDecodeError:
+        #     return JsonResponse({"status": "Failure"}, status=400)
+        pass
     # else:
     #     #tasks.catch_timeout_async()
     #     pass
@@ -932,103 +935,189 @@ def decrypt_secret(encrypted_secret, master_key):
     decrypted_secret = unpad(cipher.decrypt(encrypted_data[AES.block_size:]), AES.block_size)
     return decrypted_secret.decode()
 
-def signature_valid(req,body, event_signature):
+def get_client_secret(client_id):
+    try:
+        client = get_object_or_404(Client.objects.filter(client_id=client_id))
+        subscriptions = client.subscriptions
+        encrypted_secret = client.client_secret
+        encoded_master_key = os.getenv("AES_MASTER_KEY")
+        master_key= base64.b64decode(encoded_master_key)
+        return encrypted_secret, master_key, subscriptions
 
-    pks= body['pks']
-    client_id = body['client_id']
-    client = get_object_or_404(Client.objects.filter(client_id=client_id))
-    encrpyted_secret = client.client_secret
-    encoded_master_key = os.getenv("AES_MASTER_KEY")
-    master_key= base64.b64decode(encoded_master_key)
-    client_secret = decrypt_secret(encrpyted_secret, master_key)
-    digest = hmac.new(client_secret.encode('utf-8'), req.body, hashlib.sha256).hexdigest()
-    if digest == event_signature:
-        return True, client, pks
-    else:
-        return False, client, pks
+    except Http404:
+        response ={
+            'message': 'No such client',
+            'timestamp': timezone.now().isoformat(),
+        }
+        return JsonResponse(response,status=400),None,None
 
-@csrf_exempt
-def query_event_subscribe(req):
-    if req.method=='POST':
+
+def verify_signature(req):
+    response={}
+    if req.method == 'POST':
         try:
-            response={}
-            body = json.loads(req.body)
-            client_signature = req.headers.get('x-event-signature')
-            if client_signature is None:
+            event_signature = req.headers.get('x-event-signature')
+            if event_signature is None:
                 response['message']='Signature not provided'
                 response['timestamp']= timezone.now().isoformat()
-                return HttpResponse(json.dumps(response), status=400)
-
-            valid, client, pks = signature_valid(req,body, client_signature)
-            if valid:
-                response['success']=[]
-                response['failure']={}
-                for key in pks:
-                    try:
-                        mesg = get_object_or_404(Message.objects.filter(pk=key))
-                        if mesg.status in ('D','E'):
-                            response['failure'][key]="Query already complete"
-                        else:
-                            #update both client and message
-                            mesg.clients.add(client)
-                            if client.subscriptions == None:
-                                client.subscriptions = [key]
-                            elif key not in client.subscriptions:
-                                client.subscriptions.append(key)
-                            elif key in client.subscriptions:
-                                pass
-                            response['success'].append(key)
-                        mesg.save()
-                        client.save()
-                    except Http404:
-                        response['failure'][key]="UUID not found"
-                        continue
+                return JsonResponse(response,status=400)
+            body = json.loads(req.body)
+            pks = body['pks']
+            client_id = body['client_id']
+            encrypted_secret, master_key, subscriptions = get_client_secret(client_id)
+            client_secret = decrypt_secret(encrypted_secret, master_key)
+            expected_digest = hmac.new(client_secret.encode('utf-8'), req.body, hashlib.sha256).hexdigest()
+            # Compare using hmac.compare_digest() to prevent timing attacks
+            if not hmac.compare_digest(expected_digest, event_signature):
+                response['verified']=False
             else:
-                response['message'] = 'Invalid Signature provided'
+                response['verified']=True
 
-            response['timestamp']= timezone.now().isoformat()
-
-            if 'message' in response:
-                status = 401
-            elif not response['success']:
-                del response['success']
-                status=400
-            elif response['failure'] == {}:
-                del response['failure']
-                status=200
-            elif response['success'] != [] and response['failure'] != {}:
-                status=207
-            return HttpResponse(json.dumps(response), status=status)
-
+            response['pks']=pks
+            response['client_id']=client_id
+                
         except json.decoder.JSONDecodeError:
             response['message']='Invalid JSON format'
             response['timestamp']= timezone.now().isoformat()
             return JsonResponse(response,status=400)
         except Exception as e:
-            logger.error("Unexpected error at subscribe endpoint: {}".format(traceback.format_exception(type(e), e, e.__traceback__)))
+            logger.error("Unexpected error at signature verification for POST method")
+            logger.error(str(e.with_traceback()))
+            return response
+
+    elif req.method == 'GET':
+        try:
+            event_signature = req.headers.get('x-event-signature')
+            if event_signature is None:
+                response['message']='Signature not provided'
+                response['timestamp']= timezone.now().isoformat()
+                return JsonResponse(response,status=400)
+
+            #extract the path & query parameters
+            query_params = req.GET.dict()
+            for key, val in query_params.items():
+                query_param =f'{key}={val}'
+                client_id=val
+            scheme = req.scheme  # 'http'/'https'
+            host = req.get_host()
+            path = req.path
+            base_url=f'{host}{path}'
+            signature_string=f'{scheme}{base_url}{query_param}'
+
+            if client_id:
+                encrypted_secret, master_key, subscriptions = get_client_secret(client_id)
+                if isinstance(encrypted_secret, JsonResponse):
+                    return encrypted_secret
+
+                client_secret = decrypt_secret(encrypted_secret, master_key)
+                expected_digest=hmac.new(client_secret.encode('utf-8'), signature_string.encode('utf-8'), hashlib.sha256).hexdigest()
+                # Compare using hmac.compare_digest() to prevent timing attacks
+                if not hmac.compare_digest(expected_digest, event_signature):
+                    response['verified']=False
+                else:
+                    response['verified']=True
+                response['pks']=subscriptions
+                response['client_id']=client_id
+        except Exception as e:
+            logger.error("Unexpected error at signature verification for GET method")
+            logger.error(str(e.with_traceback()))
+            return response
+
+    return response
+
+def analyze_response(response):
+    if 'message' in response:
+        status = 401
+    elif not response['success']:
+        del response['success']
+        status=400
+    elif not response['failure']:
+        del response['failure']
+        status=200
+    elif response['success'] and response['failure']:
+        status=207
+
+    return response, status
+
+@csrf_exempt
+def query_event_subscribe(req):
+    response = verify_signature(req)
+    if req.method=='POST':
+        try:
+            if isinstance(response, JsonResponse) or isinstance(response, HttpResponse):
+                return response
+            elif isinstance(response, dict) and 'verified' in response:
+                valid = response['verified']
+                pks = response['pks']
+                client_id = response['client_id']
+                response.clear()
+                if valid:
+                    response['success']=[]
+                    response['failure']={}
+                    for key in pks:
+                        try:
+                            mesg = get_object_or_404(Message.objects.filter(pk=key))
+                            client = get_object_or_404(Client.objects.filter(client_id=client_id))
+                            if mesg.status in ('D','E'):
+                                response['failure'][key]="Query already complete"
+                            else:
+                                #update both client and message
+                                mesg.clients.add(client)
+                                if client.subscriptions is None:
+                                    client.subscriptions = [key]
+                                elif key not in client.subscriptions:
+                                    client.subscriptions.append(key)
+                                elif key in client.subscriptions:
+                                    pass
+                                response['success'].append(key)
+                            mesg.save()
+                            client.save()
+                        except Http404:
+                            response['failure'][key]="UUID not found"
+                            continue
+                else:
+                    response['message'] = 'Invalid Signature provided'
+
+                response['timestamp']= timezone.now().isoformat()
+                response, status= analyze_response(response)
+                return HttpResponse(json.dumps(response), status=status)
+
+        except Exception as e:
+            logger.error("Unexpected error at subscribe POST endpoint: {}".format(traceback.format_exception(type(e), e, e.__traceback__)))
             logger.error(str(e.with_traceback()))
             response['message']=str(e.with_traceback())
             response['timestamp']= timezone.now().isoformat()
             return HttpResponse(json.dumps(response), status =405)
 
-    elif req.method=='GET':
+    elif req.method == 'GET':
         try:
-            client_name = req.GET.get('client_id')
-            client_name = client_name.strip('"\'')
-            client = get_object_or_404(Client.objects.filter(client_id=client_name))
-            subscriptions = client.subscriptions
-            response = {
-                'pks': subscriptions,
-                'timestamp': timezone.now().isoformat(),
-            }
-            return HttpResponse(json.dumps(response), status=200)
+            if isinstance(response, JsonResponse) or isinstance(response, HttpResponse):
+                return response
+            elif isinstance(response, dict) and 'verified' in response:
+                valid = response['verified']
+                subscriptions = response['pks']
+                response.clear()
+                if valid:
+                    response = {
+                        'pks': subscriptions,
+                        'timestamp': timezone.now().isoformat(),
+                    }
+                    return HttpResponse(json.dumps(response), status=200)
 
-        except Http404:
-            response ={
-                'message': 'No such client',
-                'timestamp': timezone.now().isoformat(),
-            }
-            return HttpResponse(json.dumps(response), status=404)
+                else:
+                    response ={
+                        'message': 'Invalid Signature provided',
+                        'timestamp': timezone.now().isoformat(),
+                    }
+                    return HttpResponse(json.dumps(response), status=401)
+
+        #what if i get an {} response, would it be handled by exception here???
+        except Exception as e:
+            logger.error("Unexpected error at subscribe GET endpoint: {}".format(traceback.format_exception(type(e), e, e.__traceback__)))
+            logger.error(str(e.with_traceback()))
+            response['message']=str(e.with_traceback())
+            response['timestamp']= timezone.now().isoformat()
+            return HttpResponse(json.dumps(response), status =405)
     else:
         return HttpResponse('Method %s not supported!' % req.method, status=400)
 
@@ -1037,57 +1126,44 @@ def query_event_unsubscribe(req=None, key=None):
     if req is not None:
         if req.method=='POST':
             try:
-                response={}
-                body = json.loads(req.body)
-                client_signature = req.headers.get('x-event-signature')
-                if client_signature is None:
-                    response['message']='Signature not provided'
-                    response['timestamp']= timezone.now().isoformat()
-                    return HttpResponse(json.dumps(response), status=400)
+                response = verify_signature(req)
+                if isinstance(response, JsonResponse) or isinstance(response, HttpResponse):
+                    return response
+                elif isinstance(response, dict) and 'verified' in response:
+                    valid = response['verified']
+                    pks = response['pks']
+                    client_id= response['client_id']
+                    response.clear()
 
-                valid, client, pks = signature_valid(body, client_signature)
-                if valid:
-                    response['success']=[]
-                    response['failure']={}
-                    for pk in pks:
-                        try:
-                            mesg = get_object_or_404(Message.objects.filter(pk=pk))
-                            #checking to see if Client is related to the message
-                            if mesg.clients.filter(id=client.id).exists() and mesg.status not in ('D','E'):
-                                mesg.clients.remove(client)
-                                client.subscriptions.remove(pk)
-                                client.save()
-                                response['success'].append(pk)
+                    if valid:
+                        response['success']=[]
+                        response['failure']={}
+                        for pk in pks:
+                            try:
+                                mesg = get_object_or_404(Message.objects.filter(pk=pk))
+                                client= get_object_or_404(Client.objects.filter(client_id=client_id))
+                                #checking to see if Client is related to the message
+                                if mesg.clients.filter(id=client.id).exists() and mesg.status not in ('D','E'):
+                                    mesg.clients.remove(client)
+                                    client.subscriptions.remove(pk)
+                                    client.save()
+                                    response['success'].append(pk)
 
-                            elif not mesg.clients.filter(id=client.id).exists():
-                                response['success'].append(pk)
+                                elif not mesg.clients.filter(id=client.id).exists():
+                                    response['success'].append(pk)
 
-                            elif mesg.status in ('D','E'):
-                                response['failure'][pk] = "Failure in auto-subscription upon completion"
-                        except Http404:
-                            response['failure'][key]="UUID not found"
-                            continue
-                else:
-                    response['message']='Invalid Signature provided'
+                                elif mesg.status in ('D','E'):
+                                    response['failure'][pk] = "Failure in auto-subscription upon completion"
+                            except Http404:
+                                response['failure'][key]="UUID not found"
+                                continue
+                    else:
+                        response['message']='Invalid Signature provided'
 
-                response['timestamp'] = timezone.now().isoformat()
+                    response['timestamp'] = timezone.now().isoformat()
+                    response, status= analyze_response(response)
+                    return HttpResponse(json.dumps(response), status=status)
 
-                if 'message' in response:
-                    status = 401
-                elif not response['success']:
-                    del response['success']
-                    status=400
-                elif response['failure'] == {}:
-                    del response['failure']
-                    status=200
-                elif response['success'] != [] and response['failure'] != {}:
-                    status=207
-                return HttpResponse(json.dumps(response), status=status)
-
-            except json.decoder.JSONDecodeError:
-                response['message']='Invalid JSON format'
-                response['timestamp']= timezone.now().isoformat()
-                return JsonResponse(response,status=400)
             except Exception as e:
                 logger.error("Unexpected error at unsubscribe endpoint: {}".format(traceback.format_exception(type(e), e, e.__traceback__)))
                 logger.error(str(e.with_traceback()))

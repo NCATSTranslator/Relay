@@ -17,6 +17,11 @@ from opentelemetry.propagate import inject
 # Ensure that the tracing context is properly propagated within tasks
 from opentelemetry.context import attach, detach, set_value, get_current
 import time as sleeptime
+from .api import decrypt_secret
+import hmac
+import base64
+import os
+import hashlib
 logger = get_task_logger(__name__)
 
 def propagate_context(func):
@@ -293,8 +298,18 @@ def notify_subscribers_task(pk, status_code, additional_notification_fields=None
         all_subscribed_clients = message.clients.all()
         for client in all_subscribed_clients:
             callback = client.callback_url
+            encrpyted_secret = client.client_secret
+            encoded_master_key = os.getenv("AES_MASTER_KEY")
+            master_key= base64.b64decode(encoded_master_key)
+            client_secret = decrypt_secret(encrpyted_secret, master_key)
+            data_json = json.dumps(notification, separators=(',', ':'), sort_keys=True).encode('utf-8') #convert notification to a consistent byte representation
+            digest = hmac.new(client_secret.encode('utf-8'), data_json, hashlib.sha256).hexdigest()
+            headers={
+                "Content-Type": "application/json",
+                "x-event-signature": digest
+            }
             try:
-                r = requests.post(callback, data=json.dumps(notification), headers={"Content-Type": "application/json"})
+                r = requests.post(url=callback, data=data_json, headers=headers)
                 if r.status_code != 200:
                     if count <= 10:
                         count = count + 1
