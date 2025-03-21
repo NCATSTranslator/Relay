@@ -628,7 +628,7 @@ def merge_and_post_process(parent_pk,message_to_merge, agent_name, counter=0):
                 "event_type":"merged_version_begun",
                 "complete":False,
                 "merged_version":None,
-                "merged_version_list":parent.merged_versions_list
+                "merged_versions_list":parent.merged_versions_list
             }
             parent.notify_subscribers(notification)
             logging.info(f"Before merging for %s with parent PK: %s"% (agent_name,parent_pk))
