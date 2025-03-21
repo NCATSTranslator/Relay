@@ -625,7 +625,7 @@ def merge_and_post_process(parent_pk,message_to_merge, agent_name, counter=0):
     if lock_state is False:
         try:
             notification={
-                "event_type":f"{agent}_merged_version_begun",
+                "event_type":"merged_version_begun",
                 "complete":False,
                 "merged_version":None,
                 "merged_version_list":parent.merged_versions_list
@@ -634,7 +634,7 @@ def merge_and_post_process(parent_pk,message_to_merge, agent_name, counter=0):
             logging.info(f"Before merging for %s with parent PK: %s"% (agent_name,parent_pk))
             merged, parent = merge_received(parent,message_to_merge, agent_name)
             logging.info(f"After merging for %s with parent PK: %s"% (agent_name,parent_pk))
-            notification["event_type"]=f"{agent}_merged_version_available"
+            notification["event_type"]="merged_version_available"
             notification["merged_version"]=str(merged.pk)
             parent.notify_subscribers(notification)
 
