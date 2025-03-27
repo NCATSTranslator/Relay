@@ -27,6 +27,7 @@ import base64
 import os
 from Crypto.Cipher import AES
 from Crypto.Util.Padding import unpad
+from urllib.parse import urlparse, parse_qsl, unquote
 #from reasoner_validator import validate_Message, ValidationError, validate_Query
 tracer = trace.get_tracer(__name__)
 logger = logging.getLogger(__name__)
@@ -951,6 +952,14 @@ def get_client_secret(client_id):
         }
         return JsonResponse(response,status=400),None,None
 
+def canonize_url(url_str):
+    parsed = urlparse(url_str)
+    sorted_query = '|'.join(
+        f'{unquote(k)}|{unquote(v)}'
+        for k, v in sorted(parse_qsl(parsed.query, keep_blank_values=True))
+    )
+
+    return '|'.join([parsed.scheme, parsed.netloc, parsed.path, sorted_query])
 
 def verify_signature(req):
     response={}
@@ -993,16 +1002,13 @@ def verify_signature(req):
                 response['timestamp']= timezone.now().isoformat()
                 return JsonResponse(response,status=400)
 
-            #extract the path & query parameters
+            #canonize GET path url
+            url_str = req.build_absolute_uri()
             query_params = req.GET.dict()
-            for key, val in query_params.items():
-                query_param =f'{key}={val}'
-                client_id=val
-            scheme = req.scheme  # 'http'/'https'
-            host = req.get_host()
-            path = req.path
-            base_url=f'{host}{path}'
-            signature_string=f'{scheme}{base_url}{query_param}'
+            if 'client_id' in query_params:
+                client_id=query_params['client_id']
+
+            signature_string = canonize_url(url_str)
 
             if client_id:
                 encrypted_secret, master_key, subscriptions = get_client_secret(client_id)
