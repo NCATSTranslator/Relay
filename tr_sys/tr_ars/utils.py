@@ -636,9 +636,8 @@ def merge_and_post_process(parent_pk,message_to_merge, agent_name, counter=0):
             logging.info(f"After merging for %s with parent PK: %s"% (agent_name,parent_pk))
             notification["event_type"]="merged_version_available"
             notification["merged_version"]=str(merged.pk)
-            parent.notify_subscribers(notification)
-
             parent.save()
+            parent.notify_subscribers(notification)
         except Exception as e:
             logging.info("Problem with merger for agent %s pk: %s " % (agent_name, (parent_pk)))
             logging.info(e, exc_info=True)
