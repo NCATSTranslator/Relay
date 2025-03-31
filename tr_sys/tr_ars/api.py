@@ -1009,6 +1009,7 @@ def verify_signature(req):
                 client_id=query_params['client_id']
 
             signature_string = canonize_url(url_str)
+            logging.info('the signature string %s for client_id %s' % (signature_string, client_id))
 
             if client_id:
                 encrypted_secret, master_key, subscriptions = get_client_secret(client_id)
@@ -1019,8 +1020,10 @@ def verify_signature(req):
                 expected_digest=hmac.new(client_secret.encode('utf-8'), signature_string.encode('utf-8'), hashlib.sha256).hexdigest()
                 # Compare using hmac.compare_digest() to prevent timing attacks
                 if not hmac.compare_digest(expected_digest, event_signature):
+                    logging.info('HMAC digest didnt get verified')
                     response['verified']=False
                 else:
+                    logging.info('HMAC digest got verified')
                     response['verified']=True
                 response['pks']=subscriptions
                 response['client_id']=client_id
