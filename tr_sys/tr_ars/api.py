@@ -1162,7 +1162,7 @@ def query_event_unsubscribe(req=None, key=None):
                                 elif mesg.status in ('D','E'):
                                     response['failure'][pk] = "Failure in auto-subscription upon completion"
                             except Http404:
-                                response['failure'][key]="UUID not found"
+                                response['failure'][pk]="UUID not found"
                                 continue
                     else:
                         response['message']='Invalid Signature provided'
@@ -1215,8 +1215,8 @@ apipatterns = [
     path('retain/<uuid:key>', retain, name='ars-retain'),
     path('block/<uuid:key>', block, name='ars-block'),
     path('latest_pk/<int:n>', latest_pk, name='ars-latestPK'),
-    re_path(r'^query_event_subscribe?$', query_event_subscribe, name='ars-subscribe'),
-    re_path(r'^query_event_unsubscribe?$', query_event_unsubscribe, name='ars-unsubscribe'),
+    re_path(r'^query_event_subscribe/?$', query_event_subscribe, name='ars-subscribe'),
+    re_path(r'^query_event_unsubscribe/?$', query_event_unsubscribe, name='ars-unsubscribe'),
     path('post_process/<uuid:key>', post_process, name='ars-post_process_debug')
 
 ]
