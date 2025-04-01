@@ -1020,10 +1020,8 @@ def verify_signature(req):
                 expected_digest=hmac.new(client_secret.encode('utf-8'), signature_string.encode('utf-8'), hashlib.sha256).hexdigest()
                 # Compare using hmac.compare_digest() to prevent timing attacks
                 if not hmac.compare_digest(expected_digest, event_signature):
-                    logging.info('HMAC digest didnt get verified')
                     response['verified']=False
                 else:
-                    logging.info('HMAC digest got verified')
                     response['verified']=True
                 response['pks']=subscriptions
                 response['client_id']=client_id

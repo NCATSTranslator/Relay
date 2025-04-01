@@ -30,6 +30,7 @@ DEBUG = True
 
 ALLOWED_HOSTS = ['arsserver','localhost', 'ars.transltr.io', 'ars-dev.transltr.io']
 
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 # Application definition
 
