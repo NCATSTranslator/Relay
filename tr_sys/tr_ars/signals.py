@@ -6,6 +6,7 @@ import sys, logging
 from .models import Actor, Agent, Message, Channel
 from .pubsub import send_messages
 from .utils import get_safe
+from django.utils import timezone
 logger = logging.getLogger(__name__)
 from .api import query_event_unsubscribe
 
@@ -71,7 +72,8 @@ def message_post_save(sender, instance, **kwargs):
                 logger.info('+++ Parent message Done for: %s \n Attempting save' % (str(pmessage.id)))
                 pmessage.status = 'D'
                 pmessage.code = 200
-                pmessage.save(update_fields=['status','code'])
+                pmessage.updated_at = timezone.now()
+                pmessage.save(update_fields=['status','code','updated_at'])
                 query_event_unsubscribe(None, pmessage.pk)
             elif pmessage.status == 'E':
                 query_event_unsubscribe(None, pmessage.pk)
