@@ -238,11 +238,12 @@ def send_message(actor_dict, mesg_dict, timeout=300):
 def catch_timeout_async():
     now =timezone.now()
     logging.info(f'Checking timeout at {now}')
-    time_threshold = now - timezone.timedelta(minutes=10)
+    time_threshold = now - timezone.timedelta(minutes=15)
     max_time = now-timezone.timedelta(minutes=5)
     max_time_merged=now-timezone.timedelta(minutes=8)
     max_time_pathfinder = now-timezone.timedelta(minutes=10)
 
+    #retrieving last 15 min running records might become overwhelming, so we might need to refine this filter to grab records between 4 min< x < 15 min or have 2 sets (for standard/pathfinder) queires
     messages = Message.objects.filter(timestamp__gt=time_threshold, status__in='R').values_list('actor','id','timestamp','updated_at','params')
     for mesg in messages:
         mpk=mesg[0]
@@ -261,7 +262,7 @@ def catch_timeout_async():
         elif actor.name == 'ars-ars-agent':
             if timestamp < max_time_merged:
                 logging.info('merge_agent pk: %s has been running more than 8 min, setting its code to 598')
-                message = get_object_or_404(Message.objects.filter(pk=mesg[1]))
+                message = get_object_or_404(Message.objects.filter(pk=id))
                 message.code = 598
                 message.status = 'E'
                 message.save(update_fields=['status','code'])
@@ -269,18 +270,21 @@ def catch_timeout_async():
                 continue
         else:
             if query_type == 'standard' and timestamp < max_time:
-                logging.info(f'for actor: {actor.name}, and pk {str(id)} of query type: {query_type},the status is still "Running" after 5 min, setting code to 598')
-                message = get_object_or_404(Message.objects.filter(pk=mesg[1]))
+                logging.info(f'for actor: {actor.name}, and pk {str(id)} of query type: {query_type}, the status is still "Running" after 5 min, setting code to 598')
+                message = get_object_or_404(Message.objects.filter(pk=id))
                 message.code = 598
                 message.status = 'E'
                 message.save(update_fields=['status','code'])
 
             elif query_type == 'pathfinder' and timestamp < max_time_pathfinder:
                 logging.info(f'for actor: {actor.name}, and pk {str(id)} of query type: {query_type},the status is still "Running" after 10 min, setting code to 598')
-                message = get_object_or_404(Message.objects.filter(pk=mesg[1]))
+                message = get_object_or_404(Message.objects.filter(pk=id))
                 message.code = 598
                 message.status = 'E'
                 message.save(update_fields=['status','code'])
+            else:
+                logging.info(f'NOT TIMING OUT for pk: {str(id)}')
+                logging.info(f'{query_type} : max_time_pathfinder: {max_time_pathfinder} -- timestamp: {timestamp}')
 
 @shared_task(name="notify_subscribers")
 def notify_subscribers_task(pk, status_code, additional_notification_fields=None, count=0):
