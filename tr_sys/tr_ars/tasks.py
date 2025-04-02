@@ -265,7 +265,8 @@ def catch_timeout_async():
                 message = get_object_or_404(Message.objects.filter(pk=id))
                 message.code = 598
                 message.status = 'E'
-                message.save(update_fields=['status','code'])
+                message.updated_at = timezone.now()
+                message.save(update_fields=['status','code','updated_at'])
             else:
                 continue
         else:
@@ -274,14 +275,16 @@ def catch_timeout_async():
                 message = get_object_or_404(Message.objects.filter(pk=id))
                 message.code = 598
                 message.status = 'E'
-                message.save(update_fields=['status','code'])
+                message.updated_at = timezone.now()
+                message.save(update_fields=['status','code','updated_at'])
 
             elif query_type == 'pathfinder' and timestamp < max_time_pathfinder:
                 logging.info(f'for actor: {actor.name}, and pk {str(id)} of query type: {query_type},the status is still "Running" after 10 min, setting code to 598')
                 message = get_object_or_404(Message.objects.filter(pk=id))
                 message.code = 598
                 message.status = 'E'
-                message.save(update_fields=['status','code'])
+                message.updated_at = timezone.now()
+                message.save(update_fields=['status','code','updated_at'])
             else:
                 logging.info(f'NOT TIMING OUT for pk: {str(id)}')
                 logging.info(f'{query_type} : max_time_pathfinder: {max_time_pathfinder} -- timestamp: {timestamp}')
