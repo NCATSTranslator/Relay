@@ -72,8 +72,8 @@ def message_post_save(sender, instance, **kwargs):
                 logger.info('+++ Parent message Done for: %s \n Attempting save' % (str(pmessage.id)))
                 pmessage.status = 'D'
                 pmessage.code = 200
-                message.updated_at = timezone.now()
-                message.save(update_fields=['status','code','updated_at'])
+                pmessage.updated_at = timezone.now()
+                pmessage.save(update_fields=['status','code','updated_at'])
                 query_event_unsubscribe(None, pmessage.pk)
             elif pmessage.status == 'E':
                 query_event_unsubscribe(None, pmessage.pk)
