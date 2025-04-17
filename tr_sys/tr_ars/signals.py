@@ -57,7 +57,7 @@ def message_post_save(sender, instance, **kwargs):
             for child in children:
                 if child.status not in ['D', 'S', 'E', 'U']:
                     finished = False
-                    #logger.info('+++ Parent message %s not Done because of child: %s in state %s' % (str(pmessage.id),str(child.id),str(child.status)))
+                    logger.info('+++ Parent message %s not Done because of child: %s in state %s' % (str(pmessage.id),str(child.id),str(child.status)))
 
                 if child.status == 'D' and child.actor.agent.name.startswith('ar') and (child.result_count is not None and child.result_count > 0):
                     if child.actor.agent.name == 'ars-ars-agent':
@@ -80,6 +80,11 @@ def message_post_save(sender, instance, **kwargs):
                 query_event_unsubscribe(None, pmessage.pk)
             elif pmessage.status == 'E':
                 query_event_unsubscribe(None, pmessage.pk)
+            else:
+                logger.info('+++ Parent message not Done for: %s \n' % (str(pmessage.id)))
+                logger.info ("Finished, merge_count, and orig_count: %s, %s, %s" % (str(finished)),str(merge_count),str(orig_count))
+        else:
+            logger.info('Checking doneness for parent already in done state: %s' % (str(pmessage.id)))
 
 
 @receiver(pre_save, sender=Message)
