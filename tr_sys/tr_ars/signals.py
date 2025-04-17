@@ -82,7 +82,7 @@ def message_post_save(sender, instance, **kwargs):
                 query_event_unsubscribe(None, pmessage.pk)
             else:
                 logger.info('+++ Parent message not Done for: %s \n' % (str(pmessage.id)))
-                logger.info ("Finished, merge_count, and orig_count: %s, %s, %s" % (str(finished)),str(merge_count),str(orig_count))
+                logger.info ("Finished, merge_count, and orig_count: %s, %s, %s" % (str(finished),str(merge_count),str(orig_count)))
         else:
             logger.info('Checking doneness for parent already in done state: %s' % (str(pmessage.id)))
 
