@@ -70,7 +70,7 @@ def message_post_save(sender, instance, **kwargs):
             if finished and merge_count == orig_count:
                 logger.info('+++ Parent message Done for: %s \n Attempting save' % (str(pmessage.id)))
                 logger.info('Children count is: %s.' % (str(len(children))))
-                logger.info('Merge count is:  %s' (str(merge_count)))
+                logger.info('Merge count is:  %s' % (str(merge_count)))
                 logger.info('Original count is: %s.' % (str(orig_count)))
                 pmessage.status = 'D'
                 pmessage.code = 200
