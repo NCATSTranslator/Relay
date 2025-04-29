@@ -361,6 +361,34 @@ def mergeDicts(dcurrent,dmerged):
                             mmap[ck]=cmap[ck]
                     #dmerged[key]=list(mmap.values())
                     # return dmerged
+
+            #attributes are another special case.  We largely want to append, but want to combine values in
+            #matching attributes whose `value` are lists
+            elif key == 'attributes':
+                for current_attribute in cv:
+                    #These should both be required, but it never hurts to check
+                    if "attribute_type_id" in current_attribute.keys() and "value" in current_attribute.keys():
+                        current_type_id = current_attribute["attribute_type_id"]
+                        occurence_count =0
+                        for merged_attribute in mv:
+                            if "attribute_type_id" in merged_attribute.keys() and merged_attribute["attribute_type_id"] == current_type_id:
+                                occurence_count+=1
+                                if occurence_count >1:
+                                    break
+
+                        #If there are already multiple instances, or there aren't any yet, we just appdend the attribute
+                        #Same if the value isn't a list.
+                        #TODO check for attributes with values which are dicts
+                        if occurence_count > 1 or occurence_count == 0 or not isinstance(current_attribute["value"],list):
+                            mv.append(current_attribute)
+                        else:
+                            for merged_attribute in mv:
+                                if merged_attribute["attribute_type_id"]==current_type_id:
+                                    new_value = list(set(merged_attribute["value"] + current_attribute["value"]))
+                                    merged_attribute["value"]=new_value
+                                    break #if we know there's only one matching, we know it'll be the first (only)
+                                    
+                return dmerged
             #analyses are a special case in which we just append them at the result level
             elif key == 'analyses':
                 dmerged[key]=mv+cv
