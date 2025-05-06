@@ -656,8 +656,15 @@ def merge_and_post_process(parent_pk,message_to_merge, agent_name, counter=0):
             logging.info(f"Before merging for %s with parent PK: %s"% (agent_name,parent_pk))
             merged, parent = merge_received(parent,message_to_merge, agent_name)
             logging.info(f"After merging for %s with parent PK: %s"% (agent_name,parent_pk))
-
             parent.save()
+            notification={
+                "event_type":"merged_version_begun",
+                "complete":False,
+                "merged_version":None,
+                "merged_versions_list":parent.merged_versions_list if parent.merged_versions_list is not None else []
+            }
+            parent.notify_subscribers(notification)
+        
         except Exception as e:
             logging.info("Problem with merger for agent %s pk: %s " % (agent_name, (parent_pk)))
             logging.info(e, exc_info=True)
@@ -685,13 +692,7 @@ def merge_and_post_process(parent_pk,message_to_merge, agent_name, counter=0):
         merged.save()
 
 
-        notification={
-            "event_type":"merged_version_begun",
-            "complete":False,
-            "merged_version":None,
-            "merged_versions_list":parent.merged_versions_list if parent.merged_versions_list is not None else []
-        }
-        parent.notify_subscribers(notification)
+
         notification["event_type"]="merged_version_available"
         notification["merged_version"]=str(merged.pk)
         parent.notify_subscribers(notification)
