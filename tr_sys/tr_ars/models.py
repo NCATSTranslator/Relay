@@ -124,9 +124,7 @@ class Message(ARSModel):
             logger.info('Compressing the data at save call')
             self.save_compressed_dict(self.original_data)
             self.original_data = {}  # Clear original data to avoid redundancy
-
         super().save(*args, **kwargs)
-
         if self.should_notify():
             self.notify_subscribers()
 

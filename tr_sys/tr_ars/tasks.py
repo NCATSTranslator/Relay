@@ -250,8 +250,8 @@ def catch_timeout_async():
         id = mesg[1]
         actor = Agent.objects.get(pk=mpk)
         timestamp=mesg[2]
-
         query_type=mesg[4]['query_type'] if actor.name != 'ars-ars-agent' else None
+
 
         logging.info(f'actor: {actor} id: {mesg[1]} timestamp: {mesg[2]} updated_at {mesg[3]} query_type {query_type}')
         logging.info(f'max_time_pathfinder: {max_time_pathfinder} -- timestamp: {timestamp} -- max_time_merged: {max_time_merged} -- max_time: {max_time}')
