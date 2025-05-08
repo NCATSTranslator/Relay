@@ -124,9 +124,10 @@ class Message(ARSModel):
             logger.info('Compressing the data at save call')
             self.save_compressed_dict(self.original_data)
             self.original_data = {}  # Clear original data to avoid redundancy
+
+        super().save(*args, **kwargs)
         if self.should_notify():
             self.notify_subscribers()
-        super().save(*args, **kwargs)
 
     def save_compressed_dict(self, data):
         try:
@@ -212,7 +213,7 @@ class Message(ARSModel):
         notify_subscribers_task.apply_async((self.pk, self.code, additional_notification_fields))
 
     def should_notify(self):
-        if self.status in ('D','E'):
+        if self.status == 'E':
             return True
         else:
             return False
