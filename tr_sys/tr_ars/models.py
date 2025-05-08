@@ -126,6 +126,7 @@ class Message(ARSModel):
             self.original_data = {}  # Clear original data to avoid redundancy
 
         super().save(*args, **kwargs)
+
         if self.should_notify():
             self.notify_subscribers()
 
@@ -215,6 +216,7 @@ class Message(ARSModel):
     def should_notify(self):
         if self.status == 'E':
             return True
+        
         else:
             return False
 

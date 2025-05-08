@@ -690,9 +690,6 @@ def merge_and_post_process(parent_pk,message_to_merge, agent_name, counter=0):
         merged.status = status
         merged.code = code
         merged.save()
-
-
-
         notification["event_type"]="merged_version_available"
         notification["merged_version"]=str(merged.pk)
         parent.notify_subscribers(notification)
