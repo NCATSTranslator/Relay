@@ -25,7 +25,7 @@ celeryworker:
 rabbitmq:
   image:
     repository: 853771734544.dkr.ecr.us-east-1.amazonaws.com/translator-rabbitmq
-    tag: 3.13
+    tag: 4.0
     PullPolicy: Always
   containerPort: 5672  
 
