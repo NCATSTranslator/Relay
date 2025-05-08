@@ -696,7 +696,7 @@ def merge_and_post_process(parent_pk,message_to_merge, agent_name, counter=0):
         notification["event_type"]="merged_version_available"
         notification["merged_version"]=str(merged.pk)
         parent.notify_subscribers(notification)
-        
+
 def remove_blocked(mesg, data, blocklist=None):
     try:
         #logging.info("Getting the length of the dictionary in {} bytes".format(get_deep_size(data)))
