@@ -384,9 +384,15 @@ def mergeDicts(dcurrent,dmerged):
                         else:
                             for merged_attribute in mv:
                                 if merged_attribute["attribute_type_id"]==current_type_id:
-                                    new_value = list(set(merged_attribute["value"] + current_attribute["value"]))
-                                    merged_attribute["value"]=new_value
-                                    break #if we know there's only one matching, we know it'll be the first (only)
+                                    if isinstance(merged_attribute["value"],list):
+                                        new_value = list(set(merged_attribute["value"] + current_attribute["value"]))
+                                        merged_attribute["value"]=new_value
+                                        break #if we know there's only one matching, we know it'll be the first (only)
+                                    else:
+                                        #weird cases where merged_attribute is a scalar and current is a list
+                                        new_value = current_attribute["value"].append(merged_attribute["value"])
+                                        merged_attribute["value"]=new_value
+                                        break
 
                 return dmerged
             #analyses are a special case in which we just append them at the result level
