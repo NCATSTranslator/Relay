@@ -235,6 +235,8 @@ def trace_message(req, key):
     logger.debug("entering trace_message")
     try:
         mesg = get_object_or_404(Message.objects.filter(pk=key))
+        data=mesg.decompress_dict()
+        query_graph=data['message']['query_graph']
         channel_names=[]
         for ch in mesg.actor.channel:
             channel_names.append(ch['fields']['name'])
@@ -276,6 +278,7 @@ def trace_message(req, key):
             'result_count': mesg.result_count,
             'merged_version': str(mesg.merged_version_id),
             'merged_versions_list':str(mesg.merged_versions_list),
+            'query_graph': query_graph,
             'children': []
         }
         if mesg.ref_id is not None:
