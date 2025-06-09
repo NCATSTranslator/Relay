@@ -41,3 +41,13 @@ app.conf.beat_schedule = {
         'schedule': crontab(minute='*/3'),
     },
 }
+# this make sure that celery and rabbitMQ can reprocess the unacknowledged messages
+app.conf.update(
+    task_acks_late=True, #task messages will be acknowledged after the task has been executed
+    task_reject_on_worker_lost=True, # allows the message to be re-queued instead if worker is killed/exited, so that the task will execute again by the same worker, or another worker.
+    task_publish_retry=True, #publishing task messages will be retried in the case of connection loss
+    task_default_delivery_mode='persistent',
+    task_create_missing_queues=True,  # ← This one ensures auto-creation with durability
+    worker_prefetch_multiplier=1,     # useful for crash resilience,when you have task with long duration->
+    # reserve one task per worker process at a time (https://docs.celeryq.dev/en/stable/userguide/optimizing.html#prefetch-limits)
+)
