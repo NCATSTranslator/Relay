@@ -415,6 +415,7 @@ def latest_pk(req, n):
     response = {}
     response[f'pk_count_last_{n}_days']={}
     response[f'latest_{n}_pks']=[]
+    response['latest_24hr_running_pks']=[]
     if req.method == 'GET':
         for actor in Actor.objects.all():
             if actor.agent.name == 'ars-default-agent':
@@ -433,9 +434,16 @@ def latest_pk(req, n):
         for mesg in mesg_list:
             response[f'latest_{n}_pks'].append(str(mesg['id']))
 
+        #now get the running PKs in the last 24 hours
+        time_threshold = end_date - timezone.timedelta(hours=24)
+        running_mesg_list =Message.objects.filter(timestamp__gt=time_threshold, status__in='R').values_list('actor','id')
+        for mesg in running_mesg_list:
+            mpk=mesg[0]
+            id = mesg[1]
+            actor = Agent.objects.get(pk=mpk)
+            if actor.name == 'ars-default-agent':
+                response['latest_24hr_running_pks'].append(id)
         return JsonResponse(response)
-        #return HttpResponse(json.dumps(response, indent=2),
-        #                    status=200)
 
 @csrf_exempt
 def message(req, key):
