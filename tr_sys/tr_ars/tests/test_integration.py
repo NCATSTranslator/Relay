@@ -1,5 +1,8 @@
 import requests
 import os
+import pytest
+from django.urls import reverse
+from tr_sys.models import Message
 
 hostname=os.getenv('TARGET_HOST')
 def test_agent_endopoint():

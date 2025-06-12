@@ -23,7 +23,8 @@ apipatterns = [
     path('latest_pk/<int:n>', api.latest_pk, name='ars-latestPK'),
     re_path(r'^query_event_subscribe/?$', api.query_event_subscribe, name='ars-subscribe'),
     re_path(r'^query_event_unsubscribe/?$', api.query_event_unsubscribe, name='ars-unsubscribe'),
-    path('post_process/<uuid:key>', api.post_process, name='ars-post_process_debug')
+    path('post_process/<uuid:key>', api.post_process, name='ars-post_process_debug'),
+    re_path(r'^health/?$', api.health, name='ars-health')
 ]
 
 

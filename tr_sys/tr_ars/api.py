@@ -13,7 +13,7 @@ import traceback
 from inspect import currentframe, getframeinfo
 from tr_ars import status_report
 from datetime import datetime, timedelta
-#from tr_ars.tasks import catch_timeout_async
+#from .tasks import health_check
 import ast
 from tr_smartapi_client.smart_api_discover import ConfigFile
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
@@ -28,6 +28,8 @@ import os
 from Crypto.Cipher import AES
 from Crypto.Util.Padding import unpad
 from urllib.parse import urlparse, parse_qsl, unquote
+from django.db import connections
+from django.db.utils import OperationalError
 #from reasoner_validator import validate_Message, ValidationError, validate_Query
 tracer = trace.get_tracer(__name__)
 logger = logging.getLogger(__name__)
@@ -106,9 +108,7 @@ def submit(req):
             logger.debug('++ submit: %s' % req.body)
             data = json.loads(req.body)
             # derive query_type
-            node_count=len(data['message']['query_graph']['nodes'].keys())
-            edge_count=len(data['message']['query_graph']['edges'].keys())
-            if node_count==3 and edge_count==3:
+            if 'paths' in data['message']['query_graph']:
                 params = {"query_type":"pathfinder"}
             else:
                 params = {"query_type":"standard"}
@@ -1208,6 +1208,33 @@ def query_event_unsubscribe(req=None, key=None):
                 mesg.clients.remove(subscriber_client)
         except Exception as e:
             logger.error("Error during auto-unsubscribing pk %s" % key)
+@csrf_exempt
+def health(req):
+    if req.method == 'GET':
+        health = {"status": "ok"}
+        code=200
+        #DB check
+        try:
+            connections['default'].cursor()
+            health["database"] = "available"
+
+        except OperationalError:
+            health["status"] = "error"
+            health["database"] = "unavailable"
+            code=500
+        #Celery ping
+        try:
+            result = tasks.health_ping.apply(timeout=5)  # fast, no queue
+            if result.get() != "pong":
+                raise Exception("Invalid ping response")
+            health["celery"] = "available"
+        except Exception:
+            health["status"] = "error"
+            health["celery"] = "unavailable"
+            code=500
+        return JsonResponse(health, status=code)
+    else:
+        return HttpResponse('Only POST is permitted!', status=405)
 
 apipatterns = [
     path('', index, name='ars-api'),
@@ -1228,7 +1255,8 @@ apipatterns = [
     path('latest_pk/<int:n>', latest_pk, name='ars-latestPK'),
     re_path(r'^query_event_subscribe/?$', query_event_subscribe, name='ars-subscribe'),
     re_path(r'^query_event_unsubscribe/?$', query_event_unsubscribe, name='ars-unsubscribe'),
-    path('post_process/<uuid:key>', post_process, name='ars-post_process_debug')
+    path('post_process/<uuid:key>', post_process, name='ars-post_process_debug'),
+    re_path(r'^health/?$', health, name='ars-health')
 
 ]
 

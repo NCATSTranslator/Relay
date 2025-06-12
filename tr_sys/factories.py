@@ -13,7 +13,7 @@ class AgentFactory(factory.django.DjangoModelFactory):
         model = models.Agent
         django_get_or_create = ("name",)
     name = 'agent_default'
-    uri = 'ara-example/api/'
+    uri = 'ara-explanatory/api/'
 
 class ChannelFactory(factory.django.DjangoModelFactory):
     class Meta:

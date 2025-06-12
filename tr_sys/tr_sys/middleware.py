@@ -9,7 +9,8 @@ class CustomOpenTelemetryMiddleware(OpenTelemetryMiddleware):
 
     EXCLUDE_PATTERNS = [
             r'^/ars/api/messages/.*$',  # Example pattern to exclude
-            r'^/ars/api/retain/.*$'
+            r'^/ars/api/retain/.*$',
+            r'^/ars/api/health/.*$'
         ]
     def __call__(self, environ, start_response):
         method = environ.get('REQUEST_METHOD')

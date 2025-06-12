@@ -330,3 +330,6 @@ def notify_subscribers_task(pk, status_code, additional_notification_fields=None
     except Message.DoesNotExist:
         logger.error(f"Message with ID {pk} does not exist")
 
+@shared_task(name="health_ping")
+def health_ping():
+    return "pong"
