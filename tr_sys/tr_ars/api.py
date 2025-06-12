@@ -106,9 +106,7 @@ def submit(req):
             logger.debug('++ submit: %s' % req.body)
             data = json.loads(req.body)
             # derive query_type
-            node_count=len(data['message']['query_graph']['nodes'].keys())
-            edge_count=len(data['message']['query_graph']['edges'].keys())
-            if node_count==3 and edge_count==3:
+            if 'paths' in data['message']['query_graph']:
                 params = {"query_type":"pathfinder"}
             else:
                 params = {"query_type":"standard"}
