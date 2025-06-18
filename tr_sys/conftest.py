@@ -1,12 +1,8 @@
 
 import pytest
 from pytest_factoryboy import register
+from unittest.mock import MagicMock
 from factories import AgentFactory, ActorFactory, MessageFactory, ChannelFactory
-import time, subprocess,docker,signal, os,sys,socket
-from celery import Celery
-from unittest.mock import patch
-from selenium import webdriver
-
 
 register(AgentFactory)
 register(ActorFactory)
@@ -39,6 +35,27 @@ def test_actor(db, actor_factory):
 def test_message(db, message_factory):
     message = message_factory.create()
     return message
+
+@pytest.fixture
+def mock_span():
+    """
+    creating mock object that simulate an OpenTelemetry Span
+    """
+    span = MagicMock()
+    span.set_attribute = MagicMock()
+    return span
+
+@pytest.fixture
+def mock_tracer(mock_span):
+    """
+    creating mock object that simulate an OpenTelemetry trace
+    """
+    tracer = MagicMock()
+    # Create a mock context manager for start_as_current_span
+    tracer.start_as_current_span.return_value.__enter__.return_value = mock_span
+    tracer.start_as_current_span.return_value.__exit__.return_value = None
+    return tracer
+
 
 # RABBITMQ_IMAGE = "rabbitmq:3.13"
 # RABBITMQ_PORT = 5672
