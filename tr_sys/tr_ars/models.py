@@ -5,7 +5,7 @@ from django.db import models
 from django.utils import timezone
 from django.core import serializers
 import uuid, logging, json
-import gzip
+import zstandard as zstd
 logger = logging.getLogger(__name__)
 # Create your models here.
 
@@ -90,7 +90,6 @@ class Message(ARSModel):
     actor = models.ForeignKey(Actor, null=False, on_delete=models.CASCADE)
     timestamp = models.DateTimeField(auto_now_add=True,db_index=True)
     updated_at = models.DateTimeField(auto_now=True)
-    #data = models.JSONField('data payload', null=True)
     data = models.BinaryField('data payload', null=True)
     url = models.URLField('location of data', max_length=256, null=True)
     ref = models.ForeignKey('self', null=True, blank=True,
@@ -131,7 +130,7 @@ class Message(ARSModel):
 
     def save_compressed_dict(self, data):
         try:
-            if isinstance(data, (bytes, bytearray)) and data is not None and data.startswith(b'\x1f\x8b'):
+            if isinstance(data, (bytes, bytearray)) and data is not None and data.startswith(b'\x28\xb5\x2f\xfd'):
                 logger.info('data already compressed, no action needed')
                 self.data = data
             else:
@@ -139,8 +138,9 @@ class Message(ARSModel):
                 # Convert dictionary to JSON string
                 json_data = json.dumps(data, default=str)
 
-                # Compress JSON string using gzip
-                compressed_data = gzip.compress(json_data.encode('utf-8'))
+                # Compress JSON string using zstandard
+                compressor = zstd.ZstdCompressor()
+                compressed_data = compressor.compress(json_data.encode('utf-8'))
 
                 # Save compressed data to the model field
                 self.data = compressed_data
@@ -153,10 +153,11 @@ class Message(ARSModel):
             if isinstance(self.data, dict):
                 original_data = self.data
             elif isinstance(self.data, (bytes, bytearray)) and self.data is not None:
-                #logger.info('decompressing the data if binary %s'% str(self.pk))
-                if self.data.startswith(b'\x1f\x8b'):
+                logger.info('decompressing the data with pk: %s' % str(self.pk))
+                if self.data.startswith(b'\x28\xb5\x2f\xfd'):
                     # Decompress the compressed data
-                    decompressed_data = gzip.decompress(self.data)
+                    decompressor = zstd.ZstdDecompressor()
+                    decompressed_data = decompressor.decompress(self.data)
 
                     # Convert decompressed bytes to JSON string
                     json_data = decompressed_data.decode('utf-8')

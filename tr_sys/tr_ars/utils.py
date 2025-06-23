@@ -1,6 +1,6 @@
 import copy
 import json
-import gzip
+import zstandard as zstd
 import logging
 import traceback
 import os, sys
@@ -928,9 +928,10 @@ def appraise(mesg, data, agent_name, compress = True):
     CopyForMax = copy.deepcopy(data)
     CopyForMax['pk']=str(mesg.id)
     if compress:
-        headers = {'Accept': 'gzip','Content-Encoding': 'gzip'}
-        json_data = json.dumps(CopyForMax)
-        data_payload = gzip.compress(json_data.encode('utf-8'))
+        headers = {'Accept-Encoding': 'zstd','Content-Encoding': 'zstd'}
+        json_data = json.dumps(CopyForMax, default=str)
+        compressor = zstd.ZstdCompressor()
+        data_payload = compressor.compress(json_data.encode('utf-8'))
     else:
         headers = {'Content-type': 'application/json', 'Accept': 'text/plain'}
         data_payload = json.dumps(CopyForMax)
@@ -943,7 +944,8 @@ def appraise(mesg, data, agent_name, compress = True):
                 logging.info('the response for agent %s to appraiser code is: %s' % (agent_name, r.status_code))
                 if r.status_code==200:
                     if compress:
-                        rj = json.loads(gzip.decompress(r.content).decode('utf-8'))
+                        decompressor = zstd.ZstdDecompressor()
+                        rj = json.loads(decompressor.decompress(r.content).decode('utf-8'))
                     else:
                         rj = r.json()
                     #for now, just update the whole message, but we could be more precise/efficient

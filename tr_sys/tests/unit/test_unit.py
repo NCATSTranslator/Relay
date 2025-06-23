@@ -60,7 +60,7 @@ def test_message_compression_decompression(test_message):
      decompressed_data = test_message.decompress_dict()
      assert isinstance(decompressed_data, dict)
      assert isinstance(test_message.data, (bytes, bytearray))
-     assert test_message.data.startswith(b'\x1f\x8b')
+     assert test_message.data.startswith(b'\x28\xb5\x2f\xfd')
      assert 'results' in decompressed_data.get('message').keys()
 
 @pytest.mark.django_db
