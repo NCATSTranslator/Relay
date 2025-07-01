@@ -525,7 +525,10 @@ def message(req, key):
                         utils.pre_merge_process(message_to_merge,key, agent_name, inforesid)
                         if mesg.data and 'results' in mesg.data and mesg.data['results'] != None and len(mesg.data['results']) > 0:
                             mesg = Message.create(name=mesg.name, status=status, actor=mesg.actor, ref=mesg)
-                        valid = utils.validate(data)
+                        if "validate" in mesg.params.keys() and not mesg.params["validate"]:
+                            valid = True
+                        else:
+                            valid = utils.validate(message_to_merge)
                         if valid:
                             if agent_name.startswith('ara-'):
                                 logger.info("pre async call for agent %s" % agent_name)
