@@ -57,7 +57,7 @@ python-crontab==3.2.0
 python-dateutil==2.9.0.post0
 python-Levenshtein-wheels==0.13.2
 PyYAML==6.0.2
-reasoner-pydantic==5.0.6
+reasoner-pydantic==5.1.0
 requests==2.32.4
 sanic==24.12.0
 sanic-ext==24.12.0
