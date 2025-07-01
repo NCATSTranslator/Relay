@@ -121,6 +121,8 @@ def submit(req):
             #     logger.debug("Warning! Input query failed TRAPI validation "+str(data))
             #     logger.debug(ve)
             #     return HttpResponse('Input query failed TRAPI validation',status=400)
+            if "validate" in data:
+                params["validate"]=data["validate"]
             if("workflow" in data):
                 wf = data["workflow"]
                 if(isinstance(wf,list)):
