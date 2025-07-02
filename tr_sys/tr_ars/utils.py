@@ -57,12 +57,15 @@ class QueryGraph():
         if qg==None:
             return None
         self.__rawGraph = qg
-        self.__nodes =  qg['nodes']
-        self.__edges = qg['edges']
+        self.__nodes = qg['nodes']
+        self.__edges = qg['edges'] if 'edges' in qg else []
+        self.__paths = qg['paths'] if 'paths' in qg else []
     def getEdges(self):
         return self.__edges
     def getNodes(self):
         return self.__nodes
+    def getPaths(self):
+        return self.__paths
     def getAllCuries(self):
         nodes = self.getNodes()
         curies =[]
@@ -122,6 +125,16 @@ class Results():
                 logging.error("Unexpected error 3: {}".format(traceback.format_exception(type(e), e, e.__traceback__)))
 
         return edgeBindings
+    def getPathBindings(self):
+        pathBindings=[]
+        for result in self.__results:
+            try:
+                bindings=result['analyses']
+                for analysis in bindings:
+                    pathBindings.append(analysis['path_bindings'])
+            except Exception as e:
+                logging.error("Unexpected error 3: {}".format(traceback.format_exception(type(e), e, e.__traceback__)))
+        return pathBindings
     def getNodeBindings(self):
         nodeBindings=[]
         for result in self.__results:
@@ -132,7 +145,7 @@ class Results():
 class Result():
     def __init__(self,result):
         self.__nodeBindings = result['node_bindings']
-        self.__edgeBindings = result['edge_bindings']
+        self.__edgeBindings = result['edge_bindings'] if 'edge_bindings' in result else []
     def getEdgeBindings(self):
         return self.__edgeBindings
     def getNodeBindings(self):
@@ -171,7 +184,7 @@ class TranslatorMessage():
         return self.__ag
     def getSharedResults(self):
         return self.__sharedResults
-    #returns a set of sets of triples representing results
+    #returns a set of sets of triples representing results, becareful to not call this for PF queires
     def getResultTuples(self):
         results = self.getResults()
         kg = self.getKnowledgeGraph()
@@ -668,7 +681,7 @@ def merge_and_post_process(parent_pk,message_to_merge, agent_name, counter=0):
                 "merged_versions_list":parent.merged_versions_list if parent.merged_versions_list is not None else []
             }
             parent.notify_subscribers(notification)
-        
+
         except Exception as e:
             logging.info("Problem with merger for agent %s pk: %s " % (agent_name, (parent_pk)))
             logging.info(e, exc_info=True)
@@ -700,7 +713,7 @@ def merge_and_post_process(parent_pk,message_to_merge, agent_name, counter=0):
         notification["event_type"]="merged_version_available"
         notification["merged_version"]=str(merged.pk)
         parent.notify_subscribers(notification)
-        
+
 def remove_blocked(mesg, data, blocklist=None):
     try:
         #logging.info("Getting the length of the dictionary in {} bytes".format(get_deep_size(data)))
