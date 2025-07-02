@@ -51,6 +51,16 @@ spec:
           imagePullPolicy: {{ .Values.celeryworker.image.PullPolicy }}
           command: ["/bin/sh"]
           args: ["-c", "wait-for localhost:5672 -t 30 && wait-for localhost:8000 -t 60 -- /bin/bash /ars/config/start_celery.sh"]
+          livenessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - "pgrep -f 'celery worker' || exit 1"
+            initialDelaySeconds: 30
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 3
           volumeMounts:
             - name: config-vol
               mountPath: /ars/tr_sys/tr_sys/settings.py
@@ -74,6 +84,13 @@ spec:
           imagePullPolicy: {{ .Values.rabbitmq.image.PullPolicy }}
           ports:
             - containerPort: {{ .Values.rabbitmq.containerPort }}
+          livenessProbe:
+            tcpSocket:
+              port: {{ .Values.rabbitmq.containerPort }}
+            initialDelaySeconds: 30
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 3
           volumeMounts:
             - name: config-rabbit-vol
               mountPath: /etc/rabbitmq/rabbitmq.conf
