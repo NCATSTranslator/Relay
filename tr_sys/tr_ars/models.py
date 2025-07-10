@@ -213,9 +213,6 @@ class Message(ARSModel):
         notify_subscribers_task.apply_async((self.pk, self.code, additional_notification_fields))
 
     def should_notify(self):
-        if self.status == 'E':
-            return True
-        else:
-            return False
+        return self.status in ('D', 'E')
 
 
