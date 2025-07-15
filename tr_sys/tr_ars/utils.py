@@ -1353,7 +1353,10 @@ def ScoreStatCalc(results):
                     for analysis in res['analyses']:
                         if 'score' in analysis.keys() and analysis['score'] is not None:
                             temp_score.append(analysis['score'])
-                    score = statistics.mean(temp_score)
+                    if len(temp_score)>0:
+                        score = statistics.mean(temp_score)
+                    else:
+                        score = None
 
                 elif len(res['analyses']) == 1:
                     if 'score' in res['analyses'][0]:
@@ -1399,8 +1402,10 @@ def normalizeScores(results):
                                 logging.error("Analyses score field is null, setting it to zero")
                                 analysis['score']=0
                                 temp_score.append(analysis['score'])
-
-                    score = statistics.mean(temp_score)
+                    if len(temp_score)>0:
+                        score = statistics.mean(temp_score)
+                    else:
+                        score = None
 
                 elif len(res['analyses']) == 1:
                     if 'score' in res['analyses'][0]:
