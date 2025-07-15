@@ -1,8 +1,10 @@
-FROM python:3.9-buster
+FROM python:3.9-bookworm
 
 ENV PYTHONUNBUFFERED=1
 WORKDIR /ars
-RUN apt-get update && apt install -y netcat
+# RUN apt-get update && apt install -y netcat
+
+RUN apt-get update && apt install -y netcat-openbsd
 
 COPY requirements.txt /ars/
 RUN pip install -r requirements.txt
