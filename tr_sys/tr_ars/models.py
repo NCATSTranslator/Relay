@@ -1,11 +1,11 @@
 from json import JSONDecodeError
-
+import gzip
 import requests as requests
 from django.db import models
 from django.utils import timezone
 from django.core import serializers
 import uuid, logging, json
-import gzip
+import zstandard as zstd
 logger = logging.getLogger(__name__)
 # Create your models here.
 
@@ -131,7 +131,7 @@ class Message(ARSModel):
 
     def save_compressed_dict(self, data):
         try:
-            if isinstance(data, (bytes, bytearray)) and data is not None and data.startswith(b'\x1f\x8b'):
+            if isinstance(data, (bytes, bytearray)) and data is not None and data.startswith(b'\x28\xb5\x2f\xfd'):
                 logger.info('data already compressed, no action needed')
                 self.data = data
             else:
@@ -139,8 +139,18 @@ class Message(ARSModel):
                 # Convert dictionary to JSON string
                 json_data = json.dumps(data, default=str)
 
-                # Compress JSON string using gzip
-                compressed_data = gzip.compress(json_data.encode('utf-8'))
+                # Compress JSON string using zstandard
+                compressor = zstd.ZstdCompressor()
+                compressed_data = compressor.compress(json_data.encode('utf-8'))
+
+                # Sanity check that it starts with expected magic bytes
+                magic=compressed_data[:4]
+                if magic == b'\x28\xb5\x2f\xfd':
+                    logger.info("✅ Compressed data is Zstandard (pk: %s)", str(self.pk))
+                elif magic[:2] == b'\x1f\x8b':
+                    logger.warning("⚠️ Compressed data is GZIP (pk: %s)", str(self.pk))
+                else:
+                    logger.warning("❓ Compressed data has unknown format: %s (pk: %s)", magic.hex(), str(self.pk))
 
                 # Save compressed data to the model field
                 self.data = compressed_data
@@ -149,30 +159,66 @@ class Message(ARSModel):
 
     def decompress_dict(self):
         try:
-            #check to see if you are dealing with dictionary or compressed data?
+            # Check if self.data is already a dictionary
             if isinstance(self.data, dict):
                 original_data = self.data
-            elif isinstance(self.data, (bytes, bytearray)) and self.data is not None:
-                #logger.info('decompressing the data if binary %s'% str(self.pk))
-                if self.data.startswith(b'\x1f\x8b'):
-                    # Decompress the compressed data
-                    decompressed_data = gzip.decompress(self.data)
 
-                    # Convert decompressed bytes to JSON string
-                    json_data = decompressed_data.decode('utf-8')
+            # If it's bytes (likely compressed)
+            elif isinstance(self.data, (bytes, bytearray)):
+                logger.info("🔍 Checking compression type for pk=%s", self.pk)
+                logger.info("First 10 bytes of data (hex): %s for pk:%s", self.data[:10].hex(), self.pk)
+                logger.info("🔍 Raw start of data (pk: %s): %r", self.pk, self.data[:10])
 
-                    # Convert JSON string back to dictionary
-                    original_data = json.loads(json_data)
+                # Initialize decompressed_data to None
+                decompressed_data = None
+
+                if self.data.startswith(b'\x28\xb5\x2f\xfd'):
+                    logger.info("✅ Decompressing Zstandard data (pk: %s)", self.pk)
+                    try:
+                        decompressor = zstd.ZstdDecompressor()
+                        decompressed_data = decompressor.decompress(self.data)
+                    except Exception as e:
+                        logger.error("❌ Failed to decompress zstd data: %s", e)
+
+                elif self.data.startswith(b'\x1f\x8b'):
+                    logger.info("⚠️ Decompressing Gzip data (pk: %s)", self.pk)
+                    try:
+                        decompressed_data = gzip.decompress(self.data)
+                    except Exception as e:
+                        logger.error("❌ Failed to decompress gzip data: %s", e)
+
                 else:
-                    # Convert plain text bytes to JSON string
-                    json_data = self.data.decode('utf-8')
-                    # Convert JSON string back to dictionary
-                    original_data = json.loads(json_data)
+                    logger.info("ℹ️ Data not compressed or unknown format (pk: %s)", self.pk)
+                    decompressed_data = self.data
 
-            return original_data
+                # Try parsing the decompressed data
+                if decompressed_data:
+                    try:
+                        json_data = decompressed_data.decode("utf-8")
+                        original_data = json.loads(json_data)
+
+                        if isinstance(original_data, dict):
+                            message = original_data.get("message")
+                            if isinstance(message, dict):
+                                logger.info("✅ Parsed dict keys: %s; message keys: %s", list(original_data.keys()), list(message.keys()))
+                            else:
+                                logger.warning("'message' is not a dict. Top-level keys: %s", list(original_data.keys()))
+                            return original_data
+                        else:
+                            logger.info("original data is %s" % original_data)
+                            logger.warning("⚠️ Data decoded but is not a dictionary. Type: %s", type(original_data))
+                            return original_data
+
+                    except Exception as e:
+                        logger.error("❌ Failed to decode or parse data as JSON: %s", e)
+                        return {}
+            else:
+                logger.warning("Unsupported data type: %s", type(self.data))
+                return {}
         except Exception as e:
-            print("Error decompressing data:", e)
+            logger.error("Error decompressing data:", e)
             return {}
+
     @classmethod
     def create(self, *args, **kwargs):
         # convert status long name to code for saving

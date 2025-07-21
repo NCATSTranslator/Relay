@@ -1,6 +1,6 @@
 import copy
 import json
-import gzip
+import time as t
 import logging
 import traceback
 import os, sys
@@ -36,6 +36,7 @@ from pydantic import ValidationError
 from opentelemetry import trace
 tracer = trace.get_tracer(__name__)
 import asyncio
+import zstandard as zstd
 
 ARS_ACTOR = {
     'channel': [],
@@ -941,9 +942,11 @@ def appraise(mesg, data, agent_name, compress = True):
     CopyForMax = copy.deepcopy(data)
     CopyForMax['pk']=str(mesg.id)
     if compress:
-        headers = {'Accept': 'gzip','Content-Encoding': 'gzip'}
-        json_data = json.dumps(CopyForMax)
-        data_payload = gzip.compress(json_data.encode('utf-8'))
+        start=t.time()
+        headers = {'Accept-Encoding': 'zstd','Content-Encoding': 'zstd'}
+        json_data = json.dumps(CopyForMax, default=str)
+        compressor = zstd.ZstdCompressor()
+        data_payload = compressor.compress(json_data.encode('utf-8'))
     else:
         headers = {'Content-type': 'application/json', 'Accept': 'text/plain'}
         data_payload = json.dumps(CopyForMax)
@@ -954,9 +957,15 @@ def appraise(mesg, data, agent_name, compress = True):
             with requests.post(APPRAISER_URL,data=data_payload,headers=headers, stream=True,timeout=600) as r:
                 logging.info("Appraiser being called at: "+APPRAISER_URL)
                 logging.info('the response for agent %s to appraiser code is: %s' % (agent_name, r.status_code))
+                logging.info("Response headers: %a", r.headers)
+                logging.info("First 10 bytes of content: %s", r.content[:10])
                 if r.status_code==200:
+                    total_time = t.time() - start
+                    logging.info(f"TOTAL TIME TAKEN for agent {agent_name}: {total_time:.2f} seconds")
                     if compress:
-                        rj = json.loads(gzip.decompress(r.content).decode('utf-8'))
+                        #rj = json.loads(gzip.decompress(r.content).decode('utf-8'))
+                        decompressor = zstd.ZstdDecompressor()
+                        rj = json.loads(decompressor.decompress(r.content).decode('utf-8'))
                     else:
                         rj = r.json()
                     #for now, just update the whole message, but we could be more precise/efficient
@@ -964,7 +973,7 @@ def appraise(mesg, data, agent_name, compress = True):
                     data['message']['results']=rj['message']['results']
                     logging.info("Updating message with appraiser data complete for "+str(mesg.id))
                 else:
-                    logging.info("Received Error state from appraiser for agent %s and pk %s  Code %s Attempt %s" % (agent_name,str(mesg.id),str(r.status_code),str(retry_counter)))
+                    logging.info("Received Error state from appraiser for agent %s and pk %s  Code %s" % (agent_name,str(mesg.id),str(r.status_code)))
                     logging.info("JSON fields "+str(data_payload)[:100])
                     logging.error("Error from appraise for agent %s and pk %s " % (agent_name,str(mesg.id)))
                     raise Exception
