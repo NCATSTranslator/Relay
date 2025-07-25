@@ -1558,4 +1558,20 @@ def validate(response):
         logging.debug("error: %s" % str(e))
         return False
 
+def remove_phantom_support_graphs(response):
+    edges = response["message"]["knowledge_graph"]["edges"]
+    aux_graphs=response["message"]["auxiliary_graphs"]
+    for edge_i, edge in edges.items():
+        if "attributes" in edge.keys() and edge["attributes"] is not None:
+            attributes = edge["attributes"]
+            removal_list=[]
+            for attribute in attributes:
+                if attribute["attribute_type_id"] == "biolink:support_graphs":
+                    for value in attribute["value"]:
+                        if value not in aux_graphs:
+                            logging.debug("Support graph referenced but not in auxiliary_graphs")
+                            logging.debug(value)
+                            removal_list.append(attribute)
+            for bad in removal_list:
+                attributes.remove(bad)
 

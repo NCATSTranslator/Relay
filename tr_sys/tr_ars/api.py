@@ -537,6 +537,7 @@ def message(req, key):
                         if "validate" in mesg.params.keys() and not mesg.params["validate"]:
                             valid = True
                         else:
+                            utils.remove_phantom_support_graphs(message_to_merge)
                             valid = utils.validate(message_to_merge)
                         if valid:
                             if agent_name.startswith('ara-'):
