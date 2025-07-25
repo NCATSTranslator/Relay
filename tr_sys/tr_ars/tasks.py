@@ -211,8 +211,8 @@ def send_message(actor_dict, mesg_dict, timeout=300):
             if "validate" in mesg.params.keys() and not mesg.params["validate"]:
                 valid = True
             else:
-                valid = utils.validate(message_to_merge)
                 utils.remove_phantom_support_graphs(message_to_merge)
+                valid = utils.validate(message_to_merge)
             if valid:
                 if agent_name.startswith('ara-'):
                     logger.info("pre async call for agent %s" % agent_name)
