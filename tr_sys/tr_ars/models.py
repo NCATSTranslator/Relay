@@ -1,5 +1,6 @@
 from json import JSONDecodeError
 import gzip
+import time as t
 import requests as requests
 from django.db import models
 from django.utils import timezone
@@ -135,6 +136,7 @@ class Message(ARSModel):
                 logger.info('data already compressed, no action needed')
                 self.data = data
             else:
+                start = t.time()
                 logger.info('compressing the data with pk: %s' % str(self.pk))
                 # Convert dictionary to JSON string
                 json_data = json.dumps(data, default=str)
@@ -152,9 +154,12 @@ class Message(ARSModel):
                 else:
                     logger.warning("❓ Compressed data has unknown format: %s (pk: %s)", magic.hex(), str(self.pk))
 
+                total_time = t.time() - start
+                logging.info(f"TOTAL TIME TAKEN for agent {self.actor.agent.name} to compress: {total_time:.2f} seconds")
                 # Save compressed data to the model field
                 self.data = compressed_data
         except Exception as e:
+            logger.error("❌ failed to compress data %s"% e)
             print("Error compressing data:", e)
 
     def decompress_dict(self):
@@ -164,7 +169,8 @@ class Message(ARSModel):
                 original_data = self.data
 
             # If it's bytes (likely compressed)
-            elif isinstance(self.data, (bytes, bytearray)):
+            elif isinstance(self.data, (bytes, bytearray)) and self.data is not None:
+                start = t.time()
                 logger.info("🔍 Checking compression type for pk=%s", self.pk)
                 logger.info("First 10 bytes of data (hex): %s for pk:%s", self.data[:10].hex(), self.pk)
                 logger.info("🔍 Raw start of data (pk: %s): %r", self.pk, self.data[:10])
@@ -186,7 +192,6 @@ class Message(ARSModel):
                         decompressed_data = gzip.decompress(self.data)
                     except Exception as e:
                         logger.error("❌ Failed to decompress gzip data: %s", e)
-
                 else:
                     logger.info("ℹ️ Data not compressed or unknown format (pk: %s)", self.pk)
                     decompressed_data = self.data
@@ -203,20 +208,24 @@ class Message(ARSModel):
                                 logger.info("✅ Parsed dict keys: %s; message keys: %s", list(original_data.keys()), list(message.keys()))
                             else:
                                 logger.warning("'message' is not a dict. Top-level keys: %s", list(original_data.keys()))
+            
+                            total_time = t.time() - start
+                            logging.info(f"TOTAL TIME TAKEN for agent {self.actor.agent.name} to decompress: {total_time:.2f} seconds")
                             return original_data
+
                         else:
                             logger.info("original data is %s" % original_data)
                             logger.warning("⚠️ Data decoded but is not a dictionary. Type: %s", type(original_data))
                             return original_data
-
                     except Exception as e:
-                        logger.error("❌ Failed to decode or parse data as JSON: %s", e)
+                        logging.error("errored in decoding the data")
                         return {}
-            else:
-                logger.warning("Unsupported data type: %s", type(self.data))
-                return {}
+                else:
+                    logger.warning("Unsupported data type: %s", type(self.data))
+                    return {}
         except Exception as e:
-            logger.error("Error decompressing data:", e)
+            logger.error("❌ Failed to decode or parse data as JSON: %s", e)
+            print("Error decompressing data:", e)
             return {}
 
     @classmethod

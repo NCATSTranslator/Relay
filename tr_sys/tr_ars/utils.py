@@ -1,6 +1,7 @@
 import copy
 import json
 import time as t
+import gzip
 import logging
 import traceback
 import os, sys
@@ -51,7 +52,6 @@ ARS_ACTOR = {
 NORMALIZER_URL=os.getenv("TR_NORMALIZER") if os.getenv("TR_NORMALIZER") is not None else "https://nodenorm.ci.transltr.io/get_normalized_nodes"
 ANNOTATOR_URL=os.getenv("TR_ANNOTATOR") if os.getenv("TR_ANNOTATOR") is not None else "https://biothings.ncats.io/curie"
 APPRAISER_URL=os.getenv("TR_APPRAISE") if os.getenv("TR_APPRAISE") is not None else "https://answerappraiser.ci.transltr.io/get_appraisal"
-
 
 class QueryGraph():
     def __init__(self,qg):
@@ -954,6 +954,7 @@ def appraise(mesg, data, agent_name, compress = True):
     logging.info('sending data for agent: %s to APPRAISER URL: %s' % (agent_name, APPRAISER_URL))
     with tracer.start_as_current_span("get_appraisal") as span:
         try:
+            start=t.time()
             with requests.post(APPRAISER_URL,data=data_payload,headers=headers, stream=True,timeout=600) as r:
                 logging.info("Appraiser being called at: "+APPRAISER_URL)
                 logging.info('the response for agent %s to appraiser code is: %s' % (agent_name, r.status_code))
