@@ -167,6 +167,7 @@ class Message(ARSModel):
             # Check if self.data is already a dictionary
             if isinstance(self.data, dict):
                 original_data = self.data
+                return original_data
 
             # If it's bytes (likely compressed)
             elif isinstance(self.data, (bytes, bytearray)) and self.data is not None:
