@@ -942,7 +942,6 @@ def appraise(mesg, data, agent_name, compress = True):
     CopyForMax = copy.deepcopy(data)
     CopyForMax['pk']=str(mesg.id)
     if compress:
-        start=t.time()
         headers = {'Accept-Encoding': 'zstd','Content-Encoding': 'zstd'}
         json_data = json.dumps(CopyForMax, default=str)
         compressor = zstd.ZstdCompressor()
