@@ -459,7 +459,7 @@ def message(req, key):
             if req.GET.get('compress',False):
 
                 data = mesg.data
-                if data.startswith(b'\x1f\x8b'):
+                if data.startswith(b'\x28\xb5\x2f\xfd'):
                     return HttpResponse(data, content_type='application/octet-stream')
                 else:
                     stringv= data.decode('utf-8')

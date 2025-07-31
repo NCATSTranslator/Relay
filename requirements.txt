@@ -97,3 +97,4 @@ opentelemetry-exporter-jaeger
 opentelemetry-exporter-otlp-proto-grpc
 opentelemetry-instrumentation-requests
 opentelemetry-instrumentation-celery
+zstandard
