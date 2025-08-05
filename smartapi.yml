@@ -114,7 +114,7 @@ paths:
           in: path
           name: UUID
           required: true
-          example: "7a0713fb-550b-462e-bde7-18a9de4ccfad"
+          example: "30ef2ac6-9318-4144-8502-6eeb4e2153ce"
           schema:
             type: string
         - description: tracing children responses
@@ -123,58 +123,6 @@ paths:
           example: y
           schema:
             type: string
-      responses:
-        '200':
-          description: >-
-            Returns a TRAPI-compliant meta-knowledge-graph representation for one KP team's SmartAPI KP APIs (that have x-bte annotation
-  ## filter endpoint
-  /ars/api/filter/{UUID}:
-    get:
-      tags:
-        - Filters
-      summary: This endpoint will perform the following filtering on the returned results >- ['hop', 'score', 'node_type', 'spec_node']
-      parameters:
-        - description: pk string value to perform the filtering on
-          in: path
-          name: UUID
-          required: true
-          example: "df1869b5-1be2-49a7-9b5a-88166edfbb78"
-          schema:
-            type: string
-        - name: hop
-          description: hop level filter
-          in: query
-          required: false
-          example: 3
-          schema:
-            type: integer
-        - name: score
-          description: score filter i.e. [20,80]
-          in: query
-          required: false
-          schema:
-            type: string
-          explode: false
-          style: form
-          allowReserved: true
-        - name: node_type
-          description: specific node category filter i.e. ['ChemicalEntity','BiologicalEntity']
-          in: query
-          required: false
-          schema:
-            type: string
-          explode: false
-          style: form
-          allowReserved: true
-        - name: spec_node
-          description: specific node curie filter i.e. ['MONDO:0037747','UMLS:C0037937']
-          in: query
-          required: false
-          schema:
-            type: string
-          explode: false
-          style: form
-          allowReserved: true
       responses:
         '200':
           description: >-
