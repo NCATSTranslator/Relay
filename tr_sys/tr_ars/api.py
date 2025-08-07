@@ -460,12 +460,18 @@ def message(req, key):
 
                 data = mesg.data
                 if data.startswith(b'\x28\xb5\x2f\xfd'):
-                    return HttpResponse(data, content_type='application/octet-stream')
+                    # Already compressed with zstd
+                    response = HttpResponse(data, content_type='application/octet-stream')
+                    response['X-Content-Compression'] = 'zstd'
+                    return response
                 else:
                     stringv= data.decode('utf-8')
                     json_data= json.loads(stringv)
                     mesg.save_compressed_dict(json_data)
-                    return HttpResponse(mesg.data, content_type='application/octet-stream')
+
+                    response = HttpResponse(mesg.data, content_type='application/octet-stream')
+                    response['X-Content-Compression'] = 'zstd'
+                    return response
 
             actor = Actor.objects.get(pk=mesg.actor_id)
             mesg.name = actor.agent.name
