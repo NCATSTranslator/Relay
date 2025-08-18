@@ -4,6 +4,7 @@ import json
 import pytest
 from pathlib import Path
 import gzip
+import zstandard as zstd
 from tests.helper.generate import get_curie
 from biothings_annotator import annotator
 
@@ -58,15 +59,16 @@ async def test_biothings_annotator():
 
 def test_appraiser():
 
-    file_path = Path(__file__).parent.parent / "helper/appraiser_data_input.json.gz"
+    file_path = Path(__file__).parent.parent / "helper/appraiser_data_input.zst"
     with open(file_path, "rb") as f:
         response = requests.post(
             APPRAISER_URL,
             data=f,
-            headers = {'Accept': 'gzip','Content-Encoding': 'gzip'},
+            headers = {'Accept-Encoding': 'zstd','Content-Encoding': 'zstd'},
             timeout=600
         )
-        rj = json.loads(gzip.decompress(response.content).decode('utf-8'))
+        decompressor = zstd.ZstdDecompressor()
+        rj = json.loads(decompressor.decompress(response.content).decode('utf-8'))
 
     assert response.status_code == 200
     assert isinstance(rj, dict)
