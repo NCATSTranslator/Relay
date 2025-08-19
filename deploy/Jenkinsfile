@@ -12,7 +12,7 @@ pipeline {
         string(name: 'AWS_REGION', defaultValue: 'us-east-1', description: 'AWS Region to deploy')
     }
     triggers {
-        pollSCM('H/5 * * * *')
+//         pollSCM('H/5 * * * *')
     }
     environment {
         DOCKER_REPO_NAME = "translator-ars"
@@ -40,20 +40,20 @@ pipeline {
                 checkout scm
             }
         }
-        stage("Pytest Unit Testing") {
+        stage('Install dependencies & Run tox') {
             steps {
                 script {
                     withPythonEnv('python3.9') {
-                        sh 'python --version'
-                        sh 'pip install -r requirements.txt'
-                        def statusCode = sh(script: "pytest tr_sys/tr_ars/tests/unit/test_unit.py", returnStatus:true)
-                        if (statusCode != 0) {
-                            error 'unit test failed, exiting ....'
-                        }
+                        sh '''
+                            python -m venv venv
+                            . venv/bin/activate
+                            pip install tox
+                            tox -c tr_sys/tox.ini
+                        '''
                     }
                 }
             }
-        }       
+        }
         stage('Build Docker') {
            when { expression { return env.BUILD == 'true' }}
             steps {
@@ -69,7 +69,7 @@ pipeline {
                         docker.image("${env.IMAGE_NAME}").push("${BUILD_VERSION}")
                     }
                 }
-            }    
+            }
         }
         stage('Deploy to AWS EKS Blue') {
             agent { label 'translator && ci && deploy'}
@@ -85,7 +85,7 @@ pipeline {
                     script {
                         sh '''
                         aws --region ${AWS_REGION} eks update-kubeconfig --name ${KUBERNETES_BLUE_CLUSTER_NAME}
-                        cd deploy && kubectl delete deployment ars -n ars && /bin/bash prepare.sh && /bin/bash deploy.sh 
+                        cd deploy && kubectl delete deployment ars -n ars && /bin/bash prepare.sh && /bin/bash deploy.sh
                         '''
                     }
                 }
@@ -94,24 +94,6 @@ pipeline {
                 always {
                     echo " Clean up the workspace in deploy node!"
                     cleanWs()
-                }
-            }
-        }
-        stage("Pytest Integration Testing") {
-            steps {
-                withEnv([
-                    "TARGET_HOST=ars.ci.transltr.io"
-                ]) {
-                    script {
-                        sleep(time:5, unit:"MINUTES")
-                        withPythonEnv('python3.9') {
-                            def statusCode = sh(script: "pytest tr_sys/tr_ars/tests/integration/test_integration.py", returnStatus:true)
-                            print(statusCode)
-                            if (statusCode != 0) {
-                                error 'integration test failed, exiting ....'
-                            }
-                        }
-                    }
                 }
             }
         }

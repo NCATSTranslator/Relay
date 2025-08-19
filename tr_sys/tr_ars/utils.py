@@ -963,7 +963,6 @@ def appraise(mesg, data, agent_name, compress = True):
                     total_time = t.time() - start
                     logging.info(f"TOTAL TIME TAKEN for agent {agent_name}: {total_time:.2f} seconds")
                     if compress:
-                        #rj = json.loads(gzip.decompress(r.content).decode('utf-8'))
                         decompressor = zstd.ZstdDecompressor()
                         rj = json.loads(decompressor.decompress(r.content).decode('utf-8'))
                     else:
@@ -1037,8 +1036,8 @@ def annotate_nodes(mesg,data,agent_name):
         #we have to scrub input for invalid CURIEs or we'll get a 500 back from the annotator
         curie_pattern = re.compile("[\w\.]+:[\w\.]+")
         invalid_nodes={}
-        with open(f'{agent_name}_annotator_curie_list.json', 'w') as json_file:
-            json.dump(nodes_message, json_file, indent=4)
+        # with open(f'{agent_name}_annotator_curie_list.json', 'w') as json_file:
+        #     json.dump(nodes_message, json_file, indent=4)
         for key in nodes_message['ids']:
             if not curie_pattern.match(str(key)):
                 invalid_nodes[key]=nodes[key]

@@ -2,6 +2,7 @@ import factory
 import logging
 from faker import Faker
 from tr_ars import models
+from tests.helper.generate import get_ARA_response
 
 logger = logging.getLogger('faker')
 logger.setLevel(logging.INFO)
@@ -38,6 +39,8 @@ class MessageFactory(factory.django.DjangoModelFactory):
     id = fake.uuid4()
     name = 'default_message'
     status = 'W'
+    code = 200
     actor = factory.SubFactory(ActorFactory)
-
+    data = get_ARA_response()
+    retain=True
 

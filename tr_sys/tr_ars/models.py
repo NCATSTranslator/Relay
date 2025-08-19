@@ -91,7 +91,6 @@ class Message(ARSModel):
     actor = models.ForeignKey(Actor, null=False, on_delete=models.CASCADE)
     timestamp = models.DateTimeField(auto_now_add=True,db_index=True)
     updated_at = models.DateTimeField(auto_now=True)
-    #data = models.JSONField('data payload', null=True)
     data = models.BinaryField('data payload', null=True)
     url = models.URLField('location of data', max_length=256, null=True)
     ref = models.ForeignKey('self', null=True, blank=True,
@@ -178,7 +177,6 @@ class Message(ARSModel):
 
                 # Initialize decompressed_data to None
                 decompressed_data = None
-
                 if self.data.startswith(b'\x28\xb5\x2f\xfd'):
                     logger.info("✅ Decompressing Zstandard data (pk: %s)", self.pk)
                     try:
