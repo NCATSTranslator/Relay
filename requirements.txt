@@ -98,7 +98,6 @@ opentelemetry-exporter-jaeger
 opentelemetry-exporter-otlp-proto-grpc
 opentelemetry-instrumentation-requests
 opentelemetry-instrumentation-celery
-dataclasses~=0.8
 pip~=25.1.1
 build~=1.0.3
 toml~=0.10.2
