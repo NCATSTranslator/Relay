@@ -75,7 +75,7 @@ def test_messages_response(client, test_message):
 def test_notify_subscribers_success(test_message):
      with patch("tr_ars.tasks.notify_subscribers_task.apply_async") as mock_apply_async:
           test_message.status = 'D'
-          test_message.save()
+          #test_message.save()
           test_message.notify_subscribers()
 
           mock_apply_async.assert_called_once() #asserts that the apply_async method was called excatly one time
