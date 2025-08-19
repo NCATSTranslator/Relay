@@ -121,6 +121,8 @@ def submit(req):
             #     logger.debug("Warning! Input query failed TRAPI validation "+str(data))
             #     logger.debug(ve)
             #     return HttpResponse('Input query failed TRAPI validation',status=400)
+            if "validate" in data:
+                params["validate"]=data["validate"]
             if("workflow" in data):
                 wf = data["workflow"]
                 if(isinstance(wf,list)):
@@ -459,13 +461,19 @@ def message(req, key):
             if req.GET.get('compress',False):
 
                 data = mesg.data
-                if data.startswith(b'\x1f\x8b'):
-                    return HttpResponse(data, content_type='application/octet-stream')
+                if data.startswith(b'\x28\xb5\x2f\xfd'):
+                    # Already compressed with zstd
+                    response = HttpResponse(data, content_type='application/octet-stream')
+                    response['X-Content-Compression'] = 'zstd'
+                    return response
                 else:
                     stringv= data.decode('utf-8')
                     json_data= json.loads(stringv)
                     mesg.save_compressed_dict(json_data)
-                    return HttpResponse(mesg.data, content_type='application/octet-stream')
+
+                    response = HttpResponse(mesg.data, content_type='application/octet-stream')
+                    response['X-Content-Compression'] = 'zstd'
+                    return response
 
             actor = Actor.objects.get(pk=mesg.actor_id)
             mesg.name = actor.agent.name
@@ -534,7 +542,11 @@ def message(req, key):
                         utils.pre_merge_process(message_to_merge,key, agent_name, inforesid)
                         if mesg.data and 'results' in mesg.data and mesg.data['results'] != None and len(mesg.data['results']) > 0:
                             mesg = Message.create(name=mesg.name, status=status, actor=mesg.actor, ref=mesg)
-                        valid = utils.validate(data)
+                        if "validate" in mesg.params.keys() and not mesg.params["validate"]:
+                            valid = True
+                        else:
+                            utils.remove_phantom_support_graphs(message_to_merge)
+                            valid = utils.validate(message_to_merge)
                         if valid:
                             if agent_name.startswith('ara-'):
                                 logger.info("pre async call for agent %s" % agent_name)

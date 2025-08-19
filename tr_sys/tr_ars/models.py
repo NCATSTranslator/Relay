@@ -1,5 +1,6 @@
 from json import JSONDecodeError
-
+import gzip
+import time as t
 import requests as requests
 from django.db import models
 from django.utils import timezone
@@ -134,6 +135,7 @@ class Message(ARSModel):
                 logger.info('data already compressed, no action needed')
                 self.data = data
             else:
+                start = t.time()
                 logger.info('compressing the data with pk: %s' % str(self.pk))
                 # Convert dictionary to JSON string
                 json_data = json.dumps(data, default=str)
@@ -142,38 +144,89 @@ class Message(ARSModel):
                 compressor = zstd.ZstdCompressor()
                 compressed_data = compressor.compress(json_data.encode('utf-8'))
 
+                # Sanity check that it starts with expected magic bytes
+                magic=compressed_data[:4]
+                if magic == b'\x28\xb5\x2f\xfd':
+                    logger.info("✅ Compressed data is Zstandard (pk: %s)", str(self.pk))
+                elif magic[:2] == b'\x1f\x8b':
+                    logger.warning("⚠️ Compressed data is GZIP (pk: %s)", str(self.pk))
+                else:
+                    logger.warning("❓ Compressed data has unknown format: %s (pk: %s)", magic.hex(), str(self.pk))
+
+                total_time = t.time() - start
+                logging.info(f"TOTAL TIME TAKEN for agent {self.actor.agent.name} to compress: {total_time:.2f} seconds")
                 # Save compressed data to the model field
                 self.data = compressed_data
         except Exception as e:
+            logger.error("❌ failed to compress data %s"% e)
             print("Error compressing data:", e)
 
     def decompress_dict(self):
         try:
-            #check to see if you are dealing with dictionary or compressed data?
+            # Check if self.data is already a dictionary
             if isinstance(self.data, dict):
                 original_data = self.data
+                return original_data
+
+            # If it's bytes (likely compressed)
             elif isinstance(self.data, (bytes, bytearray)) and self.data is not None:
-                logger.info('decompressing the data with pk: %s' % str(self.pk))
+                start = t.time()
+                logger.info("🔍 Checking compression type for pk=%s", self.pk)
+                logger.info("First 10 bytes of data (hex): %s for pk:%s", self.data[:10].hex(), self.pk)
+                logger.info("🔍 Raw start of data (pk: %s): %r", self.pk, self.data[:10])
+
+                # Initialize decompressed_data to None
+                decompressed_data = None
                 if self.data.startswith(b'\x28\xb5\x2f\xfd'):
-                    # Decompress the compressed data
-                    decompressor = zstd.ZstdDecompressor()
-                    decompressed_data = decompressor.decompress(self.data)
+                    logger.info("✅ Decompressing Zstandard data (pk: %s)", self.pk)
+                    try:
+                        decompressor = zstd.ZstdDecompressor()
+                        decompressed_data = decompressor.decompress(self.data)
+                    except Exception as e:
+                        logger.error("❌ Failed to decompress zstd data: %s", e)
 
-                    # Convert decompressed bytes to JSON string
-                    json_data = decompressed_data.decode('utf-8')
-
-                    # Convert JSON string back to dictionary
-                    original_data = json.loads(json_data)
+                elif self.data.startswith(b'\x1f\x8b'):
+                    logger.info("⚠️ Decompressing Gzip data (pk: %s)", self.pk)
+                    try:
+                        decompressed_data = gzip.decompress(self.data)
+                    except Exception as e:
+                        logger.error("❌ Failed to decompress gzip data: %s", e)
                 else:
-                    # Convert plain text bytes to JSON string
-                    json_data = self.data.decode('utf-8')
-                    # Convert JSON string back to dictionary
-                    original_data = json.loads(json_data)
+                    logger.info("ℹ️ Data not compressed or unknown format (pk: %s)", self.pk)
+                    decompressed_data = self.data
 
-            return original_data
+                # Try parsing the decompressed data
+                if decompressed_data:
+                    try:
+                        json_data = decompressed_data.decode("utf-8")
+                        original_data = json.loads(json_data)
+
+                        if isinstance(original_data, dict):
+                            message = original_data.get("message")
+                            if isinstance(message, dict):
+                                logger.info("✅ Parsed dict keys: %s; message keys: %s", list(original_data.keys()), list(message.keys()))
+                            else:
+                                logger.warning("'message' is not a dict. Top-level keys: %s", list(original_data.keys()))
+            
+                            total_time = t.time() - start
+                            logging.info(f"TOTAL TIME TAKEN for agent {self.actor.agent.name} to decompress: {total_time:.2f} seconds")
+                            return original_data
+
+                        else:
+                            logger.info("original data is %s" % original_data)
+                            logger.warning("⚠️ Data decoded but is not a dictionary. Type: %s", type(original_data))
+                            return original_data
+                    except Exception as e:
+                        logging.error("errored in decoding the data")
+                        return {}
+                else:
+                    logger.warning("Unsupported data type: %s", type(self.data))
+                    return {}
         except Exception as e:
+            logger.error("❌ Failed to decode or parse data as JSON: %s", e)
             print("Error decompressing data:", e)
             return {}
+
     @classmethod
     def create(self, *args, **kwargs):
         # convert status long name to code for saving
@@ -214,9 +267,6 @@ class Message(ARSModel):
         notify_subscribers_task.apply_async((self.pk, self.code, additional_notification_fields))
 
     def should_notify(self):
-        if self.status == 'E':
-            return True
-        else:
-            return False
+        return self.status in ('D', 'E')
 
 

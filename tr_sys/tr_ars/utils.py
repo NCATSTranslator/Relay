@@ -1,6 +1,7 @@
 import copy
 import json
-import zstandard as zstd
+import time as t
+import gzip
 import logging
 import traceback
 import os, sys
@@ -36,6 +37,7 @@ from pydantic import ValidationError
 from opentelemetry import trace
 tracer = trace.get_tracer(__name__)
 import asyncio
+import zstandard as zstd
 
 ARS_ACTOR = {
     'channel': [],
@@ -51,18 +53,20 @@ NORMALIZER_URL=os.getenv("TR_NORMALIZER") if os.getenv("TR_NORMALIZER") is not N
 ANNOTATOR_URL=os.getenv("TR_ANNOTATOR") if os.getenv("TR_ANNOTATOR") is not None else "https://biothings.ncats.io/curie"
 APPRAISER_URL=os.getenv("TR_APPRAISE") if os.getenv("TR_APPRAISE") is not None else "https://answerappraiser.ci.transltr.io/get_appraisal"
 
-
 class QueryGraph():
     def __init__(self,qg):
         if qg==None:
             return None
         self.__rawGraph = qg
-        self.__nodes =  qg['nodes']
-        self.__edges = qg['edges']
+        self.__nodes = qg['nodes']
+        self.__edges = qg['edges'] if 'edges' in qg else []
+        self.__paths = qg['paths'] if 'paths' in qg else []
     def getEdges(self):
         return self.__edges
     def getNodes(self):
         return self.__nodes
+    def getPaths(self):
+        return self.__paths
     def getAllCuries(self):
         nodes = self.getNodes()
         curies =[]
@@ -122,6 +126,16 @@ class Results():
                 logging.error("Unexpected error 3: {}".format(traceback.format_exception(type(e), e, e.__traceback__)))
 
         return edgeBindings
+    def getPathBindings(self):
+        pathBindings=[]
+        for result in self.__results:
+            try:
+                bindings=result['analyses']
+                for analysis in bindings:
+                    pathBindings.append(analysis['path_bindings'])
+            except Exception as e:
+                logging.error("Unexpected error 3: {}".format(traceback.format_exception(type(e), e, e.__traceback__)))
+        return pathBindings
     def getNodeBindings(self):
         nodeBindings=[]
         for result in self.__results:
@@ -132,7 +146,7 @@ class Results():
 class Result():
     def __init__(self,result):
         self.__nodeBindings = result['node_bindings']
-        self.__edgeBindings = result['edge_bindings']
+        self.__edgeBindings = result['edge_bindings'] if 'edge_bindings' in result else []
     def getEdgeBindings(self):
         return self.__edgeBindings
     def getNodeBindings(self):
@@ -171,7 +185,7 @@ class TranslatorMessage():
         return self.__ag
     def getSharedResults(self):
         return self.__sharedResults
-    #returns a set of sets of triples representing results
+    #returns a set of sets of triples representing results, becareful to not call this for PF queires
     def getResultTuples(self):
         results = self.getResults()
         kg = self.getKnowledgeGraph()
@@ -668,7 +682,7 @@ def merge_and_post_process(parent_pk,message_to_merge, agent_name, counter=0):
                 "merged_versions_list":parent.merged_versions_list if parent.merged_versions_list is not None else []
             }
             parent.notify_subscribers(notification)
-        
+
         except Exception as e:
             logging.info("Problem with merger for agent %s pk: %s " % (agent_name, (parent_pk)))
             logging.info(e, exc_info=True)
@@ -700,7 +714,7 @@ def merge_and_post_process(parent_pk,message_to_merge, agent_name, counter=0):
         notification["event_type"]="merged_version_available"
         notification["merged_version"]=str(merged.pk)
         parent.notify_subscribers(notification)
-        
+
 def remove_blocked(mesg, data, blocklist=None):
     try:
         #logging.info("Getting the length of the dictionary in {} bytes".format(get_deep_size(data)))
@@ -939,10 +953,15 @@ def appraise(mesg, data, agent_name, compress = True):
     logging.info('sending data for agent: %s to APPRAISER URL: %s' % (agent_name, APPRAISER_URL))
     with tracer.start_as_current_span("get_appraisal") as span:
         try:
+            start=t.time()
             with requests.post(APPRAISER_URL,data=data_payload,headers=headers, stream=True,timeout=600) as r:
                 logging.info("Appraiser being called at: "+APPRAISER_URL)
                 logging.info('the response for agent %s to appraiser code is: %s' % (agent_name, r.status_code))
+                logging.info("Response headers: %a", r.headers)
+                logging.info("First 10 bytes of content: %s", r.content[:10])
                 if r.status_code==200:
+                    total_time = t.time() - start
+                    logging.info(f"TOTAL TIME TAKEN for agent {agent_name}: {total_time:.2f} seconds")
                     if compress:
                         decompressor = zstd.ZstdDecompressor()
                         rj = json.loads(decompressor.decompress(r.content).decode('utf-8'))
@@ -953,7 +972,7 @@ def appraise(mesg, data, agent_name, compress = True):
                     data['message']['results']=rj['message']['results']
                     logging.info("Updating message with appraiser data complete for "+str(mesg.id))
                 else:
-                    logging.info("Received Error state from appraiser for agent %s and pk %s  Code %s Attempt %s" % (agent_name,str(mesg.id),str(r.status_code),str(retry_counter)))
+                    logging.info("Received Error state from appraiser for agent %s and pk %s  Code %s" % (agent_name,str(mesg.id),str(r.status_code)))
                     logging.info("JSON fields "+str(data_payload)[:100])
                     logging.error("Error from appraise for agent %s and pk %s " % (agent_name,str(mesg.id)))
                     raise Exception
@@ -1342,7 +1361,10 @@ def ScoreStatCalc(results):
                     for analysis in res['analyses']:
                         if 'score' in analysis.keys() and analysis['score'] is not None:
                             temp_score.append(analysis['score'])
-                    score = statistics.mean(temp_score)
+                    if len(temp_score)>0:
+                        score = statistics.mean(temp_score)
+                    else:
+                        score = None
 
                 elif len(res['analyses']) == 1:
                     if 'score' in res['analyses'][0]:
@@ -1388,8 +1410,10 @@ def normalizeScores(results):
                                 logging.error("Analyses score field is null, setting it to zero")
                                 analysis['score']=0
                                 temp_score.append(analysis['score'])
-
-                    score = statistics.mean(temp_score)
+                    if len(temp_score)>0:
+                        score = statistics.mean(temp_score)
+                    else:
+                        score = None
 
                 elif len(res['analyses']) == 1:
                     if 'score' in res['analyses'][0]:
@@ -1542,4 +1566,20 @@ def validate(response):
         logging.debug("error: %s" % str(e))
         return False
 
+def remove_phantom_support_graphs(response):
+    edges = response["message"]["knowledge_graph"]["edges"]
+    aux_graphs=response["message"]["auxiliary_graphs"]
+    for edge_i, edge in edges.items():
+        if "attributes" in edge.keys() and edge["attributes"] is not None:
+            attributes = edge["attributes"]
+            removal_list=[]
+            for attribute in attributes:
+                if attribute["attribute_type_id"] == "biolink:support_graphs":
+                    for value in attribute["value"]:
+                        if value not in aux_graphs:
+                            logging.debug("Support graph referenced but not in auxiliary_graphs")
+                            logging.debug(value)
+                            removal_list.append(attribute)
+            for bad in removal_list:
+                attributes.remove(bad)
 
