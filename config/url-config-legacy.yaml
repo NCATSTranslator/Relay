@@ -8,6 +8,7 @@
 # url-config-legacy.yaml is not a way for the ARS to avoid a successful request to smart-api.info in order
 # to be ready to serve requests.
 infores:aragorn: https://aragorn.ci.transltr.io/aragorn
+infores:shepherd-aragorn: https://shepherd.renci.org/aragorn
 infores:arax: https://arax.ci.transltr.io/api/arax/v1.4
 infores:biothings-explorer: https://bte.ci.transltr.io/v1
 infores:improving-agent: https://ia.ci.transltr.io/api/v1.5/

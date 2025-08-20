@@ -12,7 +12,6 @@ httpclients:
 #
 
   infores:shepherd-aragorn:
-    # https://aragorn.renci.org/1.2
     endpoint: asyncquery
     params:
   infores:aragorn:
