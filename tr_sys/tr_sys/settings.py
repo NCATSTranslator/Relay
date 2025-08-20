@@ -53,6 +53,7 @@ INSTALLED_APPS = [
     'tr_ara_cqs.cqs_app.AppConfig',
     'tr_kp_genetics.genetics_app.AppConfig',
     'tr_kp_clinical.clinical_app.AppConfig',
+    'tr_ara_shepherd_aragorn.shepherd_aragorn.app.AppConfig',
     'tr_kp_drug.drug_app.AppConfig',
     'tr_kp_molecular.molecular_app.AppConfig',
     'tr_kp_cam.cam_app.AppConfig',
