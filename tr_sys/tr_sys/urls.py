@@ -29,7 +29,7 @@ from tr_ara_improving.improving_app import AppConfig as ImprovingApp
 from tr_ara_unsecret.unsecret_app import AppConfig as UnsecretApp
 from tr_ara_wfr.wfr_app import AppConfig as WfrApp
 from tr_ara_cqs.cqs_app import AppConfig as CqsApp
-from tr_ara_sheperd_aragorn.shepherd_aragorn_app import AppConfig as ShepherdAragornApp
+from tr_ara_shepherd_aragorn.shepherd_aragorn_app import AppConfig as ShepherdAragornApp
 from tr_kp_genetics.genetics_app import AppConfig as GeneticsApp
 from tr_kp_clinical.clinical_app import AppConfig as ClinicalApp
 from tr_kp_drug.drug_app import AppConfig as DrugApp
