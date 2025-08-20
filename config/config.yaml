@@ -10,6 +10,11 @@ httpclients:
 # What is infores id?  It is a registered of identities in Translator for identifying services (and a few other things):
 #     https://docs.google.com/spreadsheets/d/1Ak1hRqlTLr1qa-7O0s5bqeTHukj9gSLQML1-lg6xIHM/edit?pli=1#gid=293462374
 #
+
+  infores:shepherd-aragorn:
+    # https://aragorn.renci.org/1.2
+    endpoint: asyncquery
+    params:
   infores:aragorn:
     # https://aragorn.renci.org/1.2
     endpoint: asyncquery 

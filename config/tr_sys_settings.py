@@ -51,6 +51,7 @@ INSTALLED_APPS = [
     'tr_ara_improving.improving_app.AppConfig',
     'tr_ara_unsecret.unsecret_app.AppConfig',
     'tr_ara_wfr.wfr_app.AppConfig',
+    'tr_ara_shepherd_aragorn.shepherd_aragorn.app.AppConfig',
     'tr_kp_genetics.genetics_app.AppConfig',
     'tr_kp_clinical.clinical_app.AppConfig',
     'tr_kp_drug.drug_app.AppConfig',
