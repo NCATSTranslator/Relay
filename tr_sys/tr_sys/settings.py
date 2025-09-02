@@ -53,6 +53,7 @@ INSTALLED_APPS = [
     'tr_ara_cqs.cqs_app.AppConfig',
     'tr_kp_genetics.genetics_app.AppConfig',
     'tr_kp_clinical.clinical_app.AppConfig',
+    'tr_ara_shepherd_aragorn.shepherd_aragorn_app.AppConfig',
     'tr_kp_drug.drug_app.AppConfig',
     'tr_kp_molecular.molecular_app.AppConfig',
     'tr_kp_cam.cam_app.AppConfig',
@@ -219,7 +220,7 @@ CELERY_IMPORTS = [
 ]
 # Other important shared settings
 DATA_UPLOAD_MAX_MEMORY_SIZE=1073741824
-CELERY_TASK_ALWAYS_EAGER=False
+CELERY_TASK_ALWAYS_EAGER=True
 CELERY_TASK_ACKS_LATE = True
 
 USE_CELERY = True

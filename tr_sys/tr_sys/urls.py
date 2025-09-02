@@ -29,6 +29,7 @@ from tr_ara_improving.improving_app import AppConfig as ImprovingApp
 from tr_ara_unsecret.unsecret_app import AppConfig as UnsecretApp
 from tr_ara_wfr.wfr_app import AppConfig as WfrApp
 from tr_ara_cqs.cqs_app import AppConfig as CqsApp
+from tr_ara_shepherd_aragorn.shepherd_aragorn_app import AppConfig as ShepherdAragornApp
 from tr_kp_genetics.genetics_app import AppConfig as GeneticsApp
 from tr_kp_clinical.clinical_app import AppConfig as ClinicalApp
 from tr_kp_drug.drug_app import AppConfig as DrugApp
@@ -52,6 +53,7 @@ patterns = [
     re_path(ImprovingApp.regex_path, include(ImprovingApp.name)),
     re_path(WfrApp.regex_path, include(WfrApp.name)),
     re_path(CqsApp.regex_path, include(CqsApp.name)),
+    re_path(ShepherdAragornApp.regex_path, include(ShepherdAragornApp.name)),
     re_path(UnsecretApp.regex_path, include(UnsecretApp.name)),
     re_path(GeneticsApp.regex_path, include(GeneticsApp.name)),
     re_path(ClinicalApp.regex_path, include(ClinicalApp.name)),
