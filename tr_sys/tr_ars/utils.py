@@ -1579,7 +1579,11 @@ def remove_phantom_support_graphs(response):
                         if value not in aux_graphs:
                             logging.debug("Support graph referenced but not in auxiliary_graphs")
                             logging.debug(value)
-                            removal_list.append(attribute)
+                            if attribute not in removal_list:
+                                removal_list.append(attribute)
             for bad in removal_list:
-                attributes.remove(bad)
+                if bad in attributes:
+                    attributes.remove(bad)
+                else:
+                    logging.debug(bad+" not found in attributes")
 
