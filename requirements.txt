@@ -93,24 +93,14 @@ zipp==3.20.2
 # External dependencies
 git+https://github.com/biothings/biothings_annotator#egg=biothings_annotator
 
-# Pin opentelemetry stack
-#opentelemetry-api==1.26.0
-#opentelemetry-sdk==1.26.0
-#opentelemetry-instrumentation==0.47b0
-#opentelemetry-instrumentation-django==0.47b0
-#opentelemetry-exporter-jaeger==1.26.0
-#opentelemetry-exporter-otlp-proto-grpc==1.26.0
-#opentelemetry-instrumentation-requests==0.47b0
-#opentelemetry-instrumentation-celery==0.47b0
-
-opentelemetry-api==1.21.0
-opentelemetry-sdk==1.21.0
-opentelemetry-instrumentation==0.42b0
+opentelemetry-api==1.36.0
+opentelemetry-sdk==1.36.0
+opentelemetry-instrumentation==0.57b0
 opentelemetry-instrumentation-django==0.42b0
 opentelemetry-exporter-jaeger==1.21.0
 opentelemetry-exporter-otlp-proto-grpc==1.21.0
 opentelemetry-instrumentation-requests==0.42b0
-opentelemetry-instrumentation-celery==0.42b0
+opentelemetry-instrumentation-celery==0.57b0
 
 pip~=25.1.1
 build~=1.0.3
