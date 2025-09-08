@@ -17,6 +17,30 @@ class ARSModel(models.Model):
     def to_dict(self):
         return json.loads(serializers.serialize('json', [self]))[0]
 
+class QueryGraphPlus(models.Model):
+    STATUS = (
+        ('D', 'Done'),
+        ('S', 'Stopped'),
+        ('R', 'Running'),
+        ('E', 'Error'),
+        ('W', 'Waiting'),
+        ('U', 'Unknown')
+    )
+    timestamp = models.DateTimeField(auto_now_add=True)
+    query_graph = models.JSONField(null=True)
+    status = models.CharField(max_length=2, choices=STATUS, db_index=True, default='R')
+    num_res = models.IntegerField(null=True, default=None)
+    stats = models.JSONField(null=True)
+
+    @classmethod
+    def create(self, *args, **kwargs):
+        # convert status long name to code for saving
+        logger.info('creating queryGraphPlus model instance')
+        return QueryGraphPlus(*args, **kwargs)
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+
 class Client(ARSModel):
     client_id= models.TextField('name of client',null =False)
     client_secret=models.TextField('hash of client secret', null = False)
@@ -82,7 +106,6 @@ class Message(ARSModel):
         ('W', 'Waiting'),
         ('U', 'Unknown')
     )
-    
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False, db_index=True)
     name = models.SlugField('Message name', null=False)
     code = models.PositiveSmallIntegerField('HTTP status code',

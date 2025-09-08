@@ -1,13 +1,15 @@
 from django.shortcuts import get_object_or_404
+from django.http import HttpResponse
 from django.db.models.signals import post_save, pre_save
 from django.dispatch import receiver
 import sys, logging
-from .models import Actor, Agent, Message, Channel
+from .models import Actor, Agent, Message, Channel, QueryGraphPlus
 from .pubsub import send_messages
 from .utils import get_safe
 from django.utils import timezone
 logger = logging.getLogger(__name__)
 from .api import query_event_unsubscribe
+from django.db import IntegrityError, OperationalError
 
 @receiver(post_save, sender=Actor)
 def actor_post_save(sender, instance, **kwargs):
@@ -44,7 +46,7 @@ def message_post_save(sender, instance, **kwargs):
     # check if parent status should be updated to 'Done'
     if message.ref is not None and message.status in ['D', 'S', 'E', 'U']:
         logger.info('+++ checking parent Doneness: %s for message/parent: %s %s' % (message.ref.status, str(message.id), str(message.ref.id)))
-
+        stat_plus={}
         pmessage = message.ref
         if pmessage.status != 'D':
             logger.info('+++ Parent message not Done for: %s' % (str(pmessage.id)))
@@ -77,6 +79,25 @@ def message_post_save(sender, instance, **kwargs):
                 pmessage.updated_at = timezone.now()
                 pmessage.save(update_fields=['status','code','updated_at'])
                 query_event_unsubscribe(None, pmessage.pk)
+
+                try:
+                    for child in children:
+                        stat_plus[child.actor.inforesid]=(child.code, child.result_count, child.result_stat)
+                        if child.actor.agent.name == 'ars-ars-agent':
+                            result_count = child.result_count
+                    data=pmessage.decompress_dict()
+                    querygraph = QueryGraphPlus.create(status=pmessage.status,num_res=result_count,
+                                                       query_graph=data['message']['query_graph'],
+                                                       timestamp=pmessage.updated_at, stats=stat_plus)
+                    querygraph.save()
+
+                except OperationalError as e:
+                    return HttpResponse('DB Operational error : %s' % str(e),status=404)
+                except IntegrityError as e:
+                    return HttpResponse('DB Integrity error :%s with message %s' % (e.__cause__, str(e)), status=400)
+                except Exception as e:
+                    return HttpResponse('failing due to %s with the message %s' % (e.__cause__, str(e)), status=400)
+
             elif pmessage.status == 'E':
                 query_event_unsubscribe(None, pmessage.pk)
             else:
