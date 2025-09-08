@@ -95,12 +95,12 @@ git+https://github.com/biothings/biothings_annotator#egg=biothings_annotator
 
 opentelemetry-api==1.36.0
 opentelemetry-sdk==1.36.0
-opentelemetry-instrumentation
-opentelemetry-instrumentation-django
-opentelemetry-exporter-jaeger
-opentelemetry-exporter-otlp-proto-grpc
-opentelemetry-instrumentation-requests
-opentelemetry-instrumentation-celery==0.56b0
+opentelemetry-instrumentation==0.57b0
+opentelemetry-instrumentation-django==0.42b0
+opentelemetry-exporter-jaeger==1.21.0
+opentelemetry-exporter-otlp-proto-grpc==1.21.0
+opentelemetry-instrumentation-requests==0.42b0
+opentelemetry-instrumentation-celery==0.57b0
 
 pip~=25.1.1
 build~=1.0.3
