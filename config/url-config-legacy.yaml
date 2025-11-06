@@ -10,6 +10,10 @@
 infores:aragorn: https://aragorn.ci.transltr.io/aragorn
 infores:arax: https://arax.ci.transltr.io/api/arax/v1.4
 infores:biothings-explorer: https://bte.ci.transltr.io/v1
+infores:shepherd-aragorn: https://shepherd.renci.org/aragorn
+infores:shepherd-arax: https://shepherd.renci.org/arax
+infores:shepherd-bte: https://shepherd.renci.org/bte
+infores:shepherd-sipr: https://shepherd.renci.org/sipr
 infores:improving-agent: https://ia.ci.transltr.io/api/v1.5/
 infores:unsecret-agent: https://medikanren-trapi.ci.transltr.io
 infores:workflow-runner: https://translator-workflow-runner.ci.transltr.io

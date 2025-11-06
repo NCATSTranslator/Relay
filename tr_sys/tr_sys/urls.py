@@ -25,6 +25,10 @@ from django.urls import include, path, reverse
 from tr_ara_aragorn.aragorn_app import AppConfig as AragornApp
 from tr_ara_arax.arax_app import AppConfig as ARAXApp
 from tr_ara_bte.bte_app import AppConfig as BTEApp
+from tr_ara_shepherd_aragorn.shepherd_aragorn_app import AppConfig as ShepherdAragornApp
+from tr_ara_shepherd_arax.shepherd_arax_app import AppConfig as ShepherdARAXApp
+from tr_ara_shepherd_bte.shepherd_bte_app import AppConfig as ShepherdBTEApp
+from tr_ara_shepherd_sipr.shepherd_sipr_app import AppConfig as ShepherdSIPRApp
 from tr_ara_improving.improving_app import AppConfig as ImprovingApp
 from tr_ara_unsecret.unsecret_app import AppConfig as UnsecretApp
 from tr_ara_wfr.wfr_app import AppConfig as WfrApp
@@ -49,6 +53,10 @@ patterns = [
     re_path(AragornApp.regex_path, include(AragornApp.name)),
     re_path(ARAXApp.regex_path, include(ARAXApp.name)),
     re_path(BTEApp.regex_path, include(BTEApp.name)),
+    re_path(ShepherdAragornApp.regex_path, include(ShepherdAragornApp.name)),
+    re_path(ShepherdARAXApp.regex_path, include(ShepherdARAXApp.name)),
+    re_path(ShepherdBTEApp.regex_path, include(ShepherdBTEApp.name)),
+    re_path(ShepherdSIPRApp.regex_path, include(ShepherdSIPRApp.name)),
     re_path(ImprovingApp.regex_path, include(ImprovingApp.name)),
     re_path(WfrApp.regex_path, include(WfrApp.name)),
     re_path(CqsApp.regex_path, include(CqsApp.name)),

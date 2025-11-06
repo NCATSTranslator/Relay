@@ -20,6 +20,18 @@ httpclients:
   infores:biothings-explorer:
     endpoint: asyncquery 
     params:
+  infores:shepherd-aragorn:
+    endpoint: asyncquery
+    params:
+  infores:shepherd-arax:
+    endpoint: asyncquery
+    params:
+  infores:shepherd-bte:
+    endpoint: asyncquery
+    params:
+  infores:shepherd-sipr:
+    endpoint: asyncquery
+    params:
   infores:improving-agent:
     endpoint: query 
     params:
