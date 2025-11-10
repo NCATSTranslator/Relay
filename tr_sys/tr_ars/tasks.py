@@ -121,7 +121,10 @@ def send_message(actor_dict, mesg_dict, timeout=300):
                 rdata = dict()
                 try:
                     rdata = r.json()
-                except json.decoder.JSONDecodeError:
+                except ValueError as e:  # catches JSONDecodeError too:
+                    logger.error("❌JSON decode error: %s", e)
+                    logger.error("❌Response headers: %s", r.headers)
+                    logger.error("❌Raw response text: %r", r.text[:1000])  # limit to first 1000 chars
                     status = 'E'
                 # now create a new message here
                 if(endpoint)=="asyncquery":
