@@ -497,6 +497,8 @@ def message(req, key):
             with tracer.start_as_current_span('message') as span:
                 span.set_attribute("pk", str(key))
                 try:
+                    logger.info(f"⚠️ ⚠️ ⚠️ ⚠️ ⚠️ Raw body: {req.body!r}")
+                    logger.info(f"⚠️ ⚠️ ⚠️ ⚠️ ⚠️ Content-Type: {req.content_type}")
                     data = json.loads(req.body)
                     #if 'query_graph' not in data or 'knowledge_graph' not in data or 'results' not in data:
                     #    return HttpResponse('Not a valid Translator API json', status=400)
@@ -586,7 +588,7 @@ def message(req, key):
                     return HttpResponse('Unknown state reference %s' % key, status=404)
 
                 except json.decoder.JSONDecodeError:
-                    return HttpResponse('Can not decode json:<br>\n%s for the pk: %s' % (req.body, key), status=500)
+                    return JsonResponse({"❌❌❌❌error": f"Invalid JSON: {str(e)}", "raw_body": req.body.decode("utf-8", errors="ignore")},status=400)
 
                 except Exception as e:
                     mesg.status = 'E'

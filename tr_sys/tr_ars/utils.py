@@ -1,4 +1,5 @@
 import copy
+import nest_asyncio
 import json
 import time as t
 import gzip
@@ -48,7 +49,6 @@ ARS_ACTOR = {
     'path': '',
     'inforesid': 'ARS'
 }
-
 NORMALIZER_URL=os.getenv("TR_NORMALIZER") if os.getenv("TR_NORMALIZER") is not None else "https://nodenorm.ci.transltr.io/get_normalized_nodes"
 ANNOTATOR_URL=os.getenv("TR_ANNOTATOR") if os.getenv("TR_ANNOTATOR") is not None else "https://biothings.ncats.io/curie"
 APPRAISER_URL=os.getenv("TR_APPRAISE") if os.getenv("TR_APPRAISE") is not None else "https://answerappraiser.ci.transltr.io/get_appraisal"
@@ -1024,6 +1024,25 @@ def sperate_annotated_nodes(nodes):
 
     return unannotated
 
+
+@shared_task
+def annotate_curie_list_task(curie_list):
+    """
+    Celery task to safely run async annotator functions.
+    Each task gets its own event loop in the worker thread.
+    """
+    # Step 1: Create a new event loop for this task/thread
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    try:
+        atr = annotator.Annotator()  # create inside the loop
+        return loop.run_until_complete(atr.annotate_curie_list(curie_list))
+
+    finally:
+        loop.run_until_complete(loop.shutdown_asyncgens())  # cleanup async generators
+        loop.close()
+
+
 def annotate_nodes(mesg,data,agent_name):
     #TODO pull this URL from SmartAPI
     headers = {'Content-type': 'application/json'}
@@ -1050,8 +1069,18 @@ def annotate_nodes(mesg,data,agent_name):
         logging.info('sending %s curie ides to the annotator'% len(curie_list))
         with tracer.start_as_current_span("annotator") as span:
             try:
+            
                 atr = annotator.Annotator()
-                loop = asyncio.get_event_loop()
+                #rj=annotate_curie_list_task.delay(curie_list).get()    
+                try:
+                    loop = asyncio.get_event_loop()
+                except RuntimeError:
+                    loop=asyncio.new_event_loop()
+                    asyncio.set_event_loop(loop)
+
+                #run the coroutine and get results in the same thread
+                #rj = loop.run_until_complete(atr.annotate_curie_list(curie_list))
+    
                 # Check if an event loop is already running
                 if loop.is_running():
                     # Use create_task to schedule the coroutine in the running loop
@@ -1579,7 +1608,13 @@ def remove_phantom_support_graphs(response):
                         if value not in aux_graphs:
                             logging.debug("Support graph referenced but not in auxiliary_graphs")
                             logging.debug(value)
-                            removal_list.append(attribute)
+                            if attribute not in removal_list:
+                                removal_list.append(attribute)
             for bad in removal_list:
-                attributes.remove(bad)
+                if bad in attributes:
+                    attributes.remove(bad)
+                else:
+                    logging.debug(bad+" not found in attributes")
+                    
 
+            
