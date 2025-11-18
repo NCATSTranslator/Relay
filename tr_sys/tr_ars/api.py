@@ -238,7 +238,7 @@ def trace_message(req, key):
     try:
         mesg = get_object_or_404(Message.objects.filter(pk=key))
         data=mesg.decompress_dict()
-        query_graph=data['message']['query_graph']
+        query_graph = data.get('message', {}).get('query_graph', {}) if data else {}
         channel_names=[]
         for ch in mesg.actor.channel:
             channel_names.append(ch['fields']['name'])
@@ -511,6 +511,7 @@ def message(req, key):
                     kg = utils.get_safe(data,"message", "knowledge_graph")
                     actor = Actor.objects.get(pk=mesg.actor_id)
                     inforesid =actor.inforesid
+                    logging.info(f"⚠️ ⚠️  mesg recieved from %s with %s result" %(str(inforesid), len(res)))
                     parent=get_object_or_404(Message.objects.filter(pk=mesg.ref_id))
                     notification = {
                         "event_type":"ara_response_complete",
@@ -541,6 +542,8 @@ def message(req, key):
                         message_to_merge = data
                         agent_name = str(mesg.actor.agent.name)
                         logger.info("Running pre_merge_process for agent %s with %s" % (agent_name, len(res)))
+                        # with open(f'{agent_name}_{len(res)}_results.json', 'w') as outfile:
+                        #     outfile.write(json.dumps(data, indent=4))
                         utils.pre_merge_process(message_to_merge,key, agent_name, inforesid)
                         if mesg.data and 'results' in mesg.data and mesg.data['results'] != None and len(mesg.data['results']) > 0:
                             mesg = Message.create(name=mesg.name, status=status, actor=mesg.actor, ref=mesg)
