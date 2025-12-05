@@ -1453,9 +1453,6 @@ def createMessage(actor,parent_pk):
 def merge_received(parent,message_to_merge, agent_name, counter=0):
     current_merged_pk=parent.merged_version_id
     logging.info("Beginning merge for agent %s with current_pk: %s" %(agent_name,str(current_merged_pk)))
-    # since Arax is returning a modified query graph we want to make sure if the first agent getting merged is Arax graph the parent querygraph
-    parent_data = parent.decompress_dict()
-    message_to_merge['query_graph']=parent_data['message']['query_graph']
     t_to_merge_message=TranslatorMessage(message_to_merge)
     new_merged_message = createMessage(get_ars_actor(),str(parent.pk))
     logging.info("the merged_pk for agent %s is %s" % (agent_name, str(new_merged_message.pk)))
