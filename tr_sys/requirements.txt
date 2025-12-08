@@ -6,7 +6,7 @@ attrs==25.3.0
 backports.zoneinfo==0.2.1
 billiard==4.2.1
 bleach==6.1.0
-Brotli==1.1.0
+Brotli==1.2.0
 celery==5.5.3
 certifi==2025.4.26
 channels==4.2.2
