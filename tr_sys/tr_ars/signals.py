@@ -67,8 +67,11 @@ def message_post_save(sender, instance, **kwargs):
                     else:
                         orig_count += 1
                 if child.status == 'E' and child.actor.agent.name == 'ars-ars-agent':
-                    logger.info('+++ a merged message Errored out, removing its count from orig_count pk: %s & psrent_pk: %s'% (str(child.pk),str(pmessage.id)))
-                    orig_count -= 1
+                    if child.code == 444:
+                        merge_count += 1
+                    else:
+                        logger.info('+++ a merged message Errored out, removing its count from orig_count pk: %s & parent_pk: %s'% (str(child.pk),str(pmessage.id)))
+                        orig_count -= 1
             logger.info('+++ so far parent_pk: %s merge_count: %s & orig_count: %s '% (str(pmessage),merge_count,orig_count))
             if finished and merge_count == orig_count:
                 logger.info('+++ Parent message Done for: %s \n Attempting save' % (str(pmessage.id)))
@@ -82,7 +85,7 @@ def message_post_save(sender, instance, **kwargs):
                     empty_data['message']['results']=[]
                     empty_data['message']['auxiliary_graphs']={}
                     empty_data['message']['knowledge_graph']={}
-                    empty_data['message']['knowledge_graph']= {}
+                    empty_data['message']['knowledge_graph']['nodes']= {}
                     empty_data['message']['knowledge_graph']['edges']={}
 
                     empty_merged_mesg._skip_post_save = True
@@ -93,11 +96,12 @@ def message_post_save(sender, instance, **kwargs):
                     empty_merged_mesg._skip_post_save = True
                     empty_merged_mesg.save()
                     pmessage.merged_version=empty_merged_mesg
+                    pmessage.merged_versions_list=[(str(empty_merged_mesg.id), "ars")]
                     pmessage.status = 'D'
                     pmessage.code = 200
                     pmessage.updated_at = timezone.now()
                     pmessage._skip_post_save = True
-                    pmessage.save(update_fields=['status','code','updated_at', 'merged_version'])
+                    pmessage.save(update_fields=['status','code','updated_at', 'merged_version', 'merged_versions_list'])
                 else:
                     pmessage.status = 'D'
                     pmessage.code = 200
