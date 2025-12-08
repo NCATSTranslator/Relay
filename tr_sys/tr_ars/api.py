@@ -238,7 +238,7 @@ def trace_message(req, key):
     try:
         mesg = get_object_or_404(Message.objects.filter(pk=key))
         data=mesg.decompress_dict()
-        query_graph=data['message']['query_graph']
+        query_graph = data.get('message', {}).get('query_graph', {}) if data else {}
         channel_names=[]
         for ch in mesg.actor.channel:
             channel_names.append(ch['fields']['name'])

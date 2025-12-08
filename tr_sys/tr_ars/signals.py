@@ -4,10 +4,10 @@ from django.dispatch import receiver
 import sys, logging
 from .models import Actor, Agent, Message, Channel
 from .pubsub import send_messages
-from .utils import get_safe
+from .utils import get_safe, createMessage
 from django.utils import timezone
 logger = logging.getLogger(__name__)
-from .api import query_event_unsubscribe
+from .api import query_event_unsubscribe,get_ars_actor
 
 @receiver(post_save, sender=Actor)
 def actor_post_save(sender, instance, **kwargs):
@@ -23,6 +23,9 @@ def actor_post_save(sender, instance, **kwargs):
 
 @receiver(post_save, sender=Message)
 def message_post_save(sender, instance, **kwargs):
+    # --- Prevent recursion / internal saves ---
+    if getattr(instance, "_skip_post_save", False):
+        return
     message = instance
     if message.status == 'R':
         message.code = 202
@@ -64,19 +67,47 @@ def message_post_save(sender, instance, **kwargs):
                     else:
                         orig_count += 1
                 if child.status == 'E' and child.actor.agent.name == 'ars-ars-agent':
-                    logger.info('+++ a merged message Errored out, removing its count from orig_count pk: %s & psrent_pk: %s'% (str(child.pk),str(pmessage.id)))
-                    orig_count -= 1
+                    if child.code == 444:
+                        merge_count += 1
+                    else:
+                        logger.info('+++ a merged message Errored out, removing its count from orig_count pk: %s & parent_pk: %s'% (str(child.pk),str(pmessage.id)))
+                        orig_count -= 1
             logger.info('+++ so far parent_pk: %s merge_count: %s & orig_count: %s '% (str(pmessage),merge_count,orig_count))
             if finished and merge_count == orig_count:
                 logger.info('+++ Parent message Done for: %s \n Attempting save' % (str(pmessage.id)))
                 logger.info('Children count is: %s.' % (str(len(children))))
                 logger.info('Merge count is:  %s' % (str(merge_count)))
                 logger.info('Original count is: %s.' % (str(orig_count)))
-                pmessage.status = 'D'
-                pmessage.code = 200
-                pmessage.updated_at = timezone.now()
-                pmessage.save(update_fields=['status','code','updated_at'])
-                query_event_unsubscribe(None, pmessage.pk)
+                #create an empty merged message
+                if merge_count==0 and orig_count==0:
+                    empty_merged_mesg= createMessage(get_ars_actor(),str(pmessage.pk))
+                    empty_data = pmessage.decompress_dict()
+                    empty_data['message']['results']=[]
+                    empty_data['message']['auxiliary_graphs']={}
+                    empty_data['message']['knowledge_graph']={}
+                    empty_data['message']['knowledge_graph']['nodes']= {}
+                    empty_data['message']['knowledge_graph']['edges']={}
+
+                    empty_merged_mesg._skip_post_save = True
+                    empty_merged_mesg.save_compressed_dict(empty_data)
+
+                    empty_merged_mesg.code=200
+                    empty_merged_mesg.status='D'
+                    empty_merged_mesg._skip_post_save = True
+                    empty_merged_mesg.save()
+                    pmessage.merged_version=empty_merged_mesg
+                    pmessage.merged_versions_list=[(str(empty_merged_mesg.id), "ars")]
+                    pmessage.status = 'D'
+                    pmessage.code = 200
+                    pmessage.updated_at = timezone.now()
+                    pmessage._skip_post_save = True
+                    pmessage.save(update_fields=['status','code','updated_at', 'merged_version', 'merged_versions_list'])
+                else:
+                    pmessage.status = 'D'
+                    pmessage.code = 200
+                    pmessage.updated_at = timezone.now()
+                    pmessage.save(update_fields=['status','code','updated_at'])
+                    query_event_unsubscribe(None, pmessage.pk)
             elif pmessage.status == 'E':
                 query_event_unsubscribe(None, pmessage.pk)
             else:

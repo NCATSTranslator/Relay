@@ -192,6 +192,9 @@ def send_message(actor_dict, mesg_dict, timeout=300):
                 logger.debug('+++ message saved: %s' % (mesg.pk))
         #This exception is meant to handle unexpected errors in the ORIGINAL return from the ARA
         except Exception as e:
+            traceback.print_exc()
+            exc_type, exc_value, exc_traceback = sys.exc_info()
+            print("Error at line:", exc_traceback.tb_lineno)
             logger.error("Unexpected error 2: {}".format(traceback.format_exception(type(e), e, e.__traceback__)))
             logger.exception("Can't send message to actor %s\n%s for pk: %s"
                              % (url,sys.exc_info(),mesg.pk))
