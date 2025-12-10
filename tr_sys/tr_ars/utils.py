@@ -248,6 +248,8 @@ class TranslatorMessage():
         self.__kg=kg
     def setResults(self,results):
         self.__results=results
+    def setAuxGraphs(self, aux_graphs):
+        self.__ag=aux_graphs
     def setSharedResults(self,sharedResults):
         self.__sharedResults=sharedResults
     def to_dict(self):
@@ -330,7 +332,7 @@ def mergeMessagesRecursive(mergedMessage,messageList,pk):
         logging.info(f'Merging aux graphs for {pk}')
         currentAux = currentMessage.getAuxiliaryGraphs()
         mergedAux=mergedMessage.getAuxiliaryGraphs()
-        mergeDicts(currentAux,mergedAux)
+        mergedAux=mergeDicts(currentAux,mergedAux)
         logging.info(f'Merging aux graphs complete for {pk}')
         logging.info(f'Merging: creating and converting for {pk}')
 
@@ -338,6 +340,7 @@ def mergeMessagesRecursive(mergedMessage,messageList,pk):
         newResults= Results(list(values))
         mergedMessage.setResults(newResults)
         mergedMessage.setKnowledgeGraph(KnowledgeGraph(mergedKnowledgeGraph))
+        mergedMessage.setAuxGraphs(mergedAux)
         logging.info(f'Merging: creating and converting complete for {pk}')
 
         return mergeMessagesRecursive(mergedMessage,messageList,pk)
@@ -349,6 +352,8 @@ def mergeDicts(dcurrent,dmerged):
     if dmerged is None:
         dmerged ={}
     for key in dcurrent.keys():
+        if key == '10a05aeaed69':
+            logging.info("found it")
         cv=dcurrent[key]
         if key in dmerged.keys():
             mv=dmerged[key]
@@ -426,14 +431,14 @@ def mergeDicts(dcurrent,dmerged):
                         cmap={}
                         mmap={}
                         for cd in cv:
-                            if "id" in cd.keys():
-                                cmap[cd["id"]]=cd
+                            if "resource_id" in cd.keys():
+                                cmap[cd["resource_id"]]=cd
                             else:
                                 #logging.debug("list item lacking id? "+str(cd))
                                 pass
                         for md in mv:
-                            if "id" in md.keys():
-                                mmap[md["id"]]=md
+                            if "resource_id" in md.keys():
+                                mmap[md["resource_id"]]=md
                             else:
                                 #logging.debug("list item lacking id? "+str(cd))
                                 pass
@@ -481,7 +486,7 @@ def mergeDicts(dcurrent,dmerged):
                 except Exception as e:
                     print(e)
         else:
-            #print("adding new")
+            logging.info(f"ADDING NEW: {key} to DMERGED")
             dmerged[key]=cv
         #print("value is now "+str(dmerged[key]))
     return dmerged
