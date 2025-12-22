@@ -352,8 +352,6 @@ def mergeDicts(dcurrent,dmerged):
     if dmerged is None:
         dmerged ={}
     for key in dcurrent.keys():
-        if key == '10a05aeaed69':
-            logging.info("found it")
         cv=dcurrent[key]
         if key in dmerged.keys():
             mv=dmerged[key]
