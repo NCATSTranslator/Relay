@@ -4,6 +4,7 @@ from django.core import serializers
 from django.shortcuts import redirect, get_object_or_404
 from django.urls import path, re_path, include, reverse
 from django.utils import timezone
+from pika.spec import NOT_FOUND
 from tr_ars import utils
 from tr_ars import tasks
 from utils2 import urlRemoteFromInforesid
@@ -1195,6 +1196,7 @@ def query_event_unsubscribe(req=None, key=None):
                     return HttpResponse(json.dumps(response), status=status)
 
             except Exception as e:
+                response={}
                 logger.error("Unexpected error at unsubscribe endpoint: {}".format(traceback.format_exception(type(e), e, e.__traceback__)))
                 logger.error(str(e.with_traceback()))
                 response['message']=str(e.with_traceback())
@@ -1220,6 +1222,63 @@ def query_event_unsubscribe(req=None, key=None):
                 mesg.clients.remove(subscriber_client)
         except Exception as e:
             logger.error("Error during auto-unsubscribing pk %s" % key)
+
+@csrf_exempt
+def get_status(req=None, key=None):
+    status_map={
+        'D': 'Done',
+        'S': 'Stopped',
+        'R': 'Running',
+        'E': 'Error',
+        'W': 'Waiting',
+        'U': 'Unknown'
+    }
+    response={}
+    if req is not None:
+        if req.method=='POST':
+            try:
+                body = json.loads(req.body)
+                pks = body["pks"]
+                # Make dict keys strings so lookup matches JSON pk strings
+                QuerySet_tuple = Message.objects.filter(pk__in=pks).values_list("pk", "status","merged_versions_list", 'params')
+                resultMap = { str(pk): (status, merged, params) for pk, status, merged, params in QuerySet_tuple }
+                response = []
+                for pk in pks:
+                    key =str(pk)
+                    if key in resultMap:
+                        status, merged, params = resultMap[key]
+                        response.append({'pk':key,
+                                         'status':status_map[status],
+                                         'merged_list':merged,
+                                         'stats': params['stats'] if 'stats' in params else None})
+                    else:
+                        response.append({'pk':key,
+                                         'status':None,
+                                         'merged_list':None,
+                                         'stats':None}
+                                        )
+                return JsonResponse(response,safe=False, status=200)
+
+            except Exception as e:
+                logger.error("Unexpected error at get notification status endpoint: {}".format(traceback.format_exception(type(e), e, e.__traceback__)))
+                response['message']=str(e.with_traceback())
+                response['timestamp']= timezone.now().isoformat()
+                return JsonResponse("messages", status =405)
+
+        else:
+            return HttpResponse('Only POST is permitted!', status=405)
+    else:
+        try:
+            logging.info("getting the status for the message %s"% key)
+            mesg = get_object_or_404(Message, pk=key)
+            response['status']=mesg.status
+            return JsonResponse(response, status=200)
+        except Exception as e:
+            logger.error(f"Message with ID {key} does not exist")
+            response['message']=str(e.with_traceback())
+            response['timestamp']= timezone.now().isoformat()
+            return JsonResponse(response, status =405)
+
 @csrf_exempt
 def health(req):
     if req.method == 'GET':
@@ -1268,8 +1327,8 @@ apipatterns = [
     re_path(r'^query_event_subscribe/?$', query_event_subscribe, name='ars-subscribe'),
     re_path(r'^query_event_unsubscribe/?$', query_event_unsubscribe, name='ars-unsubscribe'),
     path('post_process/<uuid:key>', post_process, name='ars-post_process_debug'),
-    re_path(r'^health/?$', health, name='ars-health')
-
+    re_path(r'^health/?$', health, name='ars-health'),
+    re_path(r'^get_status/?$', get_status, name='ars-status')
 ]
 
 urlpatterns = [

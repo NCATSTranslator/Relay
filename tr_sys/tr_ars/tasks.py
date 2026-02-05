@@ -13,9 +13,9 @@ import traceback
 from django.utils import timezone
 from django.shortcuts import get_object_or_404
 from opentelemetry import trace
-from opentelemetry.propagate import inject
 # Ensure that the tracing context is properly propagated within tasks
 from opentelemetry.context import attach, detach, set_value, get_current
+from requests.exceptions import RequestException, Timeout
 import time as sleeptime
 from .api import decrypt_secret
 import hmac
@@ -296,8 +296,38 @@ def catch_timeout_async():
                 logging.info(f'NOT TIMING OUT for pk: {str(id)}')
                 logging.info(f'{query_type} : max_time_pathfinder: {max_time_pathfinder} -- timestamp: {timestamp}')
 
-@shared_task(name="notify_subscribers")
-def notify_subscribers_task(pk, status_code, additional_notification_fields=None, count=0):
+@shared_task(name="notify-one-client",
+             bind=True,
+             autoretry_for=(Timeout, RequestException),
+             retry_backoff=True,          # exponential backoff
+             retry_backoff_max=300,       # cap backoff
+             retry_jitter=True,           # avoid thundering herd
+             retry_kwargs={"max_retries": 8})
+def notify_one_client_task(self, client_pk, notification):
+
+    from .models import Client
+    client = Client.objects.get(pk=client_pk)
+    callback = client.callback_url
+    encrpyted_secret = client.client_secret
+    encoded_master_key = os.getenv("AES_MASTER_KEY")
+    if not encoded_master_key:
+        raise RuntimeError("AES_MASTER_KEY is not set")
+    master_key= base64.b64decode(encoded_master_key)
+    client_secret = decrypt_secret(encrpyted_secret, master_key)
+    data_json = json.dumps(notification, separators=(',', ':'), sort_keys=True).encode('utf-8') #convert notification to a consistent byte representation
+    digest = hmac.new(client_secret.encode('utf-8'), data_json, hashlib.sha256).hexdigest()
+    headers={
+        "Content-Type": "application/json",
+        "x-event-signature": digest
+    }
+
+    r = requests.post(url=callback, data=data_json, headers=headers, timeout=10)
+    if r.status_code != 200:
+        raise RequestException(f"notify failed: status={r.status_code}, body={r.text[:200]}")
+
+
+@shared_task(name="notify-subscribers")
+def notify_subscribers_task(pk, status_code, additional_notification_fields=None):
     from .models import Message
     try:
         message = get_object_or_404(Message.objects.filter(pk=pk))
@@ -308,32 +338,14 @@ def notify_subscribers_task(pk, status_code, additional_notification_fields=None
         }
         if additional_notification_fields:
             for k, v in additional_notification_fields.items():
+                if k =="event_type" and v == "last_merged_completed":
+                    notification['code'] = 200
                 notification[k] = v
-
-        all_subscribed_clients = message.clients.all()
-        for client in all_subscribed_clients:
-            callback = client.callback_url
-            encrpyted_secret = client.client_secret
-            encoded_master_key = os.getenv("AES_MASTER_KEY")
-            master_key= base64.b64decode(encoded_master_key)
-            client_secret = decrypt_secret(encrpyted_secret, master_key)
-            data_json = json.dumps(notification, separators=(',', ':'), sort_keys=True).encode('utf-8') #convert notification to a consistent byte representation
-            digest = hmac.new(client_secret.encode('utf-8'), data_json, hashlib.sha256).hexdigest()
-            headers={
-                "Content-Type": "application/json",
-                "x-event-signature": digest
-            }
-            try:
-                r = requests.post(url=callback, data=data_json, headers=headers)
-                if r.status_code != 200:
-                    if count <= 10:
-                        count = count + 1
-                        delay = 5 * pow(2, count)
-                        sleeptime.sleep(delay)
-                        notify_subscribers_task.apply_async((message.pk, status_code,additional_notification_fields, count))
-            except Exception as e:
-                logger.info("Unexpected error notifying %s about %s: %s" % (callback, str(message.pk), str(e)))
-
+        logger.info(f"Sending final version of notification: {notification}")
+        # fan out one task per client so one slow/bad callback doesn't block others
+        for client in message.clients.all():
+            logger.info("sending msg to client_id %s" %(client.client_id))
+            notify_one_client_task.apply_async(args=(client.pk, notification), queue="notify")
     except Message.DoesNotExist:
         logger.error(f"Message with ID {pk} does not exist")
 
