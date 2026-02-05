@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('tr_ars', '0007_auto_20230131_1846'),
+        ('tr_ars', '0007_alter_message_result_stat'),
     ]
 
     operations = [
