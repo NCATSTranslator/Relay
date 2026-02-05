@@ -334,7 +334,7 @@ def notify_subscribers_task(pk, status_code, additional_notification_fields=None
         notification = {
             "pk": str(message.pk),
             "timestamp": timezone.now().isoformat(),
-            "code": status_code,
+            "code": status_code
         }
         if additional_notification_fields:
             for k, v in additional_notification_fields.items():

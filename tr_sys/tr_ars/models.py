@@ -253,13 +253,8 @@ class Message(ARSModel):
     def notify_subscribers(self, additional_notification_fields=None):
         from .tasks import notify_subscribers_task
         if self.status == 'D':
-            if self.ref is not None:
-                event_type = "child_message"
-            else:
-                event_type = "admin"
-
             additional_notification_fields = {
-                "event_type": event_type,
+                "event_type": "admin",
                 "complete" : True
             }
         if self.status == 'E':
@@ -268,7 +263,6 @@ class Message(ARSModel):
                 "message":'We had a huge problem',
                 "complete" : True
             }
-        #or we can check for the self.ref being None or not before notification
         #offload to a celery task
         notify_subscribers_task.apply_async((self.pk, self.code, additional_notification_fields))
 
