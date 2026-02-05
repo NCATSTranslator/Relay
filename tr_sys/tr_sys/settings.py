@@ -210,7 +210,6 @@ STATICFILES_DIRS = (
 )
 
 # Celery settings
-
 CELERY_RESULT_BACKEND = 'django-db'
 CELERY_CACHE_BACKEND = 'django-cache'
 CELERY_BROKER_URL = 'amqp://localhost'
@@ -224,3 +223,11 @@ CELERY_TASK_ACKS_LATE = True
 
 USE_CELERY = True
 DEFAULT_HOST = 'http://localhost:8000'
+
+# CELERY_TASK_ROUTES = {
+#     "send-message-to-actor": {"queue": "agent_outbound"},
+#     "notify-subscribers": {"queue": "notify"},
+#     "notify-one-client": {"queue": "notify"},
+#     "merge-and-post-process": {"queue": "postprocess"},
+# }
+# CELERY_TASK_DEFAULT_QUEUE = "default"

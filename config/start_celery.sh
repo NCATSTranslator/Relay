@@ -1,5 +1,7 @@
 #!/bin/bash
 
 cd /ars/tr_sys
-celery -A tr_sys beat -l info --detach
+# Start beat with log file
+celery -A tr_sys beat -l info -f /var/log/celerybeat.log &
+# Start worker in foreground
 celery -A tr_sys worker -l info

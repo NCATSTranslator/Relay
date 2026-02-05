@@ -276,6 +276,16 @@ class TranslatorMessage():
     def __json__(self):
         return self.to_dict()
 
+def get_msg_stats(mesg_dict):
+    stats={}
+    for component in mesg_dict['message'].keys():
+        #print(component)
+        if component == "knowledge_graph":
+            for subComp in ["nodes", "edges"]:
+                stats[f'{component}_{subComp}']=len(get_safe(mesg_dict, "message", f'{component}',f'{subComp}'))
+        else:
+            stats[component]=len(get_safe(mesg_dict, "message", f"{component}"))
+    return stats
 def mergeMessages(messageList,pk):
     messageListCopy = copy.deepcopy(messageList)
     message = messageListCopy.pop()
@@ -656,10 +666,10 @@ def lock_merge(message):
         message.save()
         return False
 
-@shared_task(name="merge_and_post_process")
+@shared_task(name="merge-and-post-process")
 def merge_and_post_process(parent_pk,message_to_merge, agent_name, counter=0):
     merged=None
-
+    stats={}
     logging.info(f"Starting merge for %s with parent PK: %s"% (agent_name,parent_pk))
 
     logging.info(f"Before atomic transaction for %s with parent PK: %s"% (agent_name,parent_pk))
@@ -675,7 +685,7 @@ def merge_and_post_process(parent_pk,message_to_merge, agent_name, counter=0):
         try:
 
             logging.info(f"Before merging for %s with parent PK: %s"% (agent_name,parent_pk))
-            merged, parent = merge_received(parent,message_to_merge, agent_name)
+            merged, parent, stats = merge_received(parent,message_to_merge, agent_name)
             logging.info(f"After merging for %s with parent PK: %s"% (agent_name,parent_pk))
             parent.save()
             notification={
@@ -712,10 +722,10 @@ def merge_and_post_process(parent_pk,message_to_merge, agent_name, counter=0):
         merged.code = code
         merged.save()
 
-
-
         notification["event_type"]="merged_version_available"
         notification["merged_version"]=str(merged.pk)
+        notification['stats']=stats
+        logging.info(f"✅✅✅NOTIFICATION: {notification}✅✅✅")
         parent.notify_subscribers(notification)
 
 def remove_blocked(mesg, data, blocklist=None):
@@ -1453,7 +1463,7 @@ def createMessage(actor,parent_pk):
 
 
 @app.task(name="merge_received")
-def merge_received(parent,message_to_merge, agent_name, counter=0):
+def merge_received(parent,message_to_merge, agent_name):
     current_merged_pk=parent.merged_version_id
     logging.info("Beginning merge for agent %s with current_pk: %s" %(agent_name,str(current_merged_pk)))
     t_to_merge_message=TranslatorMessage(message_to_merge)
@@ -1483,6 +1493,8 @@ def merge_received(parent,message_to_merge, agent_name, counter=0):
 
         merged_dict = merged.to_dict()
         logging.info('the keys for merged_dict are %s' % merged_dict['message'].keys())
+        stats = get_msg_stats(merged_dict)
+        logging.info(f'the return stat is {stats}')
         new_merged_message.save_compressed_dict(merged_dict)
         # new_merged_message.data = merged_dict
         new_merged_message.status='R'
@@ -1500,9 +1512,14 @@ def merge_received(parent,message_to_merge, agent_name, counter=0):
             parent.merged_versions_list=[pk_infores_merge]
         else:
             parent.merged_versions_list.append(pk_infores_merge)
+        parameter = parent.params
+        if parameter is None:
+            parameter={}
+        parameter['stats']=stats
+        parent.params=parameter
         parent.save()
         logging.info("returning new_merged_message to be post processed with pk: %s" % str(new_merged_message.pk))
-        return new_merged_message, parent
+        return new_merged_message, parent, stats
     except Exception as e:
         logging.exception("problem with merging for %s :" % agent_name)
         #If anything goes wrong, we at least need to unlock the semaphore
