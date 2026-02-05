@@ -130,6 +130,7 @@ DATABASES = {
         'PASSWORD': '',
         'HOST': 'localhost',   # Or an IP Address that your DB is hosted on
         'PORT': '3306',
+        'CONN_MAX_AGE': 60
     }
 }
 DJANGO_LOG_LEVEL = 'DEBUG'
@@ -227,4 +228,14 @@ CELERY_TASK_ALWAYS_EAGER=False
 CELERY_TASK_ACKS_LATE = True
 
 USE_CELERY = True
-DEFAULT_HOST = 'http://localhost:8000'
+DEFAULT_HOST = 'https://ars-dev.transltr.io'
+
+CELERY_TASK_ROUTES = {
+    "send-message-to-actor": {"queue": "agent_outbound"},
+    "notify-subscribers": {"queue": "notify"},
+    "notify-one-client": {"queue": "notify"},
+    "merge-and-post-process": {"queue": "postprocess"},
+}
+
+CELERY_TASK_DEFAULT_QUEUE = "default"
+

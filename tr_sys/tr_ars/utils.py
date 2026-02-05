@@ -248,6 +248,8 @@ class TranslatorMessage():
         self.__kg=kg
     def setResults(self,results):
         self.__results=results
+    def setAuxGraphs(self, aux_graphs):
+        self.__ag=aux_graphs
     def setSharedResults(self,sharedResults):
         self.__sharedResults=sharedResults
     def to_dict(self):
@@ -273,6 +275,17 @@ class TranslatorMessage():
         return {"message":d} #need to wrap all this in "message:"
     def __json__(self):
         return self.to_dict()
+
+def get_msg_stats(mesg_dict):
+    stats={}
+    for component in mesg_dict['message'].keys():
+        #print(component)
+        if component == "knowledge_graph":
+            for subComp in ["nodes", "edges"]:
+                stats[f'{component}_{subComp}']=len(get_safe(mesg_dict, "message", f'{component}',f'{subComp}'))
+        else:
+            stats[component]=len(get_safe(mesg_dict, "message", f"{component}"))
+    return stats
 
 def mergeMessages(messageList,pk):
     messageListCopy = copy.deepcopy(messageList)
@@ -330,7 +343,7 @@ def mergeMessagesRecursive(mergedMessage,messageList,pk):
         logging.info(f'Merging aux graphs for {pk}')
         currentAux = currentMessage.getAuxiliaryGraphs()
         mergedAux=mergedMessage.getAuxiliaryGraphs()
-        mergeDicts(currentAux,mergedAux)
+        mergedAux=mergeDicts(currentAux,mergedAux)
         logging.info(f'Merging aux graphs complete for {pk}')
         logging.info(f'Merging: creating and converting for {pk}')
 
@@ -338,6 +351,7 @@ def mergeMessagesRecursive(mergedMessage,messageList,pk):
         newResults= Results(list(values))
         mergedMessage.setResults(newResults)
         mergedMessage.setKnowledgeGraph(KnowledgeGraph(mergedKnowledgeGraph))
+        mergedMessage.setAuxGraphs(mergedAux)
         logging.info(f'Merging: creating and converting complete for {pk}')
 
         return mergeMessagesRecursive(mergedMessage,messageList,pk)
@@ -426,14 +440,14 @@ def mergeDicts(dcurrent,dmerged):
                         cmap={}
                         mmap={}
                         for cd in cv:
-                            if "id" in cd.keys():
-                                cmap[cd["id"]]=cd
+                            if "resource_id" in cd.keys():
+                                cmap[cd["resource_id"]]=cd
                             else:
                                 #logging.debug("list item lacking id? "+str(cd))
                                 pass
                         for md in mv:
-                            if "id" in md.keys():
-                                mmap[md["id"]]=md
+                            if "resource_id" in md.keys():
+                                mmap[md["resource_id"]]=md
                             else:
                                 #logging.debug("list item lacking id? "+str(cd))
                                 pass
@@ -653,10 +667,10 @@ def lock_merge(message):
         message.save()
         return False
 
-@shared_task(name="merge_and_post_process")
+@shared_task(name="merge-and-post-process")
 def merge_and_post_process(parent_pk,message_to_merge, agent_name, counter=0):
     merged=None
-
+    stats={}
     logging.info(f"Starting merge for %s with parent PK: %s"% (agent_name,parent_pk))
 
     logging.info(f"Before atomic transaction for %s with parent PK: %s"% (agent_name,parent_pk))
@@ -672,13 +686,12 @@ def merge_and_post_process(parent_pk,message_to_merge, agent_name, counter=0):
         try:
 
             logging.info(f"Before merging for %s with parent PK: %s"% (agent_name,parent_pk))
-            merged, parent = merge_received(parent,message_to_merge, agent_name)
+            merged, parent, stats = merge_received(parent,message_to_merge, agent_name)
             logging.info(f"After merging for %s with parent PK: %s"% (agent_name,parent_pk))
             parent.save()
             notification={
                 "event_type":"merged_version_begun",
                 "complete":False,
-                "merged_version":None,
                 "merged_versions_list":parent.merged_versions_list if parent.merged_versions_list is not None else []
             }
             parent.notify_subscribers(notification)
@@ -713,7 +726,9 @@ def merge_and_post_process(parent_pk,message_to_merge, agent_name, counter=0):
 
         notification["event_type"]="merged_version_available"
         notification["merged_version"]=str(merged.pk)
+        notification['stats']=stats
         parent.notify_subscribers(notification)
+    
 
 def remove_blocked(mesg, data, blocklist=None):
     try:
@@ -941,6 +956,9 @@ def scrub_null_attributes(data):
 def appraise(mesg, data, agent_name, compress = True):
     CopyForMax = copy.deepcopy(data)
     CopyForMax['pk']=str(mesg.id)
+    #json_data = json.dumps(CopyForMax, default=str)
+    #with open(agent_name+"_before_appraiser.json", "w") as outfile:
+    #    outfile.write(json_data)
     if compress:
         headers = {'Accept-Encoding': 'zstd','Content-Encoding': 'zstd'}
         json_data = json.dumps(CopyForMax, default=str)
@@ -949,7 +967,7 @@ def appraise(mesg, data, agent_name, compress = True):
     else:
         headers = {'Content-type': 'application/json', 'Accept': 'text/plain'}
         data_payload = json.dumps(CopyForMax)
-
+    
     logging.info('sending data for agent: %s to APPRAISER URL: %s' % (agent_name, APPRAISER_URL))
     with tracer.start_as_current_span("get_appraisal") as span:
         try:
@@ -1453,6 +1471,9 @@ def createMessage(actor,parent_pk):
 def merge_received(parent,message_to_merge, agent_name, counter=0):
     current_merged_pk=parent.merged_version_id
     logging.info("Beginning merge for agent %s with current_pk: %s" %(agent_name,str(current_merged_pk)))
+    # since Arax is returning a modified query graph we want to make sure if the first agent getting merged is Arax graph the parent querygraph
+    parent_data = parent.decompress_dict()
+    message_to_merge['query_graph']=parent_data['message']['query_graph']
     t_to_merge_message=TranslatorMessage(message_to_merge)
     new_merged_message = createMessage(get_ars_actor(),str(parent.pk))
     logging.info("the merged_pk for agent %s is %s" % (agent_name, str(new_merged_message.pk)))
@@ -1480,6 +1501,7 @@ def merge_received(parent,message_to_merge, agent_name, counter=0):
 
         merged_dict = merged.to_dict()
         logging.info('the keys for merged_dict are %s' % merged_dict['message'].keys())
+        stats = get_msg_stats(merged_dict)
         new_merged_message.save_compressed_dict(merged_dict)
         # new_merged_message.data = merged_dict
         new_merged_message.status='R'
@@ -1497,9 +1519,17 @@ def merge_received(parent,message_to_merge, agent_name, counter=0):
             parent.merged_versions_list=[pk_infores_merge]
         else:
             parent.merged_versions_list.append(pk_infores_merge)
+        #update the parent params with the stat
+        parameter = parent.params
+        logging.info("TYPE OF PARAMETER IS %s"%type(parameter))
+        logging.info("keys: %s values: %s"%(parameter.keys(), parameter.values()))
+        if parameter is None:
+            parameter={}
+        parameter['stats']=stats
+        parent.params=parameter
         parent.save()
         logging.info("returning new_merged_message to be post processed with pk: %s" % str(new_merged_message.pk))
-        return new_merged_message, parent
+        return new_merged_message, parent, stats
     except Exception as e:
         logging.exception("problem with merging for %s :" % agent_name)
         #If anything goes wrong, we at least need to unlock the semaphore

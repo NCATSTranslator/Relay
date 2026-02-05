@@ -126,7 +126,7 @@ class Message(ARSModel):
             self.original_data = {}  # Clear original data to avoid redundancy
 
         super().save(*args, **kwargs)
-        if self.should_notify():
+        if self.should_notify() and self.ref is None:
             self.notify_subscribers()
 
     def save_compressed_dict(self, data):
@@ -251,6 +251,7 @@ class Message(ARSModel):
         return jsonobj
 
     def notify_subscribers(self, additional_notification_fields=None):
+        logger.info("⚠️ ⚠️ ⚠️ ⚠️ notify subscribers⚠️ ⚠️ ⚠️ ")
         from .tasks import notify_subscribers_task
         if self.status == 'D':
             additional_notification_fields = {

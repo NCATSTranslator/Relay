@@ -497,8 +497,8 @@ def message(req, key):
             with tracer.start_as_current_span('message') as span:
                 span.set_attribute("pk", str(key))
                 try:
-                    logger.info(f"⚠️ ⚠️ ⚠️ ⚠️ ⚠️ Raw body: {req.body!r}")
-                    logger.info(f"⚠️ ⚠️ ⚠️ ⚠️ ⚠️ Content-Type: {req.content_type}")
+                    #logger.info(f"⚠️ ⚠️ ⚠️ ⚠️ ⚠️ Raw body: {req.body!r}")
+                    #logger.info(f"⚠️ ⚠️ ⚠️ ⚠️ ⚠️ Content-Type: {req.content_type}")
                     data = json.loads(req.body)
                     #if 'query_graph' not in data or 'knowledge_graph' not in data or 'results' not in data:
                     #    return HttpResponse('Not a valid Translator API json', status=400)
@@ -508,6 +508,11 @@ def message(req, key):
                     if 'tr_ars.message.status' in req.headers:
                         status = req.headers['tr_ars.message.status']
                     res=utils.get_safe(data,"message","results")
+                    if res is not None:
+                        res_length=len(res)
+                    else:
+                        res_length=None
+
                     kg = utils.get_safe(data,"message", "knowledge_graph")
                     actor = Actor.objects.get(pk=mesg.actor_id)
                     inforesid =actor.inforesid
@@ -518,17 +523,17 @@ def message(req, key):
                         "ara_name":actor.inforesid,
                         "child_uuid":str(mesg.pk),
                         "ara_response_status": status,
-                        "ara_n_results":len(res)
+                        "ara_n_results":res_length
                     }
                     parent.notify_subscribers(notification)
                     span.set_attribute("agent", inforesid)
-                    logging.info('received msg from agent: %s with parent pk: %s and result: %s' % (str(inforesid), str(mesg.ref_id),str(len(res))))
+                    logging.info('received msg from agent: %s with parent pk: %s' % (str(inforesid), str(mesg.ref_id)))
                     if mesg.status=='D':
-                        return HttpResponse('ARS has already received %s results from pk: %s' % (str(len(res)), str(key)))
+                        return HttpResponse('ARS has already received %s results from pk: %s' % (str(res_length), str(key)))
                     if mesg.result_count is not None and mesg.result_count >0:
                         return HttpResponse('ARS already has a response with: %s results for pk %s \nWe are temporarily '
                                            'disallowing subsequent updates to PKs which already have results\n'
-                                           % (str(len(res)), str(key)),status=409)
+                                           % (str(res_length), str(key)),status=409)
 
                     if mesg.status=='E':
                         return HttpResponse("Response received but Message is already in state "+str(mesg.code)+". Response rejected\n",status=400)
@@ -580,7 +585,7 @@ def message(req, key):
                     mesg.status = status
                     mesg.code = code
                     mesg.save_compressed_dict(data)
-                    if len(res) == 0 and res is not None:
+                    if res is not None and len(res) == 0:
                         mesg.result_count = 0
                     mesg.save()
 
@@ -1200,6 +1205,7 @@ def query_event_unsubscribe(req=None, key=None):
                     return HttpResponse(json.dumps(response), status=status)
 
             except Exception as e:
+                response={}
                 logger.error("Unexpected error at unsubscribe endpoint: {}".format(traceback.format_exception(type(e), e, e.__traceback__)))
                 logger.error(str(e.with_traceback()))
                 response['message']=str(e.with_traceback())
@@ -1225,6 +1231,64 @@ def query_event_unsubscribe(req=None, key=None):
                 mesg.clients.remove(subscriber_client)
         except Exception as e:
             logger.error("Error during auto-unsubscribing pk %s" % key)
+
+@csrf_exempt
+def get_status(req=None, key=None):
+    status_map={
+        'D': 'Done',
+        'S': 'Stopped',
+        'R': 'Running',
+        'E': 'Error',
+        'W': 'Waiting',
+        'U': 'Unknown'
+    }
+    response={}
+    if req is not None:
+        if req.method=='POST':
+            try:
+                body = json.loads(req.body)
+                pks = body["pks"]
+
+                QuerySet_tuple = Message.objects.filter(pk__in=pks).values_list("pk", "status","merged_versions_list","params")
+                resultMap = {str(pk): (status, merged, params) for pk, status, merged, params in QuerySet_tuple }
+                logging.info("RESULTMAP:%s" %resultMap)
+                response = []
+                for pk in pks:
+                    key =str(pk)
+                    if key in resultMap:
+                        status, merged, params = resultMap[key]
+                        response.append({'pk':key,
+                                         'status':status_map[status],
+                                         'merged_list':merged,
+                                         'stats':params['stats']})
+                    else:
+                        response.append({'pk':key,
+                                         'status':None,
+                                         'merged_list':None,
+                                         'stats':None}
+                                        )
+                return JsonResponse(response,safe=False, status=200)
+
+            except Exception as e:
+                logger.error("Unexpected error at get notification status endpoint: {}".format(traceback.format_exception(type(e), e, e.__traceback__)))
+                response['message']=str(e.with_traceback())
+                response['timestamp']= timezone.now().isoformat()
+                return JsonResponse(response, status =405)
+
+        else:
+            return HttpResponse('Only POST is permitted!', status=405)
+    else:
+        try:
+            logging.info("getting the status for the message %s"% key)
+            mesg = get_object_or_404(Message, pk=key)
+            response['status']=mesg.status
+            return JsonResponse(response, status=200)
+        except Exception as e:
+            logger.error(f"Message with ID {key} does not exist")
+            response['message']=str(e.with_traceback())
+            response['timestamp']= timezone.now().isoformat()
+            return JsonResponse(response, status =405)
+
 @csrf_exempt
 def health(req):
     if req.method == 'GET':
@@ -1273,8 +1337,8 @@ apipatterns = [
     re_path(r'^query_event_subscribe/?$', query_event_subscribe, name='ars-subscribe'),
     re_path(r'^query_event_unsubscribe/?$', query_event_unsubscribe, name='ars-unsubscribe'),
     path('post_process/<uuid:key>', post_process, name='ars-post_process_debug'),
-    re_path(r'^health/?$', health, name='ars-health')
-
+    re_path(r'^health/?$', health, name='ars-health'),
+    re_path(r'^get_status/?$', get_status, name='ars-status')
 ]
 
 urlpatterns = [
