@@ -1570,23 +1570,26 @@ def validate(response):
         return False
 
 def remove_phantom_support_graphs(response):
-    edges = response["message"]["knowledge_graph"]["edges"]
-    aux_graphs=response["message"]["auxiliary_graphs"]
-    for edge_i, edge in edges.items():
-        if "attributes" in edge.keys() and edge["attributes"] is not None:
-            attributes = edge["attributes"]
-            removal_list=[]
-            for attribute in attributes:
-                if attribute["attribute_type_id"] == "biolink:support_graphs":
-                    for value in attribute["value"]:
-                        if value not in aux_graphs:
-                            logging.debug("Support graph referenced but not in auxiliary_graphs")
-                            logging.debug(value)
-                            if attribute not in removal_list:
-                                removal_list.append(attribute)
-            for bad in removal_list:
-                if bad in attributes:
-                    attributes.remove(bad)
-                else:
-                    logging.debug(bad+" not found in attributes")
+    edges=get_safe(response,'message','knowledge_graph','edges')
+    aux_graphs=get_safe(response,'message','auxiliary_graphs')
+    if edges is not None and aux_graphs is not None:
+        for edge_i, edge in edges.items():
+            if "attributes" in edge.keys() and edge["attributes"] is not None:
+                attributes = edge["attributes"]
+                removal_list=[]
+                for attribute in attributes:
+                    if attribute["attribute_type_id"] == "biolink:support_graphs":
+                        for value in attribute["value"]:
+                            if value not in aux_graphs:
+                                logging.debug("Support graph referenced but not in auxiliary_graphs")
+                                logging.debug(value)
+                                if attribute not in removal_list:
+                                    removal_list.append(attribute)
+                for bad in removal_list:
+                    if bad in attributes:
+                        attributes.remove(bad)
+                    else:
+                        logging.debug(bad+" not found in attributes")
 
+    else:
+        logging.debug("Response lacking edges and/or auxiliary_graphs.  No phantom support graphs to remove.")
