@@ -126,7 +126,7 @@ class Message(ARSModel):
             self.original_data = {}  # Clear original data to avoid redundancy
 
         super().save(*args, **kwargs)
-        if self.should_notify():
+        if self.should_notify() and self.ref is None:
             self.notify_subscribers()
 
     def save_compressed_dict(self, data):
