@@ -24,15 +24,11 @@ apipatterns = [
     re_path(r'^query_event_subscribe/?$', api.query_event_subscribe, name='ars-subscribe'),
     re_path(r'^query_event_unsubscribe/?$', api.query_event_unsubscribe, name='ars-unsubscribe'),
     path('post_process/<uuid:key>', api.post_process, name='ars-post_process_debug'),
-    re_path(r'^health/?$', api.health, name='ars-health')
+    re_path(r'^health/?$', api.health, name='ars-health'),
+    re_path(r'^get_status/?$', api.get_status, name='ars-status')
 ]
-
-
 
 urlpatterns = [
     path(r'', api.api_redirect, name='ars-base'),
-    path(r'app/', views.app_home, name='ars-app-home'),
-    path(r'app/status', views.status, name='ars-app-status'),
     path(r'api/', include(apipatterns)),
-    path(r'answer/<uuid:key>', views.answer, name='ars-answer'),
 ]

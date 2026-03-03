@@ -4,7 +4,7 @@ from django.dispatch import receiver
 import sys, logging
 from .models import Actor, Agent, Message, Channel
 from .pubsub import send_messages
-from .utils import get_safe, createMessage
+from .utils import createMessage
 from django.utils import timezone
 logger = logging.getLogger(__name__)
 from .api import query_event_unsubscribe,get_ars_actor
@@ -61,12 +61,12 @@ def message_post_save(sender, instance, **kwargs):
                     finished = False
                     logger.info('+++ Parent message %s not Done because of child: %s in state %s' % (str(pmessage.id),str(child.id),str(child.status)))
 
-                if child.status == 'D' and child.actor.agent.name.startswith('ar') and (child.result_count is not None and child.result_count > 0):
+                elif child.status == 'D' and child.actor.agent.name.startswith('ar') and (child.result_count is not None and child.result_count > 0):
                     if child.actor.agent.name == 'ars-ars-agent':
                         merge_count += 1
                     else:
                         orig_count += 1
-                if child.status == 'E' and child.actor.agent.name == 'ars-ars-agent':
+                elif child.status == 'E' and child.actor.agent.name == 'ars-ars-agent':
                     if child.code == 444:
                         merge_count += 1
                     else:
@@ -103,6 +103,15 @@ def message_post_save(sender, instance, **kwargs):
                     pmessage._skip_post_save = True
                     pmessage.save(update_fields=['status','code','updated_at', 'merged_version', 'merged_versions_list'])
                 else:
+                    #adding one last notification about last merge being done
+                    logger.info('+++ merged_versions : %s' % (pmessage.merged_version))
+                    logger.info('+++ merged_versions_list : %s' % (pmessage.merged_versions_list))
+                    notification={
+                        "event_type":"last_merged_completed",
+                        "complete":True,
+                        "merged_versions_list":pmessage.merged_versions_list if pmessage.merged_versions_list is not None else []
+                    }
+                    pmessage.notify_subscribers(notification)
                     pmessage.status = 'D'
                     pmessage.code = 200
                     pmessage.updated_at = timezone.now()

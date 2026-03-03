@@ -49,5 +49,7 @@ app.conf.update(
     task_default_delivery_mode='persistent',
     task_create_missing_queues=True,  # ← This one ensures auto-creation with durability
     worker_prefetch_multiplier=1,     # useful for crash resilience,when you have task with long duration->
+    #task_soft_time_limit=60 * 15,
+    #task_time_limit=60 * 20,
     # reserve one task per worker process at a time (https://docs.celeryq.dev/en/stable/userguide/optimizing.html#prefetch-limits)
 )
