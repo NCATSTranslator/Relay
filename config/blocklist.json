@@ -8648,16 +8648,6 @@
             "biolink:NamedThing"
         ]
     },
-    "MONDO:0011122": {
-        "name": "obesity disorder",
-        "type": [
-            "biolink:Disease",
-            "biolink:DiseaseOrPhenotypicFeature",
-            "biolink:BiologicalEntity",
-            "biolink:ThingWithTaxon",
-            "biolink:NamedThing"
-        ]
-    },
     "MONDO:0029000": {
         "name": "poisoning",
         "type": [
