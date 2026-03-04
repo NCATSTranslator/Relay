@@ -1691,6 +1691,6 @@ def remove_phantom_support_graphs(response):
                         attributes.remove(bad)
                     else:
                         logging.debug(bad+" not found in attributes")
+
     else:
         logging.debug("Response lacking edges and/or auxiliary_graphs.  No phantom support graphs to remove.")
-
