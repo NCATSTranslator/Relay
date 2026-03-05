@@ -20,22 +20,9 @@ celeryworker:
     repository: 853771734544.dkr.ecr.us-east-1.amazonaws.com/translator-ars
     tag: DOCKER_VERSION_VALUE
     PullPolicy: Always
-  env:
-    - name: TR_APPRAISE
-      value: TR_APPRAISE_VALUE
-    - name: REDIS_URL
-      value: "redis://redis:6379/0"
-    - name: ARS_EXPENSIVE_LIMIT
-      value: "6"
-    - name: ARS_EXPENSIVE_LEASE_MS
-      value: "180000"
-    - name: ARS_EXPENSIVE_RENEW_SEC
-      value: "60"
-    - name: ARS_EXPENSIVE_ZKEY
-      value: "ars:expensive_tokens"
-    # optionally export concurrency for entrypoints that read env vars:
-    - name: CELERY_CONCURRENCY
-      value: "10"
+    env:
+      TR_APPRAISE: TR_APPRAISE_VALUE
+
 rabbitmq:
   image:
     repository: 853771734544.dkr.ecr.us-east-1.amazonaws.com/translator-rabbitmq
