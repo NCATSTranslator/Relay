@@ -74,6 +74,19 @@ spec:
               value: {{ .Values.celeryworker.env.TR_ANNOTATOR }}
             - name: AES_MASTER_KEY
               value: {{ .Values.celeryworker.env.AES_MASTER_KEY }}
+            - name: REDIS_URL
+              value: {{ .Values.celeryworker.env.REDIS_URL }}
+            - name: ARS_EXPENSIVE_LIMIT
+              value: {{ .Values.celeryworker.env.ARS_EXPENSIVE_LIMIT }}
+            - name: ARS_EXPENSIVE_LEASE_MS
+              value: {{ .Values.celeryworker.env.ARS_EXPENSIVE_LEASE_MS }}
+            - name: ARS_EXPENSIVE_RENEW_SEC
+              value: {{ .Values.celeryworker.env.ARS_EXPENSIVE_RENEW_SEC }}
+            - name: ARS_EXPENSIVE_ZKEY
+              value: {{ .Values.celeryworker.env.ARS_EXPENSIVE_ZKEY }}
+            - name: CELERY_CONCURRENCY
+              value: {{ .Values.celeryworker.env.CELERY_CONCURRENCY }} 
+
           {{- with .Values.celeryworker.resources }}
           resources:
             {{- toYaml . | nindent 12 }}
