@@ -90,6 +90,7 @@ wrapt==1.17.2
 wsproto==1.2.0
 zipp==3.20.2
 zstandard
+redis
 git+https://github.com/biothings/biothings_annotator#egg=biothings_annotator
 opentelemetry-api
 opentelemetry-sdk
