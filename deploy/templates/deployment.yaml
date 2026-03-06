@@ -67,13 +67,26 @@ spec:
               subPath: settings.py
           env:
             - name: TR_APPRAISE
-              value: {{ .Values.celeryworker.env.TR_APPRAISE }}
+              value: {{ .Values.celeryworker.env.TR_APPRAISE | quote }}
             - name: TR_NORMALIZER
-              value: {{ .Values.celeryworker.env.TR_NORMALIZER }}
+              value: {{ .Values.celeryworker.env.TR_NORMALIZER | quote }}
             - name: TR_ANNOTATOR
-              value: {{ .Values.celeryworker.env.TR_ANNOTATOR }}
+              value: {{ .Values.celeryworker.env.TR_ANNOTATOR | quote }}
             - name: AES_MASTER_KEY
-              value: {{ .Values.celeryworker.env.AES_MASTER_KEY }}
+              value: {{ .Values.celeryworker.env.AES_MASTER_KEY | quote }}
+            - name: REDIS_URL
+              value: {{ .Values.celeryworker.env.REDIS_URL | quote }}
+            - name: ARS_EXPENSIVE_LIMIT
+              value: {{ .Values.celeryworker.env.ARS_EXPENSIVE_LIMIT | quote }}
+            - name: ARS_EXPENSIVE_LEASE_MS
+              value: {{ .Values.celeryworker.env.ARS_EXPENSIVE_LEASE_MS | quote }}
+            - name: ARS_EXPENSIVE_RENEW_SEC
+              value: {{ .Values.celeryworker.env.ARS_EXPENSIVE_RENEW_SEC | quote }}
+            - name: ARS_EXPENSIVE_ZKEY
+              value: {{ .Values.celeryworker.env.ARS_EXPENSIVE_ZKEY | quote }}
+            - name: CELERY_CONCURRENCY
+              value: {{ .Values.celeryworker.env.CELERY_CONCURRENCY | quote }}
+
           {{- with .Values.celeryworker.resources }}
           resources:
             {{- toYaml . | nindent 12 }}

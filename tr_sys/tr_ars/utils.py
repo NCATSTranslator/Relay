@@ -35,9 +35,14 @@ from reasoner_pydantic import (
 from biothings_annotator import annotator
 from pydantic import ValidationError
 from opentelemetry import trace
+
+from tr_sys.celery_gates.expensive_gate import exp_backoff_with_jitter
+
 tracer = trace.get_tracer(__name__)
 import asyncio
 import zstandard as zstd
+from tr_sys.celery_gates.context import (expensive_section)
+from celery.exceptions import Retry
 
 ARS_ACTOR = {
     'channel': [],
@@ -638,7 +643,7 @@ def post_process(mesg,key, agent_name):
                     status='D'
                 mesg.code=code
                 mesg.status=status
-                mesg.save()
+                #mesg.save()
             logging.info("Time after save")
 
         except DatabaseError as e:
@@ -647,76 +652,154 @@ def post_process(mesg,key, agent_name):
             logging.error("Final save failed")
         return mesg, code, status
 
-def lock_merge(message):
-    pass
-    if message.merge_semaphore is True:
-        return True
-    else:
-        message.merge_semaphore=True
-        message.save()
+# def lock_merge(message):
+#     pass
+#     if message.merge_semaphore is True:
+#         return True
+#     else:
+#         message.merge_semaphore=True
+#         message.save()
+#         return False
+def try_lock_merge(message: Message) -> bool:
+    """
+    Attempt to acquire the DB boolean lock (merge_semaphore) for this Message.
+    Return True if lock was acquired by this caller, False if already locked.
+    NOTE: caller must be inside a select_for_update() transaction to avoid races.
+    """
+    # If already locked by someone else -> fail to acquire
+    if message.merge_semaphore:
         return False
+    # Acquire the lock and persist
+    message.merge_semaphore = True
+    message.save(update_fields=["merge_semaphore"])
+    return True
 
-@shared_task(name="merge_and_post_process")
-def merge_and_post_process(parent_pk,message_to_merge, agent_name, counter=0):
+def unlock_merge(message: Message) -> None:
+    """Release the DB boolean lock."""
+    try:
+        message.merge_semaphore = False
+        message.save(update_fields=["merge_semaphore"])
+    except Exception:
+        logging.exception("Failed to release merge_semaphore for message %s", getattr(message, "pk", "<unknown>"))
+        raise
+
+@shared_task(name="merge-and-post-process", bind=True, acks_late=True, max_retries=20)
+def merge_and_post_process(self, parent_pk,message_to_merge, agent_name):
+    """
+    Safe merge & post-process task:
+    - Acquire expensive token (expensive_section) first
+    - Acquire DB boolean lock (inside short select_for_update atomic)
+    - Do merge_received(), post_process() and notifications
+    - Always release DB boolean lock in finally
+    - Use self.request.retries for retry/backoff
+    """
     merged=None
+    stats={}
+    parent = None
+    locked = False
+    logging.info(f"🚀Starting merge for %s with parent PK: %s"% (agent_name,parent_pk))
+    try:
+        #Acquire an expensive token so we don't hold DB locked while waiting
+        with expensive_section(self, limit=6):
+            logging.info("[%s] 🟢 acquired expensive token", self.request.id)
 
-    logging.info(f"Starting merge for %s with parent PK: %s"% (agent_name,parent_pk))
+            # short critical section: lock row + decide if we can merge
+            try:
+                with transaction.atomic():
+                    parent = get_object_or_404(Message.objects.select_for_update().filter(pk=parent_pk))
+                    logging.info("the merge semaphore for agent %s is %s"% (agent_name, parent.merge_semaphore))
+                    #try to acquire DB boolean lock
+                    if not try_lock_merge(parent):
+                        #someone else already locked it & possibly going through merge, retry ...
+                        retries = self.request.retries
+                        if retries < 10:
+                            delay = 5
+                            if retries >= 7:
+                                logging.warning("⚠️ High retry count (%s) for merge lock on parent=%s agent=%s.Retrying in %ss",retries, parent_pk, agent_name, delay)
+                            else:
+                                logging.info(" 🔄 Merged_version locked for %s. Attempt %s. Retrying in %ss",agent_name, retries, delay)
+                            # raise retry — this will release the expensive token (expensive_section finally), stop the task, requeues it and free the worker
+                            raise self.retry(countdown=delay)
+                        else:
+                            logging.info("❌ Merging failed for %s %s after retries", agent_name, parent_pk)
+                            return
+                    else:
+                        logging.info(" the merge semaphore for agent %s is %s"% (agent_name, parent.merge_semaphore))
+                        locked = True
+                    # Perform the merge and persist minimal durable state inside the transaction
+                    logging.info(f"[{self.request.id}] ✅ ENTER expensive section")
+                    logging.info("Before merging for %s with parent PK: %s", agent_name, parent_pk)
+                    #merging
+                    merged, parent, stats = merge_received(parent, message_to_merge, agent_name)
+                    logging.info(f"After merging for %s with parent PK: %s"% (agent_name,parent_pk))
+                    parent.save(update_fields=['params','merged_versions_list','merged_version'])
 
-    logging.info(f"Before atomic transaction for %s with parent PK: %s"% (agent_name,parent_pk))
-    with transaction.atomic():
-        parent = get_object_or_404(Message.objects.select_for_update().filter(pk=parent_pk))
-        logging.info("the merge semaphore for agent %s is %s"% (agent_name, parent.merge_semaphore))
-        lock_state = lock_merge(parent)
-        logging.info("the lock state for agent %s is %s" % (agent_name, lock_state))
-    transaction.commit()
-    logging.info(f"After atomic transaction for %s with parent PK: %s"% (agent_name,parent_pk))
-    agent = agent_name.split('-')[1]
-    if lock_state is False:
-        try:
+                    if merged is None:
+                        logging.info("merge_received returned None for %s %s", agent_name, parent_pk)
+                        return
 
-            logging.info(f"Before merging for %s with parent PK: %s"% (agent_name,parent_pk))
-            merged, parent = merge_received(parent,message_to_merge, agent_name)
-            logging.info(f"After merging for %s with parent PK: %s"% (agent_name,parent_pk))
-            parent.save()
-            notification={
-                "event_type":"merged_version_begun",
-                "complete":False,
-                "merged_version":None,
-                "merged_versions_list":parent.merged_versions_list if parent.merged_versions_list is not None else []
-            }
+                    notification={
+                        "event_type":"merged_version_begun",
+                        "complete":False,
+                        "merged_versions_list":parent.merged_versions_list if parent.merged_versions_list is not None else []
+                    }
+                    parent.notify_subscribers(notification)
+            except Message.DoesNotExist:
+                logging.info("Message %s does not exist. Skipping merge.🚨" % parent_pk)
+                return
+
+            # At this point: transaction committed, merged + parent persisted.
+            # Release the DB boolean lock immediately so other merges can proceed.
+            if locked and parent is not None:
+                try:
+                    unlock_merge(parent)
+                    locked = False
+                except Exception:
+                    logging.exception("Failed to release DB merge_semaphore for parent %s", parent_pk)
+
+
+            logging.info('merged data for agent %s with pk %s is returned & ready to be preprocessed' % (agent_name, str(merged.id)))
+            #post-process
+            merged, code, status = post_process(merged, merged.id, agent_name)
+            logging.info('post processing complete for agent %s with pk %s is returned & ready to be preprocessed' % (agent_name, str(merged.id)))
+            notification= {"event_type": "merged_version_available",
+                           "merged_version": str(merged.pk),
+                           'stats': stats}
             parent.notify_subscribers(notification)
 
-        except Exception as e:
-            logging.info("Problem with merger for agent %s pk: %s " % (agent_name, (parent_pk)))
-            logging.info(e, exc_info=True)
-            logging.info('error message %s' % str(e))
-            if merged is not None:
-                merged.status='E'
-                merged.code = 422
-                merged.save()
-    else:
-        if counter < 5:
-            logging.info("Merged_version locked for %s.  Attempt %s:" % (agent_name, str(counter)))
-            sleeptime.sleep(5)
-            counter = counter + 1
-            merge_and_post_process(parent_pk,message_to_merge, agent_name, counter)
-        else:
-            logging.info("Merging failed for %s %s" % (agent_name, str(parent_pk)))
+            merged.status = status
+            merged.code = code
+            merged.save()
+            logging.info(f"[{self.request.id}] ✅ EXIT expensive section")
 
-    if merged is not None:
+    except Retry:
+        # If we bubble here, expensive_section requested a retry before acquiring a token,
+        # or we explicitly raised retry while inside; allow it to propagate (worker freed).
+        logging.info("Task retry requested — requeueing (parent=%s, retries=%s)",parent_pk, self.request.retries)
+        raise
 
-        logging.info('merged data for agent %s with pk %s is returned & ready to be preprocessed' % (agent_name, str(merged.id)))
-        merged, code, status = post_process(merged,merged.id, agent_name)
-        logging.info('post processing complete for agent %s with pk %s is returned & ready to be preprocessed' % (agent_name, str(merged.id)))
-        merged.status = status
-        merged.code = code
-        merged.save()
+    except Exception as e:
+        logging.info("Problem with merger for agent %s pk: %s " % (agent_name, (parent_pk)))
+        logging.info(e, exc_info=True)
+        logging.info('error message %s' % str(e))
+        if merged is not None:
+            merged.status='E'
+            merged.code = 422
+            merged.save()
+        # retry on post_process failure
+        delay = exp_backoff_with_jitter(self.request.retries)
+        raise self.retry(exc=e, countdown=delay)
 
+    finally:
+        # Safety net: ensure DB boolean lock released if still held (should generally be False)
+        if locked and parent is not None:
+            try:
+                unlock_merge(parent)
+            except Exception:
+                logging.exception("Finalizer failed to unlock merge_semaphore for parent %s", parent_pk)
 
-
-        notification["event_type"]="merged_version_available"
-        notification["merged_version"]=str(merged.pk)
-        parent.notify_subscribers(notification)
+    logging.info("[%s] 🏁 after expensive section", self.request.id)
+    return
 
 def remove_blocked(mesg, data, blocklist=None):
     try:
@@ -1451,6 +1534,15 @@ def createMessage(actor,parent_pk):
     message.save()
     return message
 
+def get_msg_stats(mesg_dict):
+    stats={}
+    for component in mesg_dict['message'].keys():
+        if component == "knowledge_graph":
+            for subComp in ["nodes", "edges"]:
+                stats[f'{component}_{subComp}']=len(get_safe(mesg_dict, "message", f'{component}',f'{subComp}'))
+        else:
+            stats[component]=len(get_safe(mesg_dict, "message", f"{component}"))
+    return stats
 
 @app.task(name="merge_received")
 def merge_received(parent,message_to_merge, agent_name, counter=0):
@@ -1483,6 +1575,7 @@ def merge_received(parent,message_to_merge, agent_name, counter=0):
 
         merged_dict = merged.to_dict()
         logging.info('the keys for merged_dict are %s' % merged_dict['message'].keys())
+        stats = get_msg_stats(merged_dict)
         new_merged_message.save_compressed_dict(merged_dict)
         # new_merged_message.data = merged_dict
         new_merged_message.status='R'
@@ -1500,9 +1593,17 @@ def merge_received(parent,message_to_merge, agent_name, counter=0):
             parent.merged_versions_list=[pk_infores_merge]
         else:
             parent.merged_versions_list.append(pk_infores_merge)
-        parent.save()
+        #update the parent params with the stat
+        parameter = parent.params
+        logging.info("TYPE OF PARAMETER IS %s"%type(parameter))
+        logging.info("keys: %s values: %s"%(parameter.keys(), parameter.values()))
+        if parameter is None:
+            parameter={}
+        parameter['stats']=stats
+        parent.params=parameter
+        #parent.save(update_fields=['params','merged_versions_list','merged_version'])
         logging.info("returning new_merged_message to be post processed with pk: %s" % str(new_merged_message.pk))
-        return new_merged_message, parent
+        return new_merged_message, parent, stats
     except Exception as e:
         logging.exception("problem with merging for %s :" % agent_name)
         #If anything goes wrong, we at least need to unlock the semaphore

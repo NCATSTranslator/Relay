@@ -158,3 +158,4 @@ future~=0.18.2
 flask==2.2.5
 djangorestframework~=3.14.0
 pandas~=1.5.3
+redis>=5.0,<6

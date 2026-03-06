@@ -48,6 +48,8 @@ app.conf.update(
     task_publish_retry=True, #publishing task messages will be retried in the case of connection loss
     task_default_delivery_mode='persistent',
     task_create_missing_queues=True,  # ← This one ensures auto-creation with durability
-    worker_prefetch_multiplier=1,     # useful for crash resilience,when you have task with long duration->
+    worker_prefetch_multiplier=1,#Rabbit doesn’t dump a huge pile of messages onto workers
+    worker_disable_prefetch=True,#reduce “workers reserving work they can’t start yet” which directly reduces “unacknowledged sitting around
+    # useful for crash resilience,when you have task with long duration->
     # reserve one task per worker process at a time (https://docs.celeryq.dev/en/stable/userguide/optimizing.html#prefetch-limits)
 )
