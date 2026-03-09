@@ -8692,16 +8692,6 @@
             "biolink:NamedThing"
         ]
     },
-    "MONDO:0004992": {
-        "name": "cancer",
-        "type": [
-            "biolink:Disease",
-            "biolink:DiseaseOrPhenotypicFeature",
-            "biolink:BiologicalEntity",
-            "biolink:ThingWithTaxon",
-            "biolink:NamedThing"
-        ]
-    },
     "MONDO:0005550": {
         "name": "infectious disease",
         "type": [
