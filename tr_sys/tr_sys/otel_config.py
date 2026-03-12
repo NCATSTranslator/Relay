@@ -17,7 +17,7 @@ def configure_opentelemetry():
     try:
         # Read OTLP endpoint config from env vars
         #otlp_host = os.environ.get("JAEGER_HOST", "http://localhost").rstrip('/')
-        otlp_host = os.environ.get("JAEGER_HOST", "http://jaeger-otel-collector").rstrip('/')
+        otlp_host = os.environ.get("JAEGER_HOST", "http://jaeger-otel-collector.sri").rstrip('/')
         otlp_port = os.environ.get("JAEGER_PORT", "4317")
         otlp_endpoint = f'{otlp_host}:{otlp_port}'
         service_name= 'ARS'
