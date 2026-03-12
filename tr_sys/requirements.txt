@@ -101,4 +101,4 @@ opentelemetry-exporter-jaeger
 opentelemetry-exporter-otlp-proto-grpc
 opentelemetry-instrumentation-requests
 opentelemetry-instrumentation-celery
-setuptools==70.2.0
+setuptools==78.1.1
