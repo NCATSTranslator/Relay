@@ -1,54 +1,50 @@
 import os,sys
 import logging
 from opentelemetry import trace
-from opentelemetry.exporter.jaeger.thrift import JaegerExporter
-from opentelemetry.sdk.resources import SERVICE_NAME , Resource
+from opentelemetry.sdk.resources import SERVICE_NAME as telemetery_service_name_key, Resource
 from opentelemetry.sdk.trace import TracerProvider
-from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter, SimpleSpanProcessor
+from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
 from opentelemetry.instrumentation.django import DjangoInstrumentor
+from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
 from opentelemetry.instrumentation.celery import CeleryInstrumentor
 from opentelemetry.instrumentation.requests import RequestsInstrumentor
 from celery.signals import worker_process_init
 
-def running_under_pytest() -> bool:
-    return "pytest" in sys.modules
 
 def configure_opentelemetry():
 
     logging.info('About to instrument ARS app for OTEL')
     try:
-        
-        service_name= os.environ.get("OTEL_SERVICE_NAME","ARS")
+        # Read OTLP endpoint config from env vars
+        otlp_host = os.environ.get("JAEGER_HOST", "http://localhost").rstrip('/')
+        #otlp_host = os.environ.get("JAEGER_HOST", "http://jaeger-otel-collector").rstrip('/')
+        otlp_port = os.environ.get("JAEGER_PORT", "4317")
+        otlp_endpoint = f'{otlp_host}:{otlp_port}'
+        service_name= 'ARS'
+        resource = Resource.create({telemetery_service_name_key: service_name})
 
-        #create provider and set it immediately
-        resource = Resource.create({SERVICE_NAME: service_name})
-        provider = TracerProvider(resource=resource)
-        trace.set_tracer_provider(provider)
+        trace.set_tracer_provider(TracerProvider(resource=resource))
 
-        if running_under_pytest():
-        # Optional: enable console debug in local tests if desired
-            if os.environ.get("OTEL_CONSOLE_DEBUG", "").lower() in ("1", "true", "yes"):
-                provider.add_span_processor(
-                    SimpleSpanProcessor(ConsoleSpanExporter())
-                )
-            logging.info("Running under pytest — skipped network exporters/instrumentation")
-            return
-        
-        # === non-test runtime: add network exporter (OTLP example) ===
-        jaeger_host= os.environ.get("JAEGER_HOST", "jaeger")
-        jaeger_port= os.environ.get("JAEGER_PORT", "6381") # common default thrift port
-        jaeger_exporter = JaegerExporter(
-            agent_host_name=jaeger_host,
-            agent_port=int(jaeger_port)
+        tracer_provider = trace.get_tracer_provider()
+
+        #configure OTLP Exporter (for Jaeger/Collector/etc.)
+        OTLP_exporter = OTLPSpanExporter(
+            endpoint=otlp_endpoint,
+            insecure=True
         )
-        
-        processor = BatchSpanProcessor(jaeger_exporter)
-        provider.add_span_processor(processor)
-        
 
+        span_processor = BatchSpanProcessor(OTLP_exporter)
+        tracer_provider.add_span_processor(span_processor)
 
-        DjangoInstrumentor().instrument()
-        RequestsInstrumentor().instrument()
+        #adding this if condition because with pytest the test proces shuts down then opentelemtry SDK or console exporter is trying to log for a closed operation
+        # Console exporter for debugging
+        if "pytest" not in sys.modules:
+            console_exporter = ConsoleSpanExporter()
+            tracer_provider.add_span_processor(BatchSpanProcessor(console_exporter))
+
+        if "pytest" not in sys.modules:
+            DjangoInstrumentor().instrument()
+            RequestsInstrumentor().instrument()
 
         @worker_process_init.connect(weak=False)
         def init_celery_tracing(*args, **kwargs):
