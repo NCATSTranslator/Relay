@@ -28,8 +28,8 @@ import os
 from Crypto.Cipher import AES
 from Crypto.Util.Padding import unpad
 from urllib.parse import urlparse, parse_qsl, unquote
-from django.db import connections
-from django.db.utils import OperationalError
+from django.db import connection, connections
+from django.db.utils import DatabaseError, OperationalError, transaction
 #from reasoner_validator import validate_Message, ValidationError, validate_Query
 tracer = trace.get_tracer(__name__)
 logger = logging.getLogger(__name__)
@@ -1001,8 +1001,10 @@ def verify_signature(req):
             expected_digest = hmac.new(client_secret.encode('utf-8'), req.body, hashlib.sha256).hexdigest()
             # Compare using hmac.compare_digest() to prevent timing attacks
             if not hmac.compare_digest(expected_digest, event_signature):
+                logger.info("❌event signature failed to verify❌")
                 response['verified']=False
             else:
+                logger.info("✅ event signature verified✅")
                 response['verified']=True
 
             response['pks']=pks
@@ -1071,6 +1073,7 @@ def analyze_response(response):
 
 @csrf_exempt
 def query_event_subscribe(req):
+    logger.info("✅ verifying subscriber signature")
     response = verify_signature(req)
     if req.method=='POST':
         try:
@@ -1078,40 +1081,86 @@ def query_event_subscribe(req):
                 return response
             elif isinstance(response, dict) and 'verified' in response:
                 valid = response['verified']
-                pks = response['pks']
-                client_id = response['client_id']
+                pks = response.get('pks')
+                client_id = response.get('client_id')
                 response.clear()
-                if valid:
-                    response['success']=[]
-                    response['failure']={}
-                    for key in pks:
-                        try:
-                            mesg = get_object_or_404(Message.objects.filter(pk=key))
+                if not valid:
+                    response['message'] = 'Invalid Signature provided'
+                    response['timestamp'] = timezone.now().isoformat()
+                    response, status = analyze_response(response)
+                    return HttpResponse(json.dumps(response), status=status)
+
+                response['success']=[]
+                response['failure']={}
+
+                for key in pks:
+                    try:
+                        with transaction.atomic():
+                            mesg = get_object_or_404(Message.objects.select_for_update().filter(pk=key))
                             client = get_object_or_404(Client.objects.filter(client_id=client_id))
+
+                            logger.info("subscribe: message=%s status=%s client_id=%s", mesg.pk, mesg.status, client.client_id)
+
                             if mesg.status in ('D','E'):
                                 response['failure'][key]="Query already complete"
                             else:
                                 #update both client and message
                                 mesg.clients.add(client)
-                                if client.subscriptions is None:
-                                    client.subscriptions = [key]
-                                elif key not in client.subscriptions:
-                                    client.subscriptions.append(key)
-                                elif key in client.subscriptions:
-                                    pass
+                                subs = client.subscriptions or []
+                                if key not in subs:
+                                    subs.append(key)
+                                    client.subscriptions=subs
+                                    client.save(update_fields=['subscriptions'])
+                                # Debug/log right after add()
+                                logger.info("DEBUG AFTER ADD: message.pk=%s client.pk=%s", mesg.pk, client.pk)
+
+                                # Check basic M2M via manager
+                                logger.info(
+                                    "DEBUG M2M manager: count=%s ids=%s",
+                                    mesg.clients.count(),
+                                    list(mesg.clients.values_list("client_id", flat=True)),
+                                )
+
+                                # Direct through table check
+                                through = mesg.clients.through
+                                logger.info("DEBUG through model: %s", through.__name__)
+                                logger.info(
+                                    "DEBUG through rows for message=%s: %s",
+                                    mesg.pk,
+                                    through.objects.filter(
+                                        **{f.name: mesg.pk for f in through._meta.fields if f.many_to_one and f.related_model is mesg.__class__}
+                                    ).count(),
+                                )
+                                logger.info(
+                                    "DEBUG DB name=%s host=%s",
+                                    connection.settings_dict.get("NAME"),
+                                    connection.settings_dict.get("HOST"),
+                                )
+                                logger.info(
+                                    "subscribe: after add DB=%s host=%s message=%s client_count=%s client_ids=%s",
+                                    connection.settings_dict.get("NAME"),
+                                    connection.settings_dict.get("HOST"),
+                                    mesg.pk,
+                                    mesg.clients.count(),
+                                    list(mesg.clients.values_list("client_id", flat=True)),
+                                )
                                 response['success'].append(key)
-                            mesg.save()
-                            client.save()
-                        except Http404:
-                            response['failure'][key]="UUID not found"
-                            continue
-                else:
-                    response['message'] = 'Invalid Signature provided'
+                    except Http404:
+                        response['failure'][key]="UUID not found"
+                        continue
+                    except DatabaseError as e:
+                        logger.exception("Database error while subscribing message=%s client=%s",str(key), client_id)
+                        response['failure'][key] = "Database error"
+                        continue
+                    except Exception:
+                        logger.exception("Unexpected error while subscribing message=%s client=%s", key_str, client_id)
+                        response['failure'][key_str] = "Internal error"
+                        continue
 
                 response['timestamp']= timezone.now().isoformat()
                 response, status= analyze_response(response)
                 return HttpResponse(json.dumps(response), status=status)
-
+        
         except Exception as e:
             logger.error("Unexpected error at subscribe POST endpoint: {}".format(traceback.format_exception(type(e), e, e.__traceback__)))
             logger.error(str(e.with_traceback()))
