@@ -103,6 +103,15 @@ def message_post_save(sender, instance, **kwargs):
                     pmessage._skip_post_save = True
                     pmessage.save(update_fields=['status','code','updated_at', 'merged_version', 'merged_versions_list'])
                 else:
+                    #adding one last notification about last merge being done
+                    logger.info('+++ merged_versions : %s' % (pmessage.merged_version))
+                    logger.info('+++ merged_versions_list : %s' % (pmessage.merged_versions_list))
+                    notification={
+                        "event_type":"last_merged_completed",
+                        "complete":True,
+                        "merged_versions_list":pmessage.merged_versions_list if pmessage.merged_versions_list is not None else []
+                    }
+                    pmessage.notify_subscribers(notification)
                     pmessage.status = 'D'
                     pmessage.code = 200
                     pmessage.updated_at = timezone.now()
