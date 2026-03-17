@@ -29,7 +29,8 @@ from Crypto.Cipher import AES
 from Crypto.Util.Padding import unpad
 from urllib.parse import urlparse, parse_qsl, unquote
 from django.db import connection, connections
-from django.db.utils import DatabaseError, OperationalError, transaction
+from django.db.utils import OperationalError
+from django.db import transaction, DatabaseError
 #from reasoner_validator import validate_Message, ValidationError, validate_Query
 tracer = trace.get_tracer(__name__)
 logger = logging.getLogger(__name__)
