@@ -37,14 +37,14 @@ def propagate_context(func):
             detach(token)
     return wrapper
 
-@shared_task(bind=True, acks_late=True, max_retries=50, default_retry_delay=2)
-def test_expensive(self, seconds=10):
-    logger.info(f"[{self.request.id}] before expensive section")
-    with expensive_section(self):
-        logger.info(f"[{self.request.id}] ✅ ENTER expensive section")
-        time.sleep(seconds)
-        logger.info(f"[{self.request.id}] ✅ EXIT expensive section")
-    logger.info(f"[{self.request.id}] after expensive section")
+# @shared_task(bind=True, acks_late=True, max_retries=50, default_retry_delay=2)
+# def test_expensive(self, seconds=10):
+#     logger.info(f"[{self.request.id}] before expensive section")
+#     with expensive_section(self):
+#         logger.info(f"[{self.request.id}] ✅ ENTER expensive section")
+#         time.sleep(seconds)
+#         logger.info(f"[{self.request.id}] ✅ EXIT expensive section")
+#     logger.info(f"[{self.request.id}] after expensive section")
 
 @shared_task(name="send-message-to-actor")
 def send_message(actor_dict, mesg_dict, timeout=300):
@@ -358,7 +358,7 @@ def notify_subscribers_task(pk, status_code, additional_notification_fields=None
         # fan out one task per client so one slow/bad callback doesn't block others
         for client in message.clients.all():
             logger.info("sending msg to client_id %s" %(client.client_id))
-            notify_one_client_task.apply_async(args=(client.pk, notification), queue="notify")
+            notify_one_client_task.apply_async(args=(client.pk, notification))
     except Message.DoesNotExist:
         logger.error(f"Message with ID {pk} does not exist")
 
