@@ -29,6 +29,9 @@ from tr_ara_improving.improving_app import AppConfig as ImprovingApp
 from tr_ara_unsecret.unsecret_app import AppConfig as UnsecretApp
 from tr_ara_wfr.wfr_app import AppConfig as WfrApp
 from tr_ara_cqs.cqs_app import AppConfig as CqsApp
+from tr_ara_shepherd_aragorn.shepherd_aragorn_app import AppConfig as ShepherdAragornApp
+from tr_ara_shepherd_bte.shepherd_bte_app import AppConfig as ShepherdBteApp
+from tr_ara_shepherd_arax.shepherd_arax_app import AppConfig as ShepherdAraxApp
 from tr_kp_genetics.genetics_app import AppConfig as GeneticsApp
 from tr_kp_clinical.clinical_app import AppConfig as ClinicalApp
 from tr_kp_drug.drug_app import AppConfig as DrugApp
@@ -53,6 +56,9 @@ patterns = [
     re_path(WfrApp.regex_path, include(WfrApp.name)),
     re_path(CqsApp.regex_path, include(CqsApp.name)),
     re_path(UnsecretApp.regex_path, include(UnsecretApp.name)),
+    re_path(ShepherdBteApp.regex_path, include(ShepherdBteApp.name)),
+    re_path(ShepherdAragornApp.regex_path, include(ShepherdAragornApp.name)),
+    re_path(ShepherdAraxApp.regex_path, include(ShepherdAraxApp.name)),
     re_path(GeneticsApp.regex_path, include(GeneticsApp.name)),
     re_path(ClinicalApp.regex_path, include(ClinicalApp.name)),
     re_path(DrugApp.regex_path, include(DrugApp.name)),
