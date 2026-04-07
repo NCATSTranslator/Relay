@@ -4,7 +4,7 @@ from tr_ars.default_ars_app.api import *
 
 class AppConfig(ARSAppConfig):
     name = 'tr_ara_shepherd_arax.shepherd_arax_app' # must be dot path for module
-    actors = [make_actorconf('infores:shepherd_arax', 'runquery', ['general', 'workflow'],
+    actors = [make_actorconf('infores:shepherd-arax', 'runquery', ['general', 'workflow'],
                              'asyncquery')] # tuple of remote, name, channel
     app_path = 'ara-shepherd-arax'
     regex_path = '^' + app_path + '/'
