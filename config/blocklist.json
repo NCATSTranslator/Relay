@@ -32193,5 +32193,29 @@
             "biolink:NamedThing",
             "biolink:PhysicalEssenceOrOccurrent"
         ]
+    },
+    "CHEBI:7754": {
+        "name": "oligonucleotide",
+        "type": [
+            "biolink:ChemicalEntity",
+            "biolink:PhysicalEssence",
+            "biolink:ChemicalOrDrugOrTreatment",
+            "biolink:ChemicalEntityOrGeneOrGeneProduct",
+            "biolink:ChemicalEntityOrProteinOrPolypeptide",
+            "biolink:NamedThing",
+            "biolink:PhysicalEssenceOrOccurrent"
+        ]
+    },
+    "CHEBI:22586": {
+        "name": "antioxidant",
+        "type": [
+            "biolink:ChemicalEntity",
+            "biolink:PhysicalEssence",
+            "biolink:ChemicalOrDrugOrTreatment",
+            "biolink:ChemicalEntityOrGeneOrGeneProduct",
+            "biolink:ChemicalEntityOrProteinOrPolypeptide",
+            "biolink:NamedThing",
+            "biolink:PhysicalEssenceOrOccurrent"
+        ]
     }
 }
