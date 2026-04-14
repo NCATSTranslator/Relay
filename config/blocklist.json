@@ -32152,5 +32152,46 @@
             "biolink:NamedThing",
             "biolink:PhysicalEssenceOrOccurrent"
         ]
+    },
+    "UMLS:C0360289": {
+        "name": "Topical Preparations",
+        "type": [
+            "biolink:Drug",
+            "biolink:ChemicalOrDrugOrTreatment",
+            "biolink:OntologyClass",
+            "biolink:MolecularMixture",
+            "biolink:ChemicalMixture",
+            "biolink:ChemicalEntity",
+            "biolink:PhysicalEssence",
+            "biolink:ChemicalEntityOrGeneOrGeneProduct",
+            "biolink:ChemicalEntityOrProteinOrPolypeptide",
+            "biolink:NamedThing",
+            "biolink:PhysicalEssenceOrOccurrent"
+        ]
+    },
+    "CHEBI:59163": {
+        "name": "biomarker",
+        "type": [
+            "biolink:ChemicalEntity",
+            "biolink:PhysicalEssence",
+            "biolink:ChemicalOrDrugOrTreatment",
+            "biolink:ChemicalEntityOrGeneOrGeneProduct",
+            "biolink:ChemicalEntityOrProteinOrPolypeptide",
+            "biolink:NamedThing",
+            "biolink:PhysicalEssenceOrOccurrent"
+        ]
+    },
+    "CHEBI:75958": {
+        "name": "solution",
+        "type": [
+            "biolink:ChemicalMixture",
+            "biolink:ChemicalEntity",
+            "biolink:PhysicalEssence",
+            "biolink:ChemicalOrDrugOrTreatment",
+            "biolink:ChemicalEntityOrGeneOrGeneProduct",
+            "biolink:ChemicalEntityOrProteinOrPolypeptide",
+            "biolink:NamedThing",
+            "biolink:PhysicalEssenceOrOccurrent"
+        ]
     }
 }
