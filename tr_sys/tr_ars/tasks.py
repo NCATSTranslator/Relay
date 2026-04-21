@@ -260,7 +260,7 @@ def catch_timeout_async():
     time_threshold = now - timezone.timedelta(minutes=15)
     max_time = now-timezone.timedelta(minutes=5)
     max_time_merged=now-timezone.timedelta(minutes=8)
-    max_time_pathfinder = now-timezone.timedelta(minutes=10)
+    max_time_pathfinder = now-timezone.timedelta(minutes=5)
 
     #retrieving last 15 min running records might become overwhelming, so we might need to refine this filter to grab records between 4 min< x < 15 min or have 2 sets (for standard/pathfinder) queires
     messages = Message.objects.filter(timestamp__gt=time_threshold, status__in='R').values_list('actor','id','timestamp','updated_at','params')
