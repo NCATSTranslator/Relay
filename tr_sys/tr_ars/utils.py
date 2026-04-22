@@ -763,6 +763,7 @@ def merge_and_post_process(self, parent_pk,message_to_merge, agent_name):
             merged, code, status = post_process(merged, merged.id, agent_name)
             logging.info('post processing complete for agent %s with pk %s is returned & ready to be preprocessed' % (agent_name, str(merged.id)))
             notification= {"event_type": "merged_version_available",
+                           "complete": False,
                            "merged_version": str(merged.pk),
                            "merged_versions_list": parent.merged_versions_list if parent.merged_versions_list is not None else [],
                            'stats': stats}
