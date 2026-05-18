@@ -436,11 +436,17 @@ def mergeDicts(dcurrent,dmerged):
                         for cd in cv:
                             if "resource_id" in cd.keys():
                                 cmap[cd["resource_id"]]=cd
+                            #adding special case for qualifiers on edges 05/18/2026
+                            elif "qualifier_type_id" in cd.keys():
+                                cmap[cd["qualifier_type_id"]] = cd
                             else:
                                 #logging.debug("list item lacking id? "+str(cd))
                                 pass
                         for md in mv:
                             if "resource_id" in md.keys():
+                                mmap[md["resource_id"]]=md
+                            #adding special case for qualifiers on edges 05/18/2026
+                            elif "qualifier_type_id" in md.keys():
                                 mmap[md["resource_id"]]=md
                             else:
                                 #logging.debug("list item lacking id? "+str(cd))
