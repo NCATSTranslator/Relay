@@ -32217,5 +32217,190 @@
             "biolink:NamedThing",
             "biolink:PhysicalEssenceOrOccurrent"
         ]
+    },
+    "DRUGBANK:DB10629": {
+        "name": "blueberry",
+        "type": [
+            "biolink:ChemicalEntity",
+            "biolink:PhysicalEssence",
+            "biolink:ChemicalOrDrugOrTreatment",
+            "biolink:ChemicalEntityOrGeneOrGeneProduct",
+            "biolink:ChemicalEntityOrProteinOrPolypeptide",
+            "biolink:NamedThing",
+            "biolink:PhysicalEssenceOrOccurrent"]
+    },
+    "DRUGBANK:DB10555": {
+        "name": "pecan",
+        "type": [
+            "biolink:ChemicalEntity",
+            "biolink:PhysicalEssence",
+            "biolink:ChemicalOrDrugOrTreatment",
+            "biolink:ChemicalEntityOrGeneOrGeneProduct",
+            "biolink:ChemicalEntityOrProteinOrPolypeptide",
+            "biolink:NamedThing",
+            "biolink:PhysicalEssenceOrOccurrent",
+            "biolink:Drug",
+            "biolink:OntologyClass",
+            "biolink:MolecularMixture",
+            "biolink:ChemicalMixture"
+        ]
+    },
+    "DRUGBANK:DB10906": {
+        "name": "sugarcane",
+        "type": [
+            "biolink:ChemicalEntity",
+            "biolink:PhysicalEssence",
+            "biolink:ChemicalOrDrugOrTreatment",
+            "biolink:ChemicalEntityOrGeneOrGeneProduct",
+            "biolink:ChemicalEntityOrProteinOrPolypeptide",
+            "biolink:NamedThing",
+            "biolink:PhysicalEssenceOrOccurrent"]
+    },
+    "DRUGBANK:DB10632": {
+        "name": "date",
+        "type": [
+            "biolink:ChemicalEntity",
+            "biolink:PhysicalEssence",
+            "biolink:ChemicalOrDrugOrTreatment",
+            "biolink:ChemicalEntityOrGeneOrGeneProduct",
+            "biolink:ChemicalEntityOrProteinOrPolypeptide",
+            "biolink:NamedThing",
+            "biolink:PhysicalEssenceOrOccurrent"
+        ]
+    },
+    "DRUGBANK:DB10626": {
+        "name": "trout",
+        "type": [
+            "biolink:ChemicalEntity",
+            "biolink:PhysicalEssence",
+            "biolink:ChemicalOrDrugOrTreatment",
+            "biolink:ChemicalEntityOrGeneOrGeneProduct",
+            "biolink:ChemicalEntityOrProteinOrPolypeptide",
+            "biolink:NamedThing",
+            "biolink:PhysicalEssenceOrOccurrent"
+        ]
+    },
+    "UNII:61ZBX54883": {
+        "name": "licorice",
+        "type": [
+            "biolink:ChemicalEntity",
+            "biolink:PhysicalEssence",
+            "biolink:ChemicalOrDrugOrTreatment",
+            "biolink:ChemicalEntityOrGeneOrGeneProduct",
+            "biolink:ChemicalEntityOrProteinOrPolypeptide",
+            "biolink:NamedThing",
+            "biolink:PhysicalEssenceOrOccurrent"
+        ]
+    },
+    "DRUGBANK:DB14758": {
+        "name": "catfish",
+        "type": [
+            "biolink:ChemicalEntity",
+            "biolink:PhysicalEssence",
+            "biolink:ChemicalOrDrugOrTreatment",
+            "biolink:ChemicalEntityOrGeneOrGeneProduct",
+            "biolink:ChemicalEntityOrProteinOrPolypeptide",
+            "biolink:NamedThing",
+            "biolink:PhysicalEssenceOrOccurrent"
+        ]
+    },
+    "DRUGBANK:DB10631": {
+        "name": "cranberry",
+        "type":  [
+            "biolink:ChemicalEntity",
+            "biolink:PhysicalEssence",
+            "biolink:ChemicalOrDrugOrTreatment",
+            "biolink:ChemicalEntityOrGeneOrGeneProduct",
+            "biolink:ChemicalEntityOrProteinOrPolypeptide",
+            "biolink:NamedThing",
+            "biolink:PhysicalEssenceOrOccurrent",
+            "biolink:Drug",
+            "biolink:OntologyClass",
+            "biolink:MolecularMixture",
+            "biolink:ChemicalMixture"
+        ]
+    },
+    "DRUGBANK:DB10525": {
+        "name": "coffee bean",
+        "type": [
+            "biolink:ChemicalEntity",
+            "biolink:PhysicalEssence",
+            "biolink:ChemicalOrDrugOrTreatment",
+            "biolink:ChemicalEntityOrGeneOrGeneProduct",
+            "biolink:ChemicalEntityOrProteinOrPolypeptide",
+            "biolink:NamedThing",
+            "biolink:PhysicalEssenceOrOccurrent"
+        ]
+    },
+    "DRUGBANK:DB10678": {
+        "name": "paprika",
+        "type": [
+            "biolink:ChemicalEntity",
+            "biolink:PhysicalEssence",
+            "biolink:ChemicalOrDrugOrTreatment",
+            "biolink:ChemicalEntityOrGeneOrGeneProduct",
+            "biolink:ChemicalEntityOrProteinOrPolypeptide",
+            "biolink:NamedThing",
+            "biolink:PhysicalEssenceOrOccurrent"
+        ]
+    },
+    "DRUGBANK:DB10559": {
+        "name": "pistachio",
+        "type": [
+            "biolink:ChemicalEntity",
+            "biolink:PhysicalEssence",
+            "biolink:ChemicalOrDrugOrTreatment",
+            "biolink:ChemicalEntityOrGeneOrGeneProduct",
+            "biolink:ChemicalEntityOrProteinOrPolypeptide",
+            "biolink:NamedThing",
+            "biolink:Entity",
+            "biolink:PhysicalEssenceOrOccurrent",
+            "biolink:Drug",
+            "biolink:OntologyClass",
+            "biolink:MolecularMixture",
+            "biolink:ChemicalMixture"
+        ]
+    },
+    "DRUGBANK:DB10575": {
+        "name": "turkey",
+        "type": [
+            "biolink:ChemicalEntity",
+            "biolink:PhysicalEssence",
+            "biolink:ChemicalOrDrugOrTreatment",
+            "biolink:ChemicalEntityOrGeneOrGeneProduct",
+            "biolink:ChemicalEntityOrProteinOrPolypeptide",
+            "biolink:NamedThing",
+            "biolink:PhysicalEssenceOrOccurrent",
+            "biolink:Drug",
+            "biolink:OntologyClass",
+            "biolink:MolecularMixture",
+            "biolink:ChemicalMixture"
+        ]
+    },
+    "UMLS:C0041400": {
+        "name": "Turkey (country)",
+        "type": [
+            "biolink:GeographicLocation",
+            "biolink:PlanetaryEntity",
+            "biolink:NamedThing",
+            "biolink:Entity"
+        ]
+    },
+    "DRUGBANK:DB10523": {
+        "name": "coconut",
+        "type": [
+            "biolink:ChemicalEntity",
+            "biolink:PhysicalEssence",
+            "biolink:ChemicalOrDrugOrTreatment",
+            "biolink:ChemicalEntityOrGeneOrGeneProduct",
+            "biolink:ChemicalEntityOrProteinOrPolypeptide",
+            "biolink:NamedThing",
+            "biolink:Entity",
+            "biolink:PhysicalEssenceOrOccurrent",
+            "biolink:Drug",
+            "biolink:OntologyClass",
+            "biolink:MolecularMixture",
+            "biolink:ChemicalMixture"
+        ]
     }
 }
