@@ -507,31 +507,35 @@ def message(req, key):
                     if 'tr_ars.message.status' in req.headers:
                         status = req.headers['tr_ars.message.status']
                     res=utils.get_safe(data,"message","results")
-                    kg = utils.get_safe(data,"message", "knowledge_graph")
+                    #kg = utils.get_safe(data,"message", "knowledge_graph")
                     actor = Actor.objects.get(pk=mesg.actor_id)
                     inforesid =actor.inforesid
                     parent=get_object_or_404(Message.objects.filter(pk=mesg.ref_id))
+                    if res is not None:
+                        result_length = len(res)
+                    else:
+                        result_length = None
                     notification = {
                         "event_type":"ara_response_complete",
                         "ara_name":actor.inforesid,
                         "child_uuid":str(mesg.pk),
                         "ara_response_status": status,
-                        "ara_n_results":len(res)
+                        "ara_n_results":result_length
                     }
                     parent.notify_subscribers(notification)
                     span.set_attribute("agent", inforesid)
-                    logging.info('received msg from agent: %s with parent pk: %s and result: %s' % (str(inforesid), str(mesg.ref_id),str(len(res))))
+                    logging.info('received msg from agent: %s with parent pk: %s and result: %s' % (str(inforesid), str(mesg.ref_id),str(result_length)))
                     if mesg.status=='D':
-                        return HttpResponse('ARS has already received %s results from pk: %s' % (str(len(res)), str(key)))
+                        return HttpResponse('ARS has already received %s results from pk: %s' % (str(result_length), str(key)))
                     if mesg.result_count is not None and mesg.result_count >0:
                         return HttpResponse('ARS already has a response with: %s results for pk %s \nWe are temporarily '
                                            'disallowing subsequent updates to PKs which already have results\n'
-                                           % (str(len(res)), str(key)),status=409)
+                                           % (str(result_length), str(key)),status=409)
 
                     if mesg.status=='E':
                         return HttpResponse("Response received but Message is already in state "+str(mesg.code)+". Response rejected\n",status=400)
-                    if res is not None and len(res)>0:
-                        mesg.result_count = len(res)
+                    if res is not None and result_length>0:
+                        mesg.result_count = result_length
                         scorestat = utils.ScoreStatCalc(res)
                         mesg.result_stat = scorestat
                         #before we do basically anything else, we normalize
@@ -539,7 +543,7 @@ def message(req, key):
                         #message_to_merge =utils.get_safe(data,"message")
                         message_to_merge = data
                         agent_name = str(mesg.actor.agent.name)
-                        logger.info("Running pre_merge_process for agent %s with %s" % (agent_name, len(res)))
+                        logger.info("Running pre_merge_process for agent %s with %s" % (agent_name, result_length))
                         utils.pre_merge_process(message_to_merge,key, agent_name, inforesid)
                         if mesg.data and 'results' in mesg.data and mesg.data['results'] != None and len(mesg.data['results']) > 0:
                             mesg = Message.create(name=mesg.name, status=status, actor=mesg.actor, ref=mesg)
@@ -567,7 +571,7 @@ def message(req, key):
                                 "ara_name":actor.inforesid,
                                 "child_uuid":str(mesg.pk),
                                 "ara_response_status": status,
-                                "ara_n_results":len(res)
+                                "ara_n_results":result_length
                             }
                             parent.notify_subscribers(notification)
                             return HttpResponse("Problem with TRAPI Validation",
@@ -576,7 +580,9 @@ def message(req, key):
                     mesg.status = status
                     mesg.code = code
                     mesg.save_compressed_dict(data)
-                    if len(res) == 0 and res is not None:
+                    #06-09-2026: Making a design choice that None results means result_count of 0
+                    #saves us from having to check for None all over the place.
+                    if res is None:
                         mesg.result_count = 0
                     mesg.save()
 
@@ -586,7 +592,7 @@ def message(req, key):
                 except Message.DoesNotExist:
                     return HttpResponse('Unknown state reference %s' % key, status=404)
 
-                except json.decoder.JSONDecodeError:
+                except json.decoder.JSONDecodeError as e:
                     return HttpResponse('Can not decode json:<br>\n%s for the pk: %s' % (req.body, key), status=500)
 
                 except Exception as e:
