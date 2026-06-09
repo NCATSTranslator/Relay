@@ -507,7 +507,7 @@ def message(req, key):
                     if 'tr_ars.message.status' in req.headers:
                         status = req.headers['tr_ars.message.status']
                     res=utils.get_safe(data,"message","results")
-                    kg = utils.get_safe(data,"message", "knowledge_graph")
+                    #kg = utils.get_safe(data,"message", "knowledge_graph")
                     actor = Actor.objects.get(pk=mesg.actor_id)
                     inforesid =actor.inforesid
                     parent=get_object_or_404(Message.objects.filter(pk=mesg.ref_id))
