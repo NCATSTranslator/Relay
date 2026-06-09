@@ -580,8 +580,9 @@ def message(req, key):
                     mesg.status = status
                     mesg.code = code
                     mesg.save_compressed_dict(data)
-                    #is this still needed after changing to result_length?
-                    if res is not None and len(res) == 0:
+                    #06-09-2026: Making a design choice that None results means result_count of 0
+                    #saves us from having to check for None all over the place.
+                    if res is None:
                         mesg.result_count = 0
                     mesg.save()
 
