@@ -12,7 +12,6 @@ arsserver:
     PullPolicy: Always
   containerPort: 8000
   gunicorn:
-    # gevent is intentionally NOT used: mysqlclient is a blocking C extension and does not cooperate with greenlets.
     workerClass: gthread
     # Tune workers/threads to the pod's CPU/memory allocation.
     # The general recommendation is workers = 2 * cpu cores + 1
