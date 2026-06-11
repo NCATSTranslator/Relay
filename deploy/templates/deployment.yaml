@@ -20,7 +20,21 @@ spec:
           image: "{{ .Values.arsserver.image.repository }}:{{ .Values.arsserver.image.tag }}"
           imagePullPolicy: {{ .Values.arsserver.image.PullPolicy }}
           command: ["/bin/sh"]
-          args: ["-c", "/bin/bash /ars/config/startup.sh && python tr_sys/manage.py runserver 0.0.0.0:8000 --noreload"]
+          args:
+            - "-c"
+            - >-
+              /bin/bash /ars/config/startup.sh &&
+              gunicorn tr_sys.wsgi:application
+              --chdir /ars/tr_sys
+              --bind 0.0.0.0:{{ .Values.arsserver.containerPort }}
+              --worker-class {{ .Values.arsserver.gunicorn.workerClass | default "gthread" }}
+              --workers {{ .Values.arsserver.gunicorn.workers | default 4 }}
+              --threads {{ .Values.arsserver.gunicorn.threads | default 4 }}
+              --timeout {{ .Values.arsserver.gunicorn.timeout | default 360 }}
+              --graceful-timeout {{ .Values.arsserver.gunicorn.gracefulTimeout | default 120 }}
+              --max-requests {{ .Values.arsserver.gunicorn.maxRequests | default 1000 }}
+              --max-requests-jitter {{ .Values.arsserver.gunicorn.maxRequestsJitter | default 100 }}
+              --access-logfile - --error-logfile -
           ports:
             - containerPort: {{ .Values.arsserver.containerPort }}
           volumeMounts:
