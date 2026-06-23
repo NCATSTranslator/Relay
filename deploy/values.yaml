@@ -10,7 +10,18 @@ arsserver:
     repository: 853771734544.dkr.ecr.us-east-1.amazonaws.com/translator-ars
     tag: DOCKER_VERSION_VALUE
     PullPolicy: Always
-  containerPort: 8000  
+  containerPort: 8000
+  gunicorn:
+    workerClass: gthread
+    # Tune workers/threads to the pod's CPU/memory allocation.
+    # The general recommendation is workers = 2 * cpu cores + 1
+    # With a gthread worker, concurrency ~= workers * threads.
+    workers: 4
+    threads: 4
+    timeout: 360          # hard kill a request so a worker isn't hogged when it's stuck on one query
+    gracefulTimeout: 120  # padding time for workers to complete running queries before restarting
+    maxRequests: 1000     # recycle workers periodically to prevent issues with memory/connection leaks etc
+    maxRequestsJitter: 100  # randomize when workers restart to avoid happening all at once
   env:
     TR_ENV: TR_ENV_VALUE
     TR_APPRAISE: TR_APPRAISE_VALUE
@@ -28,7 +39,7 @@ rabbitmq:
     repository: 853771734544.dkr.ecr.us-east-1.amazonaws.com/translator-rabbitmq
     tag: 4.0
     PullPolicy: Always
-  containerPort: 5672  
+  containerPort: 5672
 
 redis:
   image:
@@ -46,7 +57,7 @@ affinity:
         - key: application
           operator: In
           values:
-          - ars   
+          - ars
 tolerations:
   - key: "transltr"
     value: "ars"
@@ -66,8 +77,8 @@ ingress:
     alb.ingress.kubernetes.io/ssl-policy: ELBSecurityPolicy-TLS-1-2-Ext-2018-06
     alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS":443}]'
     alb.ingress.kubernetes.io/actions.ssl-redirect: '{"Type": "redirect", "RedirectConfig": { "Protocol": "HTTPS", "Port": "443", "StatusCode": "HTTP_301"}}'
-    alb.ingress.kubernetes.io/success-codes: '200'  
+    alb.ingress.kubernetes.io/success-codes: '200'
     alb.ingress.kubernetes.io/target-type: ip
     alb.ingress.kubernetes.io/load-balancer-attributes: idle_timeout.timeout_seconds=600
-  host: ARS_HOSTNAME_VALUE    
+  host: ARS_HOSTNAME_VALUE
 
