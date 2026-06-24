@@ -8,8 +8,6 @@ from django.core import serializers
 import uuid, logging, json
 import zstandard as zstd
 
-from tr_sys.tr_ars.utils import get_safe
-
 logger = logging.getLogger(__name__)
 # Create your models here.
 
@@ -267,11 +265,15 @@ class Message(ARSModel):
                 "complete" : True
             }
         if self.result_count is not None:
-            aux_graphs = get_safe(self.data,"message","auxiliary_graphs")
-            if aux_graphs is not None:
-                aux_count=len(aux_graphs)
-            else:
-                aux_count=0
+            try:
+                aux_graphs = self.data["message"]["auxiliary_graphs"]
+                if aux_graphs is not None:
+                    aux_count=len(aux_graphs)
+                else:
+                    aux_count=0
+            except Exception as e:
+                logging.debug("Problem getting aux graphs for stats notification")
+                aux_count = 0
             additional_notification_fields["stats"] = {"results": self.result_count, "auxiliary_graphs": aux_count}
 
         #offload to a celery task
