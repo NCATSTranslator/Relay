@@ -272,10 +272,7 @@ class Message(ARSModel):
                 aux_count=len(aux_graphs)
             else:
                 aux_count=0
-            additional_notification_fields["stats"]={
-                "results": self.result_count,
-                "auxiliary_graphs"
-            }
+            additional_notification_fields["stats"] = {"results": self.result_count, "auxiliary_graphs": aux_count}
 
         #offload to a celery task
         notify_subscribers_task.apply_async((self.pk, self.code, additional_notification_fields))
