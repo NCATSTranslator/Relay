@@ -7,6 +7,9 @@ from django.utils import timezone
 from django.core import serializers
 import uuid, logging, json
 import zstandard as zstd
+
+from tr_sys.tr_ars.utils import get_safe
+
 logger = logging.getLogger(__name__)
 # Create your models here.
 
@@ -260,9 +263,17 @@ class Message(ARSModel):
         if self.status == 'E':
             additional_notification_fields = {
                 "event_type":"ars_error",
-                "message":'We had a huge problem',
+                "message":'ARS has run into an Error',
                 "complete" : True
             }
+        if self.result_count is not None:
+            aux_graphs = get_safe(self.data,"message","auxiliary_graphs")
+            if aux_graphs is not None:
+                aux_count=len(aux_graphs)
+            else:
+                aux_count=0
+            additional_notification_fields["stats"] = {"results": self.result_count, "auxiliary_graphs": aux_count}
+
         #offload to a celery task
         notify_subscribers_task.apply_async((self.pk, self.code, additional_notification_fields))
 
