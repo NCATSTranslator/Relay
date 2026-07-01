@@ -16,8 +16,8 @@ arsserver:
     # Tune workers/threads to the pod's CPU/memory allocation.
     # The general recommendation is workers = 2 * cpu cores + 1
     # With a gthread worker, concurrency ~= workers * threads.
-    workers: 4
-    threads: 4
+    workers: 16
+    threads: 16
     timeout: 360          # hard kill a request so a worker isn't hogged when it's stuck on one query
     gracefulTimeout: 120  # padding time for workers to complete running queries before restarting
     maxRequests: 1000     # recycle workers periodically to prevent issues with memory/connection leaks etc
