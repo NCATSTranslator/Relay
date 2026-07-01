@@ -13,9 +13,9 @@ logger = get_task_logger(__name__)
 # Config via env (set these in your Helm values / CI)
 REDIS_URL = os.getenv("REDIS_URL", "redis://redis:6379/0")
 ZKEY = os.getenv("ARS_EXPENSIVE_ZKEY", "ars:expensive_tokens")
-DEFAULT_LIMIT = int(os.getenv("ARS_EXPENSIVE_LIMIT", "6"))       # default token limit
+DEFAULT_LIMIT = int(os.getenv("ARS_EXPENSIVE_LIMIT", "12"))       # default token limit
 LEASE_MS = int(os.getenv("ARS_EXPENSIVE_LEASE_MS", "180000"))   # default lease 3 minutes (ms)
-RENEW_EVERY_SEC = int(os.getenv("ARS_EXPENSIVE_RENEW_SEC", "60"))  # renew interval
+RENEW_EVERY_SEC = int(os.getenv("ARS_EXPENSIVE_RENEW_SEC", "15"))  # renew interval
 
 # Redis client
 r = redis.Redis.from_url(REDIS_URL, decode_responses=True)
@@ -91,7 +91,7 @@ def release(task_id: str) -> None:
         pass
 
 
-def exp_backoff_with_jitter(retries: int, base: int = 1, max_delay: int = 60) -> int:
+def exp_backoff_with_jitter(retries: int, base: int = 1, max_delay: int = 30) -> int:
     """
     Exponential backoff with jitter.
     `retries` is the current retry count (0..).
