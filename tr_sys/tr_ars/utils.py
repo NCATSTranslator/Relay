@@ -1441,6 +1441,12 @@ def canonizeMessage(kg,results):
         #         else:
         #             res[elem] = [i]
         # print(res)
+
+        if not bool(changes):
+            logging.debug("Unnormalized nodes found")
+            logging.debug(str(changes.keys()))
+    else:
+        logging.debug("No ids found during normalization")
     return kg, results
 
 
