@@ -37,7 +37,7 @@ idna==3.10
 inflection==0.5.1
 iniconfig==2.1.0
 kombu==5.5.4
-Markdown==3.7
+Markdown==3.8.1
 mpmath==1.3.0
 multidict==6.1.0
 numpy==1.24.4
