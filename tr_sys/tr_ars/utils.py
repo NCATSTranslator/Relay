@@ -1426,7 +1426,8 @@ def canonizeMessage(kg,results):
                     if change == value:
                         new_id = changes[change]['id']['identifier']
                         edges[edge_key][key] = new_id
-
+        if not bool(changes):
+            logging.debug("All nodes already normalized")
         #create a frozenset of subj/obj/predicate on each edge and look for duplicates
         # normalized_edges=[]
         # for edge_key,edge_value in edges.items():
