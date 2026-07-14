@@ -54,7 +54,7 @@ ARS_ACTOR = {
     'inforesid': 'ARS'
 }
 
-NORMALIZER_URL=os.getenv("TR_NORMALIZER") if os.getenv("TR_NORMALIZER") is not None else "https://nodenorm.ci.transltr.io/get_normalized_nodes"
+NORMALIZER_URL=os.getenv("TR_NORMALIZER") if os.getenv("TR_NORMALIZER") is not None else "https://nodenorm-es.ci.transltr.io/get_normalized_nodes"
 ANNOTATOR_URL=os.getenv("TR_ANNOTATOR") if os.getenv("TR_ANNOTATOR") is not None else "https://biothings.ncats.io/curie"
 APPRAISER_URL=os.getenv("TR_APPRAISE") if os.getenv("TR_APPRAISE") is not None else "https://answerappraiser.ci.transltr.io/get_appraisal"
 
@@ -1420,12 +1420,14 @@ def canonizeMessage(kg,results):
                         id_dict['id']=changes[id_dict['id']]['id']['identifier']
 
         for change in changes:
+            logging.debug("Unnormalized node: "+change+" should be "+changes[change]['id']['identifier'])
             for edge_key,edge_value in edges.items():
                 for key,value in edge_value.items():
                     if change == value:
                         new_id = changes[change]['id']['identifier']
                         edges[edge_key][key] = new_id
-
+        if not bool(changes):
+            logging.debug("All nodes already normalized")
         #create a frozenset of subj/obj/predicate on each edge and look for duplicates
         # normalized_edges=[]
         # for edge_key,edge_value in edges.items():
@@ -1442,11 +1444,7 @@ def canonizeMessage(kg,results):
         #             res[elem] = [i]
         # print(res)
 
-        if not bool(changes):
-            logging.debug("Unnormalized nodes found")
-            logging.debug(str(changes.keys()))
-    else:
-        logging.debug("No ids found during normalization")
+
     return kg, results
 
 
