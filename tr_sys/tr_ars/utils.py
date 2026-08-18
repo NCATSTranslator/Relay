@@ -908,6 +908,23 @@ def remove_blocked(mesg, data, blocklist=None):
                                     for br in bindings_to_remove:
                                         bindings.remove(br)
 
+                            #adding new section to account for pathfinder queries having path bindings instead of
+                            #edge bindings.  MDW 08/17/26
+                            path_bindings = get_safe(analysis,"path_bindings")
+                            if path_bindings is not None:
+                                for path_id,path_bindings in path_bindings.items():
+                                    path_bindings_to_remove=[]
+                                    for path_binding in path_bindings:
+                                        if path_binding["id"] in aux_graphs_to_remove:
+                                            if(len(path_bindings)>1):
+                                                path_bindings_to_remove.append(path_binding)
+                                            elif analysis not in analyses_to_remove:
+                                                analyses_to_remove.append(analysis)
+                                for pr in path_bindings_to_remove:
+                                    path_bindings.remove(pr)
+
+
+
                             support_graphs=get_safe(analysis,"support_graphs")
                             support_graphs_to_remove=[]
                             if support_graphs is not None and len(support_graphs)>0:
