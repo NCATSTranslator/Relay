@@ -706,7 +706,7 @@ def merge_and_post_process(self, parent_pk,message_to_merge, agent_name):
     logging.info(f"🚀Starting merge for %s with parent PK: %s"% (agent_name,parent_pk))
     try:
         #Acquire an expensive token so we don't hold DB locked while waiting
-        with expensive_section(self, limit=6):
+        with expensive_section(self):
             logging.info("[%s] 🟢 acquired expensive token", self.request.id)
 
             # short critical section: lock row + decide if we can merge

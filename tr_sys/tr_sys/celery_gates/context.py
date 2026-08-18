@@ -3,15 +3,15 @@
 # Relay/tr_sys/tr_sys/celery_gates/context.py
 from contextlib import contextmanager
 from celery.exceptions import Retry, MaxRetriesExceededError
-from .expensive_gate import try_acquire, release, LeaseRenewer, exp_backoff_with_jitter, DEFAULT_LIMIT
+from .expensive_gate import try_acquire, release, LeaseRenewer, exp_backoff_with_jitter, ARS_EXPENSIVE_TOKEN_LIMIT
 from celery.utils.log import get_task_logger
 logger = get_task_logger(__name__)
 
 @contextmanager
-def expensive_section(task_self, limit: int = DEFAULT_LIMIT):
+def expensive_section(task_self, limit: int = ARS_EXPENSIVE_TOKEN_LIMIT):
     """
     Usage: inside a Celery task with `bind=True`:
-        with expensive_section(self, limit=6):
+        with expensive_section(self):
             # do expensive work
     If acquire fails -> raises self.retry(...) to requeue quickly.
     """
