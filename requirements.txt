@@ -55,7 +55,7 @@ pytest-django==4.11.1
 pytest-factoryboy==2.7.0
 python-crontab==3.2.0
 python-dateutil==2.9.0.post0
-python-Levenshtein-wheels==0.13.2
+Levenshtein==0.27.0
 PyYAML==6.0.2
 reasoner-pydantic==5.1.1
 requests==2.32.4
