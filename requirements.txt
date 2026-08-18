@@ -4,7 +4,6 @@ amqp==5.3.1
 anyio==4.5.2
 asgiref==3.8.1
 attrs==25.3.0
-backports.zoneinfo==0.2.1
 billiard==4.2.1
 bleach==6.1.0
 Brotli==1.1.0
@@ -27,7 +26,7 @@ django-timezone-field==7.1
 exceptiongroup==1.3.0
 factory-boy==3.3.3
 Faker==35.2.2
-grpcio==1.70.0
+grpcio>=1.60.0,<2.0
 h11==0.16.0
 html5tagger==1.3.0
 httpcore==1.0.9
@@ -47,7 +46,7 @@ outcome==1.3.0.post0
 packaging==25.0
 pluggy==1.5.0
 prompt-toolkit==3.0.51
-protobuf<=3.20.3
+protobuf>=5.0,<8.0
 pycryptodome==3.23.0
 pydantic==1.10.22
 PyMySQL==1.1.1
@@ -93,14 +92,14 @@ zipp==3.20.2
 # External dependencies
 git+https://github.com/biothings/biothings_annotator#egg=biothings_annotator
 
-opentelemetry-api>=1.42.1
-opentelemetry-sdk
-opentelemetry-instrumentation
-opentelemetry-instrumentation-django
-opentelemetry-exporter-jaeger
-opentelemetry-exporter-otlp-proto-grpc
-opentelemetry-instrumentation-requests
-opentelemetry-instrumentation-celery
+opentelemetry-api==1.43.0
+opentelemetry-sdk==1.43.0
+opentelemetry-instrumentation==0.64b0
+opentelemetry-instrumentation-django==0.64b0
+opentelemetry-exporter-otlp-proto-http==1.43.0
+opentelemetry-exporter-otlp-proto-grpc==1.43.0
+opentelemetry-instrumentation-requests==0.64b0
+opentelemetry-instrumentation-celery==0.64b0
 
 pip~=25.1.1
 build~=1.0.3
