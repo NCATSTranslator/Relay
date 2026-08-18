@@ -92,7 +92,7 @@ zipp==3.20.2
 zstandard
 redis
 git+https://github.com/biothings/biothings_annotator#egg=biothings_annotator
-opentelemetry-api
+opentelemetry-api>=1.42.1
 opentelemetry-sdk
 opentelemetry-instrumentation
 opentelemetry-instrumentation-django

@@ -43,7 +43,7 @@ pipeline {
         stage('Install dependencies & Run tox') {
             steps {
                 script {
-                    withPythonEnv('python3.9') {
+                    withPythonEnv('python3.11') {
                         sh '''
                             python -m venv venv
                             . venv/bin/activate
