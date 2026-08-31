@@ -2,7 +2,7 @@ import os,sys
 import logging
 
 from opentelemetry import trace
-from opentelemetry.trace import Status, StatusCode
+from opentelemetry.trace import SpanKind, Status, StatusCode
 from opentelemetry.sdk.resources import SERVICE_NAME as telemetery_service_name_key, Resource
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
@@ -20,16 +20,18 @@ DEFAULT_EXCLUDED_URLS = "ars/api/health,ars/api/retain"
 
 
 class ARSSampler(ParentBased):
-    """Drop traces for the catch_timeout beat task, which runs every 3 minutes.
+    """Drop traces for the catch_timeout beat task, which runs every 3 minutes,
+    and for GET requests, which are mostly clients polling for results.
 
-    The excluded-URL list above can't cover this one: it lives in the Django
-    middleware and only sees HTTP requests.
+    The excluded-URL list above can't cover either one.
     """
 
-    def should_sample(self, parent_context, trace_id, name, *args, **kwargs):
+    def should_sample(self, parent_context, trace_id, name, kind=None, attributes=None, *args, **kwargs):
         if name.endswith("/catch_timeout"):
             return SamplingResult(Decision.DROP)
-        return super().should_sample(parent_context, trace_id, name, *args, **kwargs)
+        if kind == SpanKind.SERVER and attributes and attributes.get("http.method") == "GET":
+            return SamplingResult(Decision.DROP)
+        return super().should_sample(parent_context, trace_id, name, kind, attributes, *args, **kwargs)
 
 
 def record_error(exc):
