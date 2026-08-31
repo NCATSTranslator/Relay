@@ -510,7 +510,8 @@ def pre_merge_process(data,key, agent_name,inforesid):
         logging.exception("Error in the scrubbing of null attributes")
         raise e
     try:
-        normalize_nodes(data,agent_name,key)
+        logging.info("Skipping node normalization "+str(key))
+        #normalize_nodes(data,agent_name,key)
         logging.info("node norm success for "+str(key))
     except Exception as e:
         post_processing_error(mesg,data,"Error in ARS node normalization")
