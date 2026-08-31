@@ -4,12 +4,6 @@ import os
 
 from celery import Celery
 from celery.schedules import crontab
-from opentelemetry.instrumentation.celery import CeleryInstrumentor
-# from celery.signals import worker_process_init
-#
-# @worker_process_init.connect(weak=False)
-# def init_celery_tracing(*args, **kwargs):
-#     CeleryInstrumentor().instrument()
 
 # set the default Django settings module for the 'celery' program.
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'tr_sys.settings')
@@ -31,8 +25,6 @@ app.autodiscover_tasks()
 @app.task(bind=True)
 def debug_task(self):
     print('Request: {0!r}'.format(self.request))
-
-CeleryInstrumentor().instrument()
 
 app.conf.beat_schedule = {
  #Excute the timeout fucntion every 3 min
