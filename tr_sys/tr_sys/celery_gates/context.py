@@ -4,8 +4,7 @@
 from contextlib import contextmanager
 from celery.exceptions import Retry, MaxRetriesExceededError
 from .expensive_gate import (try_acquire, release, LeaseRenewer, constant_backoff_with_jitter,
-                             ARS_EXPENSIVE_TOKEN_LIMIT)
-from tr_ars.utils import TASK_MAX_RETRIES
+                             ARS_EXPENSIVE_TOKEN_LIMIT, TASK_MAX_RETRIES)
 from celery.utils.log import get_task_logger
 logger = get_task_logger(__name__)
 

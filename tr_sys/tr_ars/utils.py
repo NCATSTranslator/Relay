@@ -36,7 +36,8 @@ from biothings_annotator import annotator
 from pydantic import ValidationError
 from opentelemetry import trace
 
-from tr_sys.celery_gates.expensive_gate import exp_backoff_with_jitter, constant_backoff_with_jitter
+from tr_sys.celery_gates.expensive_gate import (exp_backoff_with_jitter, constant_backoff_with_jitter,
+                                                TASK_MAX_RETRIES)
 
 tracer = trace.get_tracer(__name__)
 import asyncio
@@ -57,7 +58,6 @@ ARS_ACTOR = {
 NORMALIZER_URL=os.getenv("TR_NORMALIZER") if os.getenv("TR_NORMALIZER") is not None else "https://nodenorm.ci.transltr.io/get_normalized_nodes"
 ANNOTATOR_URL=os.getenv("TR_ANNOTATOR") if os.getenv("TR_ANNOTATOR") is not None else "https://biothings.ncats.io/curie"
 APPRAISER_URL=os.getenv("TR_APPRAISE") if os.getenv("TR_APPRAISE") is not None else "https://answerappraiser.ci.transltr.io/get_appraisal"
-TASK_MAX_RETRIES = int(os.getenv("ARS_EXPENSIVE_TASK_MAX_RETRIES", "100"))
 MERGE_ERROR_MAX_RETRIES = int(os.getenv("ARS_MERGE_ERROR_MAX_RETRIES", "5"))
 
 class QueryGraph():

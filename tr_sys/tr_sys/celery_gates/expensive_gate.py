@@ -16,6 +16,8 @@ ZKEY = os.getenv("ARS_EXPENSIVE_ZKEY", "ars:expensive_tokens")
 ARS_EXPENSIVE_TOKEN_LIMIT = int(os.getenv("ARS_EXPENSIVE_LIMIT", "12"))       # default token limit
 LEASE_MS = int(os.getenv("ARS_EXPENSIVE_LEASE_MS", "180000"))   # default lease 3 minutes (ms)
 RENEW_EVERY_SEC = int(os.getenv("ARS_EXPENSIVE_RENEW_SEC", "15"))  # renew interval
+# Celery retry budget for contention (no available token, or the merge db lock is held).
+TASK_MAX_RETRIES = int(os.getenv("ARS_EXPENSIVE_TASK_MAX_RETRIES", "100"))
 
 # Redis client
 r = redis.Redis.from_url(REDIS_URL, decode_responses=True)
