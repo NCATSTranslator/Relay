@@ -10,6 +10,7 @@ from opentelemetry.sdk.trace.sampling import ALWAYS_ON, Decision, ParentBased, S
 from opentelemetry.instrumentation.django import DjangoInstrumentor
 from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
 from opentelemetry.instrumentation.celery import CeleryInstrumentor
+from opentelemetry.instrumentation.httpx import HTTPXClientInstrumentor
 from opentelemetry.instrumentation.requests import RequestsInstrumentor
 from celery.signals import worker_process_init
 
@@ -86,6 +87,12 @@ def configure_opentelemetry():
         tracer_provider.add_span_processor(span_processor)
 
         RequestsInstrumentor().instrument()
+        # biothings_annotator calls out over httpx, not requests, so without this
+        # its spans have no children and the time inside them is unattributable.
+        # biothings_annotator does have its own OTEL implementation,
+        # it only runs when used as a standalone application, not when imported
+        # as a package like it is here.
+        HTTPXClientInstrumentor().instrument()
         # Producer side (web/beat processes): hooks before_task_publish so
         # outgoing task messages carry the current trace context.  Celery
         # connects these handlers with weak=False, so prefork children inherit
