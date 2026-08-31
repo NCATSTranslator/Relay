@@ -311,8 +311,10 @@ def mergeMessagesRecursive(mergedMessage,messageList,pk):
                 except Exception as e:
                     print(e)
                     logging.debug(e.__traceback__)
+                    record_error(e)
         except Exception as e:
             logging.debug(e.__traceback__)
+            record_error(e)
         if mergedMessage is not None:
             mergedMessage.status='Done'
             mergedMessage.code = 200
@@ -415,6 +417,7 @@ def mergeDicts(dcurrent,dmerged):
                             except Exception as e:
                                 logging.info("failing due to either merged %s or current %s" %(merged_attribute,current_attribute))
                                 logging.error(e.__traceback__)
+                                record_error(e)
 
                 return dmerged
             #analyses are a special case in which we just append them at the result level
@@ -472,6 +475,7 @@ def mergeDicts(dcurrent,dmerged):
 
                 except Exception as e:
                     print(e)
+                    record_error(e)
             else:
                 #print("newly listing")
                 try:
@@ -496,6 +500,7 @@ def mergeDicts(dcurrent,dmerged):
                             dmerged[key]=[mv,cv]
                 except Exception as e:
                     print(e)
+                    record_error(e)
         else:
             logging.info(f"ADDING NEW: {key} to DMERGED")
             dmerged[key]=cv
@@ -663,7 +668,8 @@ def post_process(mesg,key, agent_name):
         except DatabaseError as e:
             status ='E'
             code=422
-            logging.error("Final save failed")
+            logging.exception("Final save failed")
+            record_error(e)
         return mesg, code, status
 
 # def lock_merge(message):
@@ -1140,6 +1146,8 @@ def appraise(mesg, data, agent_name, compress = True):
                     logging.info("Received Error state from appraiser for agent %s and pk %s  Code %s" % (agent_name,str(mesg.id),str(r.status_code)))
                     logging.info("JSON fields "+str(data_payload)[:100])
                     logging.error("Error from appraise for agent %s and pk %s " % (agent_name,str(mesg.id)))
+                    # `raise Exception` carries no message, so set the status code on the span here
+                    span.set_attribute("appraiser.status_code", r.status_code)
                     raise Exception
 
         except Exception as e:
@@ -1147,6 +1155,7 @@ def appraise(mesg, data, agent_name, compress = True):
             logging.error("Adding default ordering_components for agent %s and pk %s " % (agent_name,str(mesg.id)))
             span.set_attribute("error", True)
             span.set_attribute("exception", str(e))
+            record_error(e)
             results = get_safe(data,"message","results")
             default_ordering_component = {
                 "novelty": 0,
@@ -1186,6 +1195,7 @@ def sperate_annotated_nodes(nodes):
                     unannotated.append(curie)
     except Exception as e:
         print(e)
+        record_error(e)
 
     return unannotated
 
@@ -1560,6 +1570,7 @@ def ScoreStatCalc(results):
         except Exception as e:
             logging.error("Error in calculating statistics")
             logging.error(e.__traceback__)
+            record_error(e)
             return stat
     return stat
 
@@ -1689,6 +1700,7 @@ def merge_received(parent,message_to_merge, agent_name, counter=0):
         return new_merged_message, parent, stats
     except Exception as e:
         logging.exception("problem with merging for %s :" % agent_name)
+        record_error(e)
         #If anything goes wrong, we at least need to unlock the semaphore
         #TODO make some actual proper Exception handling here.
         parent.merge_semaphore=False
