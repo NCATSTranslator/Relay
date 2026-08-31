@@ -63,6 +63,15 @@ def expensive_section(task_self, limit: int = ARS_EXPENSIVE_TOKEN_LIMIT):
         span.set_attribute("gate.attempt", retries + 1)
         try:
             yield
+            span.set_attribute("gate.result", "completed")
+        except Retry:
+            span.set_attribute("gate.result", "retry")
+            raise
+        except Exception as e:
+            span.set_attribute("gate.result", "error")
+            span.record_exception(e)
+            span.set_status(Status(StatusCode.ERROR, str(e)))
+            raise
         finally:
             # stop renewing and release token (always run)
             renewer.stop()
