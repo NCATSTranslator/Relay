@@ -5,6 +5,7 @@ from opentelemetry import trace
 from opentelemetry.sdk.resources import SERVICE_NAME as telemetery_service_name_key, Resource
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
+from opentelemetry.sdk.trace.sampling import ALWAYS_ON, Decision, ParentBased, SamplingResult
 from opentelemetry.instrumentation.django import DjangoInstrumentor
 from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
 from opentelemetry.instrumentation.celery import CeleryInstrumentor
@@ -14,6 +15,19 @@ from celery.signals import worker_process_init
 # Don't trace health checks and other noise endpoints.
 # Deployment env can override with its own comma separated list with OTEL_PYTHON_DJANGO_EXCLUDED_URLS
 DEFAULT_EXCLUDED_URLS = "ars/api/health,ars/api/retain"
+
+
+class ARSSampler(ParentBased):
+    """Drop traces for the catch_timeout beat task, which runs every 3 minutes.
+
+    The excluded-URL list above can't cover this one: it lives in the Django
+    middleware and only sees HTTP requests.
+    """
+
+    def should_sample(self, parent_context, trace_id, name, *args, **kwargs):
+        if name.endswith("/catch_timeout"):
+            return SamplingResult(Decision.DROP)
+        return super().should_sample(parent_context, trace_id, name, *args, **kwargs)
 
 
 def _otel_disabled():
@@ -39,7 +53,9 @@ def configure_opentelemetry():
         service_name= 'ARS'
         resource = Resource.create({telemetery_service_name_key: service_name})
 
-        trace.set_tracer_provider(TracerProvider(resource=resource))
+        trace.set_tracer_provider(
+            TracerProvider(resource=resource, sampler=ARSSampler(ALWAYS_ON))
+        )
 
         tracer_provider = trace.get_tracer_provider()
 
