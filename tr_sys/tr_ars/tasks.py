@@ -24,6 +24,7 @@ from requests.exceptions import RequestException, Timeout
 from tr_sys.celery_gates.context import (expensive_section)
 
 logger = get_task_logger(__name__)
+tracer = trace.get_tracer(__name__)
 
 # @shared_task(bind=True, acks_late=True, max_retries=50, default_retry_delay=2)
 # def test_expensive(self, seconds=10):
@@ -36,7 +37,6 @@ logger = get_task_logger(__name__)
 
 @shared_task(name="send-message-to-actor")
 def send_message(actor_dict, mesg_dict, timeout=300):
-    tracer = trace.get_tracer(__name__)
     infores=actor_dict['fields']['inforesid']
     agent= infores.split(':')[1]
     logger.info(mesg_dict)
