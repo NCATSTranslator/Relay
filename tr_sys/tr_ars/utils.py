@@ -35,6 +35,7 @@ from reasoner_pydantic import (
 from biothings_annotator import annotator
 from pydantic import ValidationError
 from opentelemetry import trace
+from opentelemetry.trace import Status, StatusCode
 
 from tr_sys.celery_gates.expensive_gate import exp_backoff_with_jitter
 
@@ -710,6 +711,12 @@ def merge_and_post_process(self, parent_pk,message_to_merge, agent_name):
     stats={}
     parent = None
     locked = False
+    task_span = trace.get_current_span()
+    attempt = (getattr(self.request, "retries", 0) or 0) + 1
+    outcome = "unknown"
+    task_span.set_attribute("merge.parent_pk", str(parent_pk))
+    task_span.set_attribute("merge.agent", agent_name)
+    task_span.set_attribute("merge.attempt", attempt)
     logging.info(f"🚀Starting merge for %s with parent PK: %s"% (agent_name,parent_pk))
     try:
         #Acquire an expensive token so we don't hold DB locked while waiting
@@ -719,14 +726,27 @@ def merge_and_post_process(self, parent_pk,message_to_merge, agent_name):
             # short critical section: lock row + decide if we can merge
             try:
                 with transaction.atomic():
-                    parent = get_object_or_404(Message.objects.select_for_update().filter(pk=parent_pk))
-                    logging.info("the merge semaphore for agent %s is %s"% (agent_name, parent.merge_semaphore))
-                    #try to acquire DB boolean lock
-                    if not try_lock_merge(parent):
+                    # a span of its own because select_for_update can block here
+                    with tracer.start_as_current_span("merge.lock.acquire") as lock_span:
+                        parent = get_object_or_404(Message.objects.select_for_update().filter(pk=parent_pk))
+                        logging.info("the merge semaphore for agent %s is %s"% (agent_name, parent.merge_semaphore))
+                        # how many merges this parent has already absorbed, read off the row we just loaded
+                        version_index = len(parent.merged_versions_list or [])
+                        task_span.set_attribute("merge.version_index", version_index)
+                        lock_span.set_attribute("merge.version_index", version_index)
+                        lock_span.set_attribute("merge.agent", agent_name)
+                        lock_span.set_attribute("merge.attempt", attempt)
+                        #try to acquire DB boolean lock
+                        lock_acquired = try_lock_merge(parent)
+                        lock_span.set_attribute("merge.lock.acquired", lock_acquired)
+                        task_span.set_attribute("merge.lock.acquired", lock_acquired)
+                    if not lock_acquired:
                         #someone else already locked it & possibly going through merge, retry ...
                         retries = self.request.retries
                         if retries < 10:
                             delay = 5
+                            outcome = "lock_contended"
+                            task_span.set_attribute("merge.lock.retry_delay_seconds", delay)
                             if retries >= 7:
                                 logging.warning("⚠️ High retry count (%s) for merge lock on parent=%s agent=%s.Retrying in %ss",retries, parent_pk, agent_name, delay)
                             else:
@@ -734,6 +754,8 @@ def merge_and_post_process(self, parent_pk,message_to_merge, agent_name):
                             # raise retry — this will release the expensive token (expensive_section finally), stop the task, requeues it and free the worker
                             raise self.retry(countdown=delay)
                         else:
+                            outcome = "lock_budget_exhausted"
+                            task_span.set_status(Status(StatusCode.ERROR, "gave up waiting for the per-parent merge lock"))
                             logging.info("❌ Merging failed for %s %s after retries", agent_name, parent_pk)
                             return
                     else:
@@ -743,11 +765,21 @@ def merge_and_post_process(self, parent_pk,message_to_merge, agent_name):
                     logging.info(f"[{self.request.id}] ✅ ENTER expensive section")
                     logging.info("Before merging for %s with parent PK: %s", agent_name, parent_pk)
                     #merging
-                    merged, parent, stats = merge_received(parent, message_to_merge, agent_name)
+                    with tracer.start_as_current_span("merge.merge_received") as merge_span:
+                        merge_span.set_attribute("merge.agent", agent_name)
+                        merge_span.set_attribute("merge.version_index", version_index)
+                        merged, parent, stats = merge_received(parent, message_to_merge, agent_name)
+                        # sizes of what we just produced, straight off the stats merge_received already computed
+                        if isinstance(stats, dict):
+                            for stat in ("results", "knowledge_graph_nodes", "knowledge_graph_edges"):
+                                if stat in stats:
+                                    merge_span.set_attribute("merge.%s" % stat, stats[stat])
+                                    task_span.set_attribute("merge.%s" % stat, stats[stat])
                     logging.info(f"After merging for %s with parent PK: %s"% (agent_name,parent_pk))
                     parent.save(update_fields=['params','merged_versions_list','merged_version'])
 
                     if merged is None:
+                        outcome = "merge_returned_none"
                         logging.info("merge_received returned None for %s %s", agent_name, parent_pk)
                         return
 
@@ -758,6 +790,7 @@ def merge_and_post_process(self, parent_pk,message_to_merge, agent_name):
                     }
                     parent.notify_subscribers(notification)
             except Message.DoesNotExist:
+                outcome = "parent_missing"
                 logging.info("Message %s does not exist. Skipping merge.🚨" % parent_pk)
                 return
 
@@ -774,7 +807,13 @@ def merge_and_post_process(self, parent_pk,message_to_merge, agent_name):
 
             logging.info('merged data for agent %s with pk %s is returned & ready to be preprocessed' % (agent_name, str(merged.id)))
             #post-process
-            merged, code, status = post_process(merged, merged.id, agent_name)
+            # span is nested inside expensive_gate.hold, so the trace shows the token being held across the annotator/appraiser calls
+            with tracer.start_as_current_span("merge.post_process") as post_span:
+                post_span.set_attribute("merge.agent", agent_name)
+                post_span.set_attribute("merge.merged_pk", str(merged.id))
+                merged, code, status = post_process(merged, merged.id, agent_name)
+                post_span.set_attribute("merge.post_process.code", code)
+                post_span.set_attribute("merge.post_process.status", status)
             logging.info('post processing complete for agent %s with pk %s is returned & ready to be preprocessed' % (agent_name, str(merged.id)))
             notification= {"event_type": "merged_version_available",
                            "complete": False,
@@ -786,15 +825,19 @@ def merge_and_post_process(self, parent_pk,message_to_merge, agent_name):
             merged.status = status
             merged.code = code
             merged.save()
+            outcome = "merged"
             logging.info(f"[{self.request.id}] ✅ EXIT expensive section")
 
     except Retry:
         # If we bubble here, expensive_section requested a retry before acquiring a token,
         # or we explicitly raised retry while inside; allow it to propagate (worker freed).
+        if outcome == "unknown":
+            outcome = "gate_unavailable"
         logging.info("Task retry requested — requeueing (parent=%s, retries=%s)",parent_pk, self.request.retries)
         raise
 
     except Exception as e:
+        outcome = "error"
         logging.info("Problem with merger for agent %s pk: %s " % (agent_name, (parent_pk)))
         logging.info(e, exc_info=True)
         logging.info('error message %s' % str(e))
@@ -808,6 +851,7 @@ def merge_and_post_process(self, parent_pk,message_to_merge, agent_name):
         raise self.retry(exc=e, countdown=delay)
 
     finally:
+        task_span.set_attribute("merge.outcome", outcome)
         # Safety net: ensure DB boolean lock released if still held (should generally be False)
         if locked and parent is not None:
             try:
