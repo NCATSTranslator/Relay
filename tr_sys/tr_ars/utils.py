@@ -43,7 +43,7 @@ tracer = trace.get_tracer(__name__)
 import asyncio
 import zstandard as zstd
 from tr_sys.celery_gates.context import (expensive_section)
-from tr_sys.otel_config import record_error
+from tr_sys.otel_config import count_error, record_error
 from celery.exceptions import Retry
 
 ARS_ACTOR = {
@@ -417,7 +417,7 @@ def mergeDicts(dcurrent,dmerged):
                             except Exception as e:
                                 logging.info("failing due to either merged %s or current %s" %(merged_attribute,current_attribute))
                                 logging.error(e.__traceback__)
-                                record_error(e)
+                                count_error(e, "merge.attribute_errors")
 
                 return dmerged
             #analyses are a special case in which we just append them at the result level
@@ -475,7 +475,7 @@ def mergeDicts(dcurrent,dmerged):
 
                 except Exception as e:
                     print(e)
-                    record_error(e)
+                    count_error(e, "merge.list_merge_errors")
             else:
                 #print("newly listing")
                 try:
@@ -500,7 +500,7 @@ def mergeDicts(dcurrent,dmerged):
                             dmerged[key]=[mv,cv]
                 except Exception as e:
                     print(e)
-                    record_error(e)
+                    count_error(e, "merge.value_merge_errors")
         else:
             logging.info(f"ADDING NEW: {key} to DMERGED")
             dmerged[key]=cv

@@ -50,6 +50,27 @@ def record_error(exc):
         logging.exception('Failed to record exception on the active OTEL span')
 
 
+def count_error(exc, attribute):
+    """Count an error on the active span, with a traceback only for the first one.
+
+    This avoids significant performance issues from formatting a stack trace on every
+    iteration of a hot loop - the repeated traces are identical, so just take the
+    first instance and record the error with that. This is only applicable for errors
+    that are likely to occur many times in one span. Just use record_error() instead
+    for errors that would only fire once per message.
+    """
+    try:
+        span = trace.get_current_span()
+        if not span.is_recording():
+            return
+        count = (span.attributes or {}).get(attribute, 0) + 1
+        span.set_attribute(attribute, count)
+        if count == 1:
+            record_error(exc)
+    except Exception:
+        logging.exception('Failed to count exception on the active OTEL span')
+
+
 def _otel_disabled():
     #If we're running pytests, don't instrument OTEL.  We don't need to log the tests and OTEL breaks them anyway
     return "pytest" in sys.modules
