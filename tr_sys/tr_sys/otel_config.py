@@ -56,10 +56,21 @@ def _otel_disabled():
 def configure_opentelemetry():
     """Set up the tracer provider plus the non-Django instrumentation.
 
-    Safe to call from anywhere, including the top of settings.py.  The Django
-    instrumentation deliberately does not live here -- see instrument_django().
+    Idempotent, and deliberately called from more than one place: the top of
+    settings.py, ARSConfig.ready() and celery.py.  Deployments mount their own
+    settings.py over ours, so a call from that file alone is not something we
+    can rely on shipping, and without a provider every span goes to the no-op
+    proxy and is silently dropped, middleware installed or not.  The Django
+    instrumentation does not live here -- see instrument_django().
     """
     if _otel_disabled():
+        return
+    # A second call must not reach add_span_processor() below: set_tracer_provider()
+    # only warns and no-ops the second time, so get_tracer_provider() would hand
+    # back the provider already in place and we would attach a duplicate
+    # BatchSpanProcessor to it and export every span twice.  get_tracer_provider()
+    # returns a ProxyTracerProvider until a real one is set.
+    if isinstance(trace.get_tracer_provider(), TracerProvider):
         return
     logging.info('About to instrument ARS app for OTEL')
     try:

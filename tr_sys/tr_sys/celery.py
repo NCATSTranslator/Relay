@@ -5,8 +5,12 @@ import os
 from celery import Celery
 from celery.schedules import crontab
 
+from .otel_config import configure_opentelemetry
+
 # set the default Django settings module for the 'celery' program.
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'tr_sys.settings')
+
+configure_opentelemetry()
 
 app = Celery('tr_sys')
 

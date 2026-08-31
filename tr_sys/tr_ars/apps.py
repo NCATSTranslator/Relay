@@ -76,8 +76,12 @@ class ARSConfig(AppConfig):
         from django.conf import settings
         # OTEL's Django middleware has to be installed here rather than from
         # settings.py -- see tr_sys.otel_config.instrument_django() for why.
+        # configure_opentelemetry() is idempotent and normally already ran from
+        # settings.py; calling it here too means a deployment whose mounted
+        # settings.py lacks that call still works
         try:
-            from tr_sys.otel_config import instrument_django
+            from tr_sys.otel_config import configure_opentelemetry, instrument_django
+            configure_opentelemetry()
             instrument_django()
         except Exception as e:
             logger.error('OTEL Django instrumentation failed because: %s' % str(e))
