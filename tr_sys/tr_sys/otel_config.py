@@ -2,6 +2,7 @@ import os,sys
 import logging
 
 from opentelemetry import trace
+from opentelemetry.trace import Status, StatusCode
 from opentelemetry.sdk.resources import SERVICE_NAME as telemetery_service_name_key, Resource
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
@@ -28,6 +29,22 @@ class ARSSampler(ParentBased):
         if name.endswith("/catch_timeout"):
             return SamplingResult(Decision.DROP)
         return super().should_sample(parent_context, trace_id, name, *args, **kwargs)
+
+
+def record_error(exc):
+    """Attach an exception to the currently active span.
+
+    A span records an exception automatically only when that exception escapes
+    it. try/catch blocks that log errors and carry on never let that happen.
+    Calling this in such places keeps the trace honest: the active span gets the
+    stack trace and an ERROR status, and the caller still decides what to do about the failure.
+    """
+    try:
+        span = trace.get_current_span()
+        span.record_exception(exc)
+        span.set_status(Status(StatusCode.ERROR, str(exc)))
+    except Exception:
+        logging.exception('Failed to record exception on the active OTEL span')
 
 
 def _otel_disabled():

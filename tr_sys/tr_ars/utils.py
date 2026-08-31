@@ -42,6 +42,7 @@ tracer = trace.get_tracer(__name__)
 import asyncio
 import zstandard as zstd
 from tr_sys.celery_gates.context import (expensive_section)
+from tr_sys.otel_config import record_error
 from celery.exceptions import Retry
 
 ARS_ACTOR = {
@@ -545,6 +546,7 @@ def post_process(mesg,key, agent_name):
         code=444
         logging.info(e.__cause__)
         logging.exception(f"Problem with block list removal for agent: {agent_name} pk: {str(key)}")
+        record_error(e)
         mesg.status=status
         mesg.code=code
         mesg.save()
@@ -556,6 +558,7 @@ def post_process(mesg,key, agent_name):
         status='E'
         code=444
         logging.exception(f"Problem with the second scrubbing of null attributes for agent: {agent_name} pk: {str(key)}")
+        record_error(e)
         post_processing_error(mesg,data,"Error in second scrubbing of null attributes")
         log_tuple =[
             "Error in second scrubbing of null attributes",
@@ -583,6 +586,7 @@ def post_process(mesg,key, agent_name):
         ]
         add_log_entry(data,log_tuple)
         logging.exception(f"problem with node annotation for agent: {agent_name} pk: {str(key)}")
+        record_error(e)
         mesg.status=status
         mesg.code=code
         mesg.save()
@@ -592,7 +596,8 @@ def post_process(mesg,key, agent_name):
     try:
         appraise(mesg,data,agent_name)
     except Exception as e:
-        logging.ERROR("appraiser failed mesg for agent %s is %s: %s"% (agent_name, mesg.code, mesg.status))
+        logging.exception("appraiser failed mesg for agent %s is %s: %s"% (agent_name, mesg.code, mesg.status))
+        record_error(e)
 
     if mesg.code == 422:
         return mesg, mesg.code, mesg.status
@@ -618,6 +623,7 @@ def post_process(mesg,key, agent_name):
             ]
             add_log_entry(data,log_tuple)
             logging.exception("Error in f-score calculation")
+            record_error(e)
             mesg.save_compressed_dict(data)
             return mesg, code, status
 
@@ -627,6 +633,7 @@ def post_process(mesg,key, agent_name):
             logging.info("scoring stat calculation succeeded  for agent %s and pk %s" % (agent_name, key))
         except Exception as e:
             logging.exception("Error in ScoreStatCalculation or result count")
+            record_error(e)
             post_processing_error(mesg,data,"Error in score stat calculation")
             log_tuple =[
                 "Error in score stat calculation",
@@ -760,8 +767,9 @@ def merge_and_post_process(self, parent_pk,message_to_merge, agent_name):
                 try:
                     unlock_merge(parent)
                     locked = False
-                except Exception:
+                except Exception as e:
                     logging.exception("Failed to release DB merge_semaphore for parent %s", parent_pk)
+                    record_error(e)
 
 
             logging.info('merged data for agent %s with pk %s is returned & ready to be preprocessed' % (agent_name, str(merged.id)))
@@ -790,6 +798,7 @@ def merge_and_post_process(self, parent_pk,message_to_merge, agent_name):
         logging.info("Problem with merger for agent %s pk: %s " % (agent_name, (parent_pk)))
         logging.info(e, exc_info=True)
         logging.info('error message %s' % str(e))
+        record_error(e)
         if merged is not None:
             merged.status='E'
             merged.code = 422
@@ -803,8 +812,9 @@ def merge_and_post_process(self, parent_pk,message_to_merge, agent_name):
         if locked and parent is not None:
             try:
                 unlock_merge(parent)
-            except Exception:
+            except Exception as e:
                 logging.exception("Finalizer failed to unlock merge_semaphore for parent %s", parent_pk)
+                record_error(e)
 
     logging.info("[%s] 🏁 after expensive section", self.request.id)
     return
