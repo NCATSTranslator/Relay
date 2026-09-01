@@ -1,5 +1,6 @@
 import os,sys
 import logging
+import re
 
 from opentelemetry import trace
 from opentelemetry.trace import SpanKind, Status, StatusCode
@@ -12,6 +13,7 @@ from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExport
 from opentelemetry.instrumentation.celery import CeleryInstrumentor
 from opentelemetry.instrumentation.httpx import HTTPXClientInstrumentor
 from opentelemetry.instrumentation.requests import RequestsInstrumentor
+from opentelemetry.semconv.attributes.http_attributes import HTTP_ROUTE
 from celery.signals import worker_process_init
 
 # Don't trace health checks and other noise endpoints.
@@ -147,6 +149,48 @@ def configure_opentelemetry():
         logging.error('OTEL instrumentation failed because: %s'%str(e))
 
 
+def _readable_route(route):
+    """Turn a Django URL pattern into the path clients actually call.
+
+    'ars/api/^submit/?$' becomes '/ars/api/submit'.  Routes registered with
+    path() rather than re_path() only pick up the leading slash, so
+    'ars/api/messages/<uuid:key>' becomes '/ars/api/messages/<uuid:key>'.
+    """
+    cleaned = route.replace('^', '').replace('$', '')
+    cleaned = re.sub(r'/\?(?=/|$)', '', cleaned)  # the optional trailing slash
+    cleaned = cleaned.replace('\\', '')  # escapes such as \.
+    return '/' + cleaned.lstrip('/')
+
+
+def _rename_span_for_route(span, request, response):
+    """Report the readable path instead of the raw URL pattern.
+
+    The Django instrumentation names each server span after the route template
+    Django resolved the request to, so the re_path() endpoints in tr_ars/urls.py
+    arrive in Jaeger as 'POST ars/api/^submit/?$'.  Naming spans after the route
+    rather than the request path is what we want - otherwise every request for a
+    single message would get its UUID baked into the span name - so clean up the
+    template instead of going back to paths.
+    """
+    try:
+        if not span.is_recording():
+            return
+        match = getattr(request, 'resolver_match', None)
+        route = getattr(match, 'route', None) if match else None
+        if not route:
+            return
+        readable = _readable_route(route)
+        if readable == route:
+            return
+        # The instrumentation names the span '<METHOD> <route>'; keep whatever
+        # prefix it decided on and swap out just the route.
+        if span.name.endswith(route):
+            span.update_name(span.name[:-len(route)] + readable)
+        span.set_attribute(HTTP_ROUTE, readable)
+    except Exception:
+        logging.exception('Failed to clean up the OTEL span name for a request')
+
+
 def instrument_django():
     """Install the OTEL Django middleware.
 
@@ -168,7 +212,8 @@ def instrument_django():
         return
     try:
         DjangoInstrumentor().instrument(
-            excluded_urls=os.environ.get("OTEL_PYTHON_DJANGO_EXCLUDED_URLS", DEFAULT_EXCLUDED_URLS)
+            excluded_urls=os.environ.get("OTEL_PYTHON_DJANGO_EXCLUDED_URLS", DEFAULT_EXCLUDED_URLS),
+            response_hook=_rename_span_for_route
         )
         logging.info('Instrumented Django for OTEL')
     except Exception as e:
