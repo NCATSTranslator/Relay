@@ -728,9 +728,10 @@ def merge_and_post_process(self, parent_pk, message_to_merge, agent_name, error_
       and not celery's internal retry check. These use exponential backoff (1, 2, 4, 8, 16s, then capped at 30s)
       to give downstream services time to recover, so the default cap of 8 buys about two minutes of patience —
       enough to outlast an annotator/appraiser restart or a rolling deploy.
-    - Note that max_retries=None in the merge_and_post_process decorator signature means that callers MUST
-      explicitly declare the max_retries limit. Future changes to this logic should be aware of that and make
-      sure it's always set.
+    - Note that max_retries=None in the merge_and_post_process decorator signature means celery imposes no
+      limit of its own: contention retry sites must pass max_retries explicitly, while the error path
+      intentionally omits it and relies on the error_retries cap instead. Future changes should preserve that
+      split — a retry with neither limit would loop forever.
     """
     merged=None
     stats={}
