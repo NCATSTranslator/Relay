@@ -1,0 +1,74 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "ars.fullname" . }}-worker
+  labels:
+    {{- include "ars.labels" . | nindent 4 }}
+    app.kubernetes.io/component: worker
+spec:
+  replicas: {{ .Values.celeryworker.replicas }}
+  selector:
+    matchLabels:
+      {{- include "ars.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: worker
+  template:
+    metadata:
+      labels:
+        {{- include "ars.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: worker
+      annotations:
+        checksum/settings: {{ include "ars.settingsChecksum" . }}
+    spec:
+      {{- include "ars.podScheduling" . | nindent 6 }}
+      initContainers:
+        - name: wait-for-mysql
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: ["/bin/wait-for", "{{ include "ars.mysqlHost" . }}:{{ include "ars.mysqlPort" . }}", "-t", "300"]
+        - name: wait-for-rabbitmq
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: ["/bin/wait-for", "{{ include "ars.rabbitmqHost" . }}:{{ include "ars.rabbitmqPort" . }}", "-t", "300"]
+        {{- if .Values.redis.enabled }}
+        - name: wait-for-redis
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: ["/bin/wait-for", "{{ include "ars.redisHost" . }}:6379", "-t", "300"]
+        {{- end }}
+      containers:
+        - name: celeryworker
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          # Worker only -- beat runs in its own single-replica Deployment so
+          # scaling workers never duplicates the schedule.
+          command: ["/bin/sh", "-c"]
+          args:
+            - >-
+              cd /ars/tr_sys &&
+              celery -A tr_sys worker -l info
+              --concurrency={{ .Values.celeryworker.concurrency }}
+              --prefetch-multiplier=1
+          env:
+            {{- include "ars.commonEnv" . | nindent 12 }}
+          volumeMounts:
+            - name: settings
+              mountPath: /ars/tr_sys/tr_sys/settings.py
+              subPath: settings.py
+          livenessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - "pgrep -f 'celery.*worker' || exit 1"
+            initialDelaySeconds: 30
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 3
+          {{- with .Values.celeryworker.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+      volumes:
+        - name: settings
+          configMap:
+            name: {{ include "ars.fullname" . }}-settings

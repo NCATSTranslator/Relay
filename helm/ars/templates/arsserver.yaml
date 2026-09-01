@@ -1,0 +1,85 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "ars.fullname" . }}-server
+  labels:
+    {{- include "ars.labels" . | nindent 4 }}
+    app.kubernetes.io/component: server
+spec:
+  replicas: {{ .Values.arsserver.replicas }}
+  selector:
+    matchLabels:
+      {{- include "ars.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: server
+  template:
+    metadata:
+      labels:
+        {{- include "ars.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: server
+      annotations:
+        checksum/settings: {{ include "ars.settingsChecksum" . }}
+    spec:
+      {{- include "ars.podScheduling" . | nindent 6 }}
+      initContainers:
+        - name: wait-for-mysql
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: ["/bin/wait-for", "{{ include "ars.mysqlHost" . }}:{{ include "ars.mysqlPort" . }}", "-t", "300"]
+        - name: wait-for-rabbitmq
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: ["/bin/wait-for", "{{ include "ars.rabbitmqHost" . }}:{{ include "ars.rabbitmqPort" . }}", "-t", "300"]
+      containers:
+        - name: arsserver
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          # Migrations run in the migrate Job (templates/migrate-job.yaml), not here,
+          # so replicas > 1 never race on the schema.
+          command: ["/bin/sh"]
+          args:
+            - "-c"
+            - >-
+              gunicorn tr_sys.wsgi:application
+              --chdir /ars/tr_sys
+              --bind 0.0.0.0:{{ .Values.arsserver.containerPort }}
+              --worker-class {{ .Values.arsserver.gunicorn.workerClass | default "gthread" }}
+              --workers {{ .Values.arsserver.gunicorn.workers | default 4 }}
+              --threads {{ .Values.arsserver.gunicorn.threads | default 8 }}
+              --timeout {{ .Values.arsserver.gunicorn.timeout | default 360 }}
+              --graceful-timeout {{ .Values.arsserver.gunicorn.gracefulTimeout | default 120 }}
+              --max-requests {{ .Values.arsserver.gunicorn.maxRequests | default 1000 }}
+              --max-requests-jitter {{ .Values.arsserver.gunicorn.maxRequestsJitter | default 100 }}
+              --access-logfile - --error-logfile -
+          ports:
+            - name: http
+              containerPort: {{ .Values.arsserver.containerPort }}
+          env:
+            {{- include "ars.commonEnv" . | nindent 12 }}
+          volumeMounts:
+            - name: settings
+              mountPath: /ars/tr_sys/tr_sys/settings.py
+              subPath: settings.py
+          livenessProbe:
+            tcpSocket:
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            # Checks DB connectivity and an in-process celery ping
+            httpGet:
+              path: /ars/api/health
+              port: http
+            initialDelaySeconds: 20
+            periodSeconds: 30
+            timeoutSeconds: 10
+            failureThreshold: 3
+          {{- with .Values.arsserver.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+      volumes:
+        - name: settings
+          configMap:
+            name: {{ include "ars.fullname" . }}-settings
