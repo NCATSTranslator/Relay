@@ -61,7 +61,7 @@ ARS_ACTOR = {
 NORMALIZER_URL=os.getenv("TR_NORMALIZER") if os.getenv("TR_NORMALIZER") is not None else "https://nodenorm-es.ci.transltr.io/get_normalized_nodes"
 ANNOTATOR_URL=os.getenv("TR_ANNOTATOR") if os.getenv("TR_ANNOTATOR") is not None else "https://biothings.ncats.io/curie"
 APPRAISER_URL=os.getenv("TR_APPRAISE") if os.getenv("TR_APPRAISE") is not None else "https://answerappraiser.ci.transltr.io/get_appraisal"
-MERGE_ERROR_MAX_RETRIES = int(os.getenv("ARS_MERGE_ERROR_MAX_RETRIES", "5"))
+MERGE_ERROR_MAX_RETRIES = int(os.getenv("ARS_MERGE_ERROR_MAX_RETRIES", "8"))
 
 class QueryGraph():
     def __init__(self,qg):
@@ -725,7 +725,9 @@ def merge_and_post_process(self, parent_pk, message_to_merge, agent_name, error_
       delay to avoid pointless downtime waiting on ourselves.
     - Retries for errors in merging are handled separately by error_retries, an arg based counter
       for actual merge_and_post_process errors, capped by MERGE_ERROR_MAX_RETRIES, enforced by the code here
-      and not celery's internal retry check.
+      and not celery's internal retry check. These use exponential backoff (1, 2, 4, 8, 16s, then capped at 30s)
+      to give downstream services time to recover, so the default cap of 8 buys about two minutes of patience —
+      enough to outlast an annotator/appraiser restart or a rolling deploy.
     - Note that max_retries=None in the merge_and_post_process decorator signature means that callers MUST
       explicitly declare the max_retries limit. Future changes to this logic should be aware of that and make
       sure it's always set.
@@ -881,7 +883,7 @@ def merge_and_post_process(self, parent_pk, message_to_merge, agent_name, error_
             raise
         delay = exp_backoff_with_jitter(error_retries)
         raise self.retry(
-            kwargs={"error_retries": error_retries + 1},
+            kwargs={**self.request.kwargs, "error_retries": error_retries + 1},
             exc=e, countdown=delay)
 
     finally:
