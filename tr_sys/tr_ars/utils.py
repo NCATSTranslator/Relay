@@ -860,6 +860,20 @@ def merge_and_post_process(self, parent_pk, message_to_merge, agent_name, error_
         task_span.set_status(Status(StatusCode.ERROR, "exhausted the retry budget waiting on contention"))
         logging.error("❌ Merge gave up after exhausting the retry budget for agent %s pk %s (retries=%s).",
                       agent_name, parent_pk, self.request.retries)
+        # surface the failure to API consumers, not just logs/OTEL
+        try:
+            if parent is None:
+                parent = Message.objects.filter(pk=parent_pk).first()
+            if parent is not None:
+                parent.notify_subscribers({
+                    "event_type": "merged_version_failed",
+                    "agent_name": agent_name,
+                    "reason": "retry_budget_exhausted",
+                    "merged_versions_list": parent.merged_versions_list if parent.merged_versions_list is not None else []
+                })
+        except Exception as notify_error:
+            logging.exception("Failed to notify subscribers of merge retry exhaustion for parent %s", parent_pk)
+            record_error(notify_error)
         raise
 
     except Exception as e:
