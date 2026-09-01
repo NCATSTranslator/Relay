@@ -11,7 +11,7 @@ https://docs.djangoproject.com/en/1.11/ref/settings/
 """
 
 import os
-from tr_sys.tr_sys.otel_config import configure_opentelemetry
+from .otel_config import configure_opentelemetry
 
 configure_opentelemetry()
 

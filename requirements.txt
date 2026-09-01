@@ -99,6 +99,7 @@ opentelemetry-instrumentation-django==0.64b0
 opentelemetry-exporter-otlp-proto-http==1.43.0
 opentelemetry-exporter-otlp-proto-grpc==1.43.0
 opentelemetry-instrumentation-requests==0.64b0
+opentelemetry-instrumentation-httpx==0.64b0
 opentelemetry-instrumentation-celery==0.64b0
 
 pip~=25.1.1
