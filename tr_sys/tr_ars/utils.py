@@ -898,7 +898,7 @@ def merge_and_post_process(self, parent_pk, message_to_merge, agent_name, error_
             raise
         delay = exp_backoff_with_jitter(error_retries)
         raise self.retry(
-            kwargs={**self.request.kwargs, "error_retries": error_retries + 1},
+            kwargs={**(self.request.kwargs or {}), "error_retries": error_retries + 1},
             exc=e, countdown=delay)
 
     finally:

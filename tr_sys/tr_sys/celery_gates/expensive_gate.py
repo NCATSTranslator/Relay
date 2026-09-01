@@ -66,8 +66,8 @@ def try_acquire(task_id: str, limit: int = ARS_EXPENSIVE_TOKEN_LIMIT) -> bool:
     script = _load_acquire_script()
     try:
         res = script(keys=[ZKEY], args=[now_ms(), LEASE_MS, limit, task_id])
-        logger.debug("try_acquire task=%s limit=%s res=%s redis=%s zkey=%s",
-                    task_id, limit, res, REDIS_URL, ZKEY)
+        logger.debug("try_acquire task=%s limit=%s res=%s zkey=%s",
+                    task_id, limit, res, ZKEY)
         return bool(res)
     except redis.RedisError:
         # On Redis failure, be conservative and deny (or you can choose to allow)
@@ -101,7 +101,7 @@ def exp_backoff_with_jitter(retries: int, base: int = 1, max_delay: int = 30) ->
     """
     rcount = max(0, int(retries or 0))
     delay = min(max_delay, base * (2 ** rcount))
-    delay = int(delay * random.uniform(0.8, 1.2)) #makes first retry ~2sec, next ~4sec, etc. capping at 30 sec
+    delay = int(delay * random.uniform(0.8, 1.2)) #makes first retry ~1sec, next ~2sec, etc. capping at 30 sec
     return max(1, delay)
 
 
