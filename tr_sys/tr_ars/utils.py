@@ -489,8 +489,11 @@ def mergeDicts(dcurrent,dmerged):
                         continue
                     else:
                         if key == 'score':
-                            del dmerged[key]
-                            dmerged['scores']=[mv,cv]
+                            if 'scores' in dmerged.keys():
+                                dmerged['scores'].append(dmerged[key])
+                            else:
+                                dmerged['scores']=[mv,cv]
+                            dmerged[key]=sum(dmerged["scores"])/len(dmerged["scores"])
                         elif key == 'query_ids':
                             dmerged['query_ids']=[mv,cv]
                         elif key == 'name':
