@@ -20,19 +20,41 @@ from celery.signals import worker_process_init
 # Deployment env can override with its own comma separated list with OTEL_PYTHON_DJANGO_EXCLUDED_URLS
 DEFAULT_EXCLUDED_URLS = "ars/api/health,ars/api/retain"
 
+# Periodic tasks whose spans are identical every time they run: catch_timeout
+# every 3 minutes and celery's own daily result-backend housekeeping. Celery
+# traces each one twice, as apply_async/<task> and run/<task>. They're not
+# very useful and are noisy, so just drop them.
+DONT_TRACE_TASKS = ("catch_timeout", "celery.backend_cleanup")
+
+# Calls with these methods aren't interesting for what we care about for the ARS
+DONT_TRACE_METHODS = frozenset(("GET", "HEAD", "OPTIONS"))
+
 
 class ARSSampler(ParentBased):
-    """Drop traces for the catch_timeout beat task, which runs every 3 minutes,
-    and for GET requests, which are mostly clients polling for results.
+    """Drop traces that only add noise.
 
-    The excluded-URL list above can't cover either one.
+    The excluded-URL list above can only match on path, so it can't cover any of
+    these: beat tasks aren't requests at all, and the rest are defined by the
+    method or by the request not matching a route.
     """
 
     def should_sample(self, parent_context, trace_id, name, kind=None, attributes=None, *args, **kwargs):
-        if name.endswith("/catch_timeout"):
+        if any(name.endswith(f"/{task}") for task in DONT_TRACE_TASKS):
             return SamplingResult(Decision.DROP)
-        if kind == SpanKind.SERVER and attributes and attributes.get("http.method") == "GET":
-            return SamplingResult(Decision.DROP)
+        if kind == SpanKind.SERVER:
+            if attributes and attributes.get("http.method") in DONT_TRACE_METHODS:
+                return SamplingResult(Decision.DROP)
+            # A request we serve gets a span named after its method and the URL
+            # pattern it matched, like 'POST /ars/api/submit'. When the URL
+            # matches no pattern at all there is nothing to name it after, so we
+            # are handed just the method instead - 'POST', or 'HTTP' when even
+            # the method is one we don't recognise. So a span with one of those
+            # two names is someone asking for something this server doesn't have,
+            # which in practice is probably just bots. Only incoming requests
+            # are checked, because the calls we make out to other services are
+            # named after the method too, and we want those.
+            if name == "HTTP" or name == (attributes or {}).get("http.method"):
+                return SamplingResult(Decision.DROP)
         return super().should_sample(parent_context, trace_id, name, kind, attributes, *args, **kwargs)
 
 
