@@ -1,5 +1,6 @@
 import os,sys
 import logging
+import re
 
 from opentelemetry import trace
 from opentelemetry.trace import SpanKind, Status, StatusCode
@@ -12,25 +13,48 @@ from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExport
 from opentelemetry.instrumentation.celery import CeleryInstrumentor
 from opentelemetry.instrumentation.httpx import HTTPXClientInstrumentor
 from opentelemetry.instrumentation.requests import RequestsInstrumentor
+from opentelemetry.semconv.attributes.http_attributes import HTTP_ROUTE
 from celery.signals import worker_process_init
 
 # Don't trace health checks and other noise endpoints.
 # Deployment env can override with its own comma separated list with OTEL_PYTHON_DJANGO_EXCLUDED_URLS
 DEFAULT_EXCLUDED_URLS = "ars/api/health,ars/api/retain"
 
+# Periodic tasks whose spans are identical every time they run: catch_timeout
+# every 3 minutes and celery's own daily result-backend housekeeping. Celery
+# traces each one twice, as apply_async/<task> and run/<task>. They're not
+# very useful and are noisy, so just drop them.
+DONT_TRACE_TASKS = ("catch_timeout", "celery.backend_cleanup")
+
+# Calls with these methods aren't interesting for what we care about for the ARS
+DONT_TRACE_METHODS = frozenset(("GET", "HEAD", "OPTIONS"))
+
 
 class ARSSampler(ParentBased):
-    """Drop traces for the catch_timeout beat task, which runs every 3 minutes,
-    and for GET requests, which are mostly clients polling for results.
+    """Drop traces that only add noise.
 
-    The excluded-URL list above can't cover either one.
+    The excluded-URL list above can only match on path, so it can't cover any of
+    these: beat tasks aren't requests at all, and the rest are defined by the
+    method or by the request not matching a route.
     """
 
     def should_sample(self, parent_context, trace_id, name, kind=None, attributes=None, *args, **kwargs):
-        if name.endswith("/catch_timeout"):
+        if any(name.endswith(f"/{task}") for task in DONT_TRACE_TASKS):
             return SamplingResult(Decision.DROP)
-        if kind == SpanKind.SERVER and attributes and attributes.get("http.method") == "GET":
-            return SamplingResult(Decision.DROP)
+        if kind == SpanKind.SERVER:
+            if attributes and attributes.get("http.method") in DONT_TRACE_METHODS:
+                return SamplingResult(Decision.DROP)
+            # A request we serve gets a span named after its method and the URL
+            # pattern it matched, like 'POST /ars/api/submit'. When the URL
+            # matches no pattern at all there is nothing to name it after, so we
+            # are handed just the method instead - 'POST', or 'HTTP' when even
+            # the method is one we don't recognise. So a span with one of those
+            # two names is someone asking for something this server doesn't have,
+            # which in practice is probably just bots. Only incoming requests
+            # are checked, because the calls we make out to other services are
+            # named after the method too, and we want those.
+            if name == "HTTP" or name == (attributes or {}).get("http.method"):
+                return SamplingResult(Decision.DROP)
         return super().should_sample(parent_context, trace_id, name, kind, attributes, *args, **kwargs)
 
 
@@ -147,6 +171,48 @@ def configure_opentelemetry():
         logging.error('OTEL instrumentation failed because: %s'%str(e))
 
 
+def _readable_route(route):
+    """Turn a Django URL pattern into the path clients actually call.
+
+    'ars/api/^submit/?$' becomes '/ars/api/submit'.  Routes registered with
+    path() rather than re_path() only pick up the leading slash, so
+    'ars/api/messages/<uuid:key>' becomes '/ars/api/messages/<uuid:key>'.
+    """
+    cleaned = route.replace('^', '').replace('$', '')
+    cleaned = re.sub(r'/\?(?=/|$)', '', cleaned)  # the optional trailing slash
+    cleaned = cleaned.replace('\\', '')  # escapes such as \.
+    return '/' + cleaned.lstrip('/')
+
+
+def _rename_span_for_route(span, request, response):
+    """Report the readable path instead of the raw URL pattern.
+
+    The Django instrumentation names each server span after the route template
+    Django resolved the request to, so the re_path() endpoints in tr_ars/urls.py
+    arrive in Jaeger as 'POST ars/api/^submit/?$'.  Naming spans after the route
+    rather than the request path is what we want - otherwise every request for a
+    single message would get its UUID baked into the span name - so clean up the
+    template instead of going back to paths.
+    """
+    try:
+        if not span.is_recording():
+            return
+        match = getattr(request, 'resolver_match', None)
+        route = getattr(match, 'route', None) if match else None
+        if not route:
+            return
+        readable = _readable_route(route)
+        if readable == route:
+            return
+        # The instrumentation names the span '<METHOD> <route>'; keep whatever
+        # prefix it decided on and swap out just the route.
+        if span.name.endswith(route):
+            span.update_name(span.name[:-len(route)] + readable)
+        span.set_attribute(HTTP_ROUTE, readable)
+    except Exception:
+        logging.exception('Failed to clean up the OTEL span name for a request')
+
+
 def instrument_django():
     """Install the OTEL Django middleware.
 
@@ -168,7 +234,8 @@ def instrument_django():
         return
     try:
         DjangoInstrumentor().instrument(
-            excluded_urls=os.environ.get("OTEL_PYTHON_DJANGO_EXCLUDED_URLS", DEFAULT_EXCLUDED_URLS)
+            excluded_urls=os.environ.get("OTEL_PYTHON_DJANGO_EXCLUDED_URLS", DEFAULT_EXCLUDED_URLS),
+            response_hook=_rename_span_for_route
         )
         logging.info('Instrumented Django for OTEL')
     except Exception as e:
