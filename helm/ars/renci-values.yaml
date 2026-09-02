@@ -22,7 +22,7 @@ image:
   #   docker build -t containers.renci.org/translator/relay-ars:<tag> .
   #   docker push containers.renci.org/translator/relay-ars:<tag>
   repository: containers.renci.org/translator/relay-ars
-  tag: 0.0.1
+  tag: 0.0.2
   pullPolicy: IfNotPresent
 
 # Needed if the Harbor project is private (kubectl create secret docker-registry ...)
@@ -61,16 +61,16 @@ secrets:
 
 # Moderate sizing -- Sterling namespaces carry resource quotas
 arsserver:
-  replicas: 1
+  replicas: 2
   gunicorn:
     workers: 8
     threads: 8
   resources:
     requests:
-      cpu: "1"
+      cpu: "3"
       memory: 2Gi
     limits:
-      cpu: "2"
+      cpu: "6"
       memory: 6Gi
 
 celeryworker:
