@@ -27,7 +27,6 @@ env:
   # SmartAPI maturity level: production | staging | testing | development
   TR_ENV: development
   TR_APPRAISE: "https://answerappraiser.ci.transltr.io/get_appraisal"
-  TR_NORMALIZER: "https://nodenorm-es.ci.transltr.io/get_normalized_nodes"
   TR_ANNOTATOR: "https://biothings.ncats.io/curie"
 # Extra env vars appended verbatim to all app containers (list of EnvVar)
 extraEnv: []
@@ -67,7 +66,7 @@ arsserver:
   containerPort: 8000
   gunicorn:
     workerClass: gthread
-    # Dev-sized. Production (deploy/values.yaml) runs 16x16; concurrency ~= workers * threads.
+    # Dev-sized. Production (deploy/values.yaml) runs 8x4; concurrency ~= workers * threads.
     workers: 4
     threads: 8
     timeout: 360

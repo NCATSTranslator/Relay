@@ -67,8 +67,8 @@ etc., or point `secrets.existingSecret` at a Secret you manage (keys:
   (or use `secrets.existingSecret`) for any instance others can reach.
 - The in-cluster MySQL is a single node with no backups — fine for dev, not for
   anything you'd miss.
-- The external Translator services (`env.TR_NORMALIZER`, `env.TR_ANNOTATOR`,
-  `env.TR_APPRAISE`) default to the public CI endpoints; queries fan out to the
+- The external Translator services (`env.TR_ANNOTATOR`, `env.TR_APPRAISE`)
+  default to the public CI endpoints; queries fan out to the
   live ARAs/KPs selected by `env.TR_ENV` (SmartAPI maturity level).
 - OTEL trace export points at `otel.jaegerHost`; if no collector exists at that
   address the exporter logs connection errors and the app carries on.
