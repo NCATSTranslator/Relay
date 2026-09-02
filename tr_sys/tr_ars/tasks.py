@@ -14,9 +14,6 @@ import traceback
 from django.utils import timezone
 from django.shortcuts import get_object_or_404
 from opentelemetry import trace
-from opentelemetry.propagate import inject
-# Ensure that the tracing context is properly propagated within tasks
-from opentelemetry.context import attach, detach, set_value, get_current
 import time as sleeptime
 from .api import decrypt_secret
 import hmac
@@ -27,15 +24,7 @@ from requests.exceptions import RequestException, Timeout
 from tr_sys.celery_gates.context import (expensive_section)
 
 logger = get_task_logger(__name__)
-
-def propagate_context(func):
-    def wrapper(*args, **kwargs):
-        token = attach(get_current())
-        try:
-            return func(*args, **kwargs)
-        finally:
-            detach(token)
-    return wrapper
+tracer = trace.get_tracer(__name__)
 
 # @shared_task(bind=True, acks_late=True, max_retries=50, default_retry_delay=2)
 # def test_expensive(self, seconds=10):
@@ -48,7 +37,6 @@ def propagate_context(func):
 
 @shared_task(name="send-message-to-actor")
 def send_message(actor_dict, mesg_dict, timeout=300):
-    tracer = trace.get_tracer(__name__)
     infores=actor_dict['fields']['inforesid']
     agent= infores.split(':')[1]
     logger.info(mesg_dict)
@@ -85,25 +73,12 @@ def send_message(actor_dict, mesg_dict, timeout=300):
     query_endpoint = (endpoint if endpoint is not None else "") + (("?"+params) if params is not None else "")
     task_id=str(mesg.pk)
     with tracer.start_as_current_span(f"{agent}") as span:
-        logger.debug(f"CURRENT span during task execution: {span}")
         span.set_attribute("pk", str(mesg.pk))
         span.set_attribute("ref_pk", str(mesg.ref_id))
         span.set_attribute("agent", agent)
         # Make HTTP request and trace it
         try:
-            logger.debug(f"CURRENT span before request post call: {span}")
-            #having to manually generate the traceparent_id since the automatic generation is disabled
-            span_context = span.get_span_context()
-            trace_id = span_context.trace_id
-            span_id = span_context.span_id
-            trace_flags = span_context.trace_flags
-            # Format the traceparent header
-            traceparent_header = (f"00-{trace_id:032x}-{span_id:016x}-{trace_flags:02x}")
-            logging.info('POSTing to agent %s pk:%s with traceparent: %s '% (agent,task_id, traceparent_header))
             r = requests.post(url, json=data, timeout=timeout)
-            span.set_attribute("http.url", url)
-            span.set_attribute("http.status_code", r.status_code)
-            span.set_attribute("http.method", "POST")
             span.set_attribute("task.id", task_id)
             #span.set_attribute("celery.task_id", send_message.request.id)
             logger.debug('%d: receive message from actor %s...\n%s.\n'
