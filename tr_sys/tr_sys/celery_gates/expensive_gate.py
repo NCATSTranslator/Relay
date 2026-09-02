@@ -13,7 +13,7 @@ logger = get_task_logger(__name__)
 # Config via env (set these in your Helm values / CI)
 REDIS_URL = os.getenv("REDIS_URL", "redis://redis:6379/0")
 ZKEY = os.getenv("ARS_EXPENSIVE_ZKEY", "ars:expensive_tokens")
-ARS_EXPENSIVE_TOKEN_LIMIT = int(os.getenv("ARS_EXPENSIVE_LIMIT", "24"))       # default token limit
+ARS_EXPENSIVE_TOKEN_LIMIT = int(os.getenv("ARS_EXPENSIVE_LIMIT", "12"))       # default token limit
 LEASE_MS = int(os.getenv("ARS_EXPENSIVE_LEASE_MS", "180000"))   # default lease 3 minutes (ms)
 RENEW_EVERY_SEC = int(os.getenv("ARS_EXPENSIVE_RENEW_SEC", "15"))  # renew interval
 
