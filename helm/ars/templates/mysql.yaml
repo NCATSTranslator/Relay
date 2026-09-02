@@ -41,7 +41,11 @@ spec:
           image: "{{ .Values.mysql.image.repository }}:{{ .Values.mysql.image.tag }}"
           imagePullPolicy: {{ .Values.mysql.image.pullPolicy }}
           # Match docker-compose.yml: PyMySQL-friendly auth plugin
-          args: ["--default-authentication-plugin=mysql_native_password"]
+          args:
+            - "--default-authentication-plugin=mysql_native_password"
+            {{- range .Values.mysql.extraArgs }}
+            - {{ . | quote }}
+            {{- end }}
           env:
             - name: MYSQL_ROOT_PASSWORD
               valueFrom:

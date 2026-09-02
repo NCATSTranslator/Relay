@@ -163,6 +163,11 @@ mysql:
   persistence:
     size: 8Gi
     storageClass: ""
+  # Extra mysqld flags. The merge path reads and writes multi-MB compressed
+  # message blobs under a row lock, so on any instance carrying real traffic set
+  # --innodb-buffer-pool-size to roughly half the memory limit below; the MySQL
+  # default is 128MB, which sends nearly every blob read to disk.
+  extraArgs: []
   resources:
     requests:
       cpu: 250m
