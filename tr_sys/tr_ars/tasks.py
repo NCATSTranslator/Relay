@@ -13,6 +13,7 @@ from tr_smartapi_client.smart_api_discover import SmartApiDiscover
 import traceback
 from django.utils import timezone
 from django.shortcuts import get_object_or_404
+from django.db import transaction
 from opentelemetry import trace
 import time as sleeptime
 from .api import decrypt_secret
@@ -214,8 +215,14 @@ def send_message(actor_dict, mesg_dict, timeout=300):
                     #parent = get_object_or_404(Message.objects.filter(pk=parent_pk))
                     #logging.info(f'parent merged_versions_list before going into merge&post-process for pk: %s are %s' % (parent_pk,parent.merged_versions_list))
                     #utils.merge_and_post_process(parent_pk,message_to_merge['message'],agent_name)
-                    #utils.merge_and_post_process(parent_pk,message_to_merge['message'],agent_name)
-                    utils.merge_and_post_process.apply_async((parent_pk,message_to_merge['message'],agent_name))
+                    
+                    # The task loads the body from this row instead of taking it in the
+                    # celery payload (rdata was already saved to it above), so enqueue
+                    # on_commit to guarantee the row is visible when a worker picks it up.
+                    merge_child_pk = mesg.pk
+                    transaction.on_commit(
+                        lambda: utils.merge_and_post_process.apply_async(
+                            (parent_pk, merge_child_pk, agent_name)))
                     logger.info("post async call for agent %s" % agent_name)
             else:
                 logger.debug("Validation problem found for agent %s with pk %s" % (agent_name, str(mesg.ref_id)))

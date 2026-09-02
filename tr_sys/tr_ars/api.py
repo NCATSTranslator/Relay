@@ -548,8 +548,21 @@ def message(req, key):
                     if valid:
                         if agent_name.startswith('ara-'):
                             logger.info("pre async call for agent %s" % agent_name)
-                            #utils.merge_and_post_process(parent_pk,message_to_merge['message'],agent_name)
-                            utils.merge_and_post_process.apply_async((parent_pk,message_to_merge['message'],agent_name))
+                            # The merge task loads the body from this row rather than
+                            # receiving it in the celery payload, so the data has to be
+                            # committed before the task can run. Save it here and
+                            # enqueue on_commit so a worker can never pick the task up
+                            # before the row is visible.
+                            mesg.status = status
+                            mesg.code = code
+                            mesg.save_compressed_dict(data)
+                            if res is None:
+                                mesg.result_count = 0
+                            mesg.save()
+                            child_pk = mesg.pk
+                            transaction.on_commit(
+                                lambda: utils.merge_and_post_process.apply_async(
+                                    (parent_pk, child_pk, agent_name)))
                             logger.info("post async call for agent %s" % agent_name)
                     else:
                         logger.debug("Validation problem found for agent %s with pk %s" % (agent_name, str(mesg.ref_id)))

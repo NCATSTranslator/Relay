@@ -16,7 +16,7 @@ from tr_ars import utils
 from tr_sys.celery_gates.expensive_gate import TASK_MAX_RETRIES
 
 
-TASK_ARGS = ("parent-pk-1", {"knowledge_graph": {}}, "ara-test")
+TASK_ARGS = ("parent-pk-1", "child-pk-1", "ara-test")
 
 
 @pytest.fixture
@@ -33,7 +33,11 @@ def merge_env(mock_parent):
     merged = MagicMock()
     merged.id = "merged-pk-1"
     merged.pk = "merged-pk-1"
-    env = {"parent": mock_parent, "merged": merged}
+    # the child row the task loads its payload from, keyed by child_pk
+    child = MagicMock()
+    child.pk = "child-pk-1"
+    child.decompress_dict.return_value = {"message": {"knowledge_graph": {}}}
+    env = {"parent": mock_parent, "merged": merged, "child": child}
     with patch.object(utils, "transaction") as txn, \
          patch.object(utils, "get_object_or_404", return_value=mock_parent), \
          patch.object(utils, "Message") as message_cls, \
@@ -50,9 +54,11 @@ def merge_env(mock_parent):
          patch("tr_sys.celery_gates.context.constant_backoff_with_jitter", return_value=0):
         txn.atomic.return_value = nullcontext()
         message_cls.objects.filter.return_value.first.return_value = mock_parent
-        message_cls.DoesNotExist = type("DoesNotExist", (Exception,), {})  # never raised here
+        message_cls.objects.get.return_value = child
+        message_cls.DoesNotExist = type("DoesNotExist", (Exception,), {})
         env.update(try_lock=try_lock, try_acquire=try_acquire, release=release,
-                   merge_received=merge_received, post_process=post_process)
+                   merge_received=merge_received, post_process=post_process,
+                   message_cls=message_cls)
         yield env
 
 
@@ -133,7 +139,7 @@ def test_error_retry_preserves_caller_kwargs(merge_env):
     """The error retry merges into request.kwargs instead of replacing them wholesale."""
     merge_env["merge_received"].side_effect = RuntimeError("boom")
     retry_spy = MagicMock(side_effect=Retry("requested retry"))
-    kwargs = {"parent_pk": "parent-pk-1", "message_to_merge": {}, "agent_name": "ara-test"}
+    kwargs = {"parent_pk": "parent-pk-1", "child_pk": "child-pk-1", "agent_name": "ara-test"}
     with patch.object(utils.merge_and_post_process, "retry", retry_spy):
         result = utils.merge_and_post_process.apply(kwargs=kwargs)
     assert result.state == "RETRY"
@@ -148,7 +154,7 @@ def test_error_retry_increments_existing_counter(merge_env):
     retry_spy = MagicMock(side_effect=Retry("requested retry"))
     with patch.object(utils.merge_and_post_process, "retry", retry_spy):
         utils.merge_and_post_process.apply(
-            kwargs={"parent_pk": "p", "message_to_merge": {}, "agent_name": "a",
+            kwargs={"parent_pk": "p", "child_pk": "c", "agent_name": "a",
                     "error_retries": 3})
     assert retry_spy.call_args.kwargs["kwargs"]["error_retries"] == 4
 
@@ -161,3 +167,31 @@ def test_direct_call_error_retry_survives_missing_request_kwargs(merge_env):
         with pytest.raises(Retry):
             utils.merge_and_post_process(*TASK_ARGS)
     assert retry_spy.call_args.kwargs["kwargs"]["error_retries"] == 1
+
+def test_payload_is_loaded_from_child_pk_not_the_task_args(merge_env):
+    """The task takes a pk and reads the body from the DB, not from the celery payload."""
+    result = utils.merge_and_post_process.apply(args=TASK_ARGS)
+    assert result.state == "SUCCESS"
+    merge_env["message_cls"].objects.get.assert_called_once_with(pk="child-pk-1")
+    merge_env["child"].decompress_dict.assert_called_once()
+    # merge_received gets the inner "message", matching what callers used to pass inline
+    passed = merge_env["merge_received"].call_args.args[1]
+    assert passed == {"knowledge_graph": {}}
+
+
+def test_missing_child_is_not_retried(merge_env):
+    """A child row that no longer exists is permanent; retrying cannot fix it."""
+    merge_env["message_cls"].objects.get.side_effect = merge_env["message_cls"].DoesNotExist
+    result = utils.merge_and_post_process.apply(args=TASK_ARGS)
+    assert result.state == "SUCCESS"  # returns cleanly rather than erroring
+    merge_env["merge_received"].assert_not_called()
+    # the token must still be released even though we bailed early
+    merge_env["release"].assert_called_once()
+
+
+def test_child_without_message_key_is_skipped(merge_env):
+    merge_env["child"].decompress_dict.return_value = {"nothing": "here"}
+    result = utils.merge_and_post_process.apply(args=TASK_ARGS)
+    assert result.state == "SUCCESS"
+    merge_env["merge_received"].assert_not_called()
+    merge_env["release"].assert_called_once()

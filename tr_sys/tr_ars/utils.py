@@ -709,13 +709,21 @@ def unlock_merge(message: Message) -> None:
 
 
 @shared_task(name="merge-and-post-process", bind=True, acks_late=True, max_retries=None)
-def merge_and_post_process(self, parent_pk, message_to_merge, agent_name, error_retries=0):
+def merge_and_post_process(self, parent_pk, child_pk, agent_name, error_retries=0):
     """
     Safe merge & post-process task:
     - Acquire expensive token (expensive_section) first
+    - Load the child message to merge from child_pk
     - Acquire DB boolean lock (inside short select_for_update atomic)
     - Do merge_received(), post_process() and notifications
     - Always release DB boolean lock in finally
+
+    child_pk is the PK of the child Message holding the data to merge; the task
+    loads and decompresses it itself. It used to receive that whole TRAPI message
+    inline, and since every retry republishes the payload, contention retries were
+    pushing multi-MB bodies through the broker over and over. Callers MUST commit
+    the child's data before enqueueing (use transaction.on_commit) or the task will
+    not find it.
 
     Retry functionality:
     - The built-in Celery retry functionality, tracked by the counter self.request.retries and enforced by Celery,
@@ -741,6 +749,7 @@ def merge_and_post_process(self, parent_pk, message_to_merge, agent_name, error_
     attempt = (getattr(self.request, "retries", 0) or 0) + 1
     outcome = "unknown"
     task_span.set_attribute("merge.parent_pk", str(parent_pk))
+    task_span.set_attribute("merge.child_pk", str(child_pk))
     task_span.set_attribute("merge.agent", agent_name)
     task_span.set_attribute("merge.attempt", attempt)
     logging.info(f"🚀Starting merge for %s with parent PK: %s"% (agent_name,parent_pk))
@@ -748,6 +757,26 @@ def merge_and_post_process(self, parent_pk, message_to_merge, agent_name, error_
         #Acquire an expensive token so we don't hold DB locked while waiting
         with expensive_section(self, max_retries=TASK_MAX_RETRIES):
             logging.info("[%s] 🟢 acquired expensive token", self.request.id)
+
+            # Load the payload here: inside the token (this decompresses a multi-MB
+            # body) but before the row lock, so we don't hold the parent locked
+            # while doing it.
+            try:
+                with tracer.start_as_current_span("merge.load_child") as load_span:
+                    load_span.set_attribute("merge.child_pk", str(child_pk))
+                    child = Message.objects.get(pk=child_pk)
+                    message_to_merge = get_safe(child.decompress_dict(), "message")
+            except Message.DoesNotExist:
+                # The child row is gone; retrying cannot bring it back.
+                outcome = "child_missing"
+                logging.error("Child message %s no longer exists for agent %s (parent=%s); skipping merge.",
+                              child_pk, agent_name, parent_pk)
+                return
+            if message_to_merge is None:
+                outcome = "child_empty"
+                logging.error("Child message %s for agent %s has no 'message' to merge; skipping.",
+                              child_pk, agent_name)
+                return
 
             # short critical section: lock row + decide if we can merge
             try:
