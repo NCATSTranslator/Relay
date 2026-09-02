@@ -1772,7 +1772,9 @@ def appraise_confidence(results):
     for result in results:
         confidence = get_confidence(result)
         result["ordering_components"]= {
-            "confidence": confidence
+            "confidence": confidence,
+            "clinical_evidence":0.0,
+            "novelty":0.0
         }
 
 def get_confidence(result):
