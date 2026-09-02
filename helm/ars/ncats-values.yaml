@@ -1,0 +1,130 @@
+# NCATS / transltr.io overlay for the helm/ars chart.
+#
+# Mirrors the environment-specific settings from deploy/values.yaml (the
+# Jenkins-driven chart): ECR images, prod-sized gunicorn, the application=ars
+# node pinning, and the ALB ingress. Apply on top of the defaults:
+#
+#   helm upgrade --install ars ./helm/ars -n ars -f ./helm/ars/values-ncats.yaml
+#
+# UPPERCASE_VALUE tokens are deliberately the same placeholder style the
+# existing deploy/prepare.sh + deploy.sh sed flow substitutes, so that flow (or
+# --set on the command line) carries over unchanged. Everything not listed here
+# inherits the dev defaults from values.yaml.
+
+image:
+  repository: 853771734544.dkr.ecr.us-east-1.amazonaws.com/translator-ars
+  tag: DOCKER_VERSION_VALUE
+  pullPolicy: Always
+
+env:
+  # maturity per environment: ci=staging, test=testing, prod=production
+  TR_ENV: TR_ENV_VALUE
+  TR_APPRAISE: TR_APPRAISE_VALUE
+  TR_ANNOTATOR: TR_ANNOTATOR_VALUE
+
+django:
+  debug: "false"
+  allowedHosts: "ars.transltr.io,ars-dev.transltr.io,ARS_HOSTNAME_VALUE"
+  logLevel: DEBUG
+
+secrets:
+  # In NCATS clusters credentials should come from a managed Secret, not from
+  # a values file. Create it with the keys: django-secret-key, aes-master-key,
+  # mysql-root-password, mysql-password, rabbitmq-password.
+  existingSecret: ars-secrets
+
+arsserver:
+  replicas: 1
+  gunicorn:
+    # Prod sizing from deploy/values.yaml (concurrency ~= workers * threads).
+    # 8 processes rather than one per vCPU because the celery workers share the
+    # same nodes and do the CPU-heavy merge work.
+    workerClass: gthread
+    workers: 8
+    threads: 4
+    timeout: 360
+    gracefulTimeout: 120
+    maxRequests: 1000
+    maxRequestsJitter: 100
+  resources:
+    requests:
+      cpu: "2"
+      memory: 4Gi
+    limits:
+      cpu: "4"
+      memory: 8Gi
+
+celeryworker:
+  # 3x10 = 30 worker slots; expensiveGate.limit 20 caps concurrent 
+  # merges below that, leaving 10 slots for non-merge tasks.
+  replicas: 3
+  concurrency: 10
+
+  resources:
+    requests:
+      cpu: "1"
+      memory: 2Gi
+    limits:
+      cpu: "4"
+      memory: 8Gi
+
+expensiveGate:
+  limit: "20"
+
+mysql:
+  # NCATS environments use the external (RDS) database, as the Jenkins deploy does.
+  enabled: false
+  external:
+    host: ARS_DB_HOST_VALUE
+    port: 3306
+    database: ARS_DB_NAME_VALUE
+    username: ARS_DB_USER_VALUE
+
+redis:
+  enabled: true
+  image:
+    repository: 853771734544.dkr.ecr.us-east-1.amazonaws.com/translator-redis
+    tag: "6.2"
+    pullPolicy: Always
+
+rabbitmq:
+  enabled: true
+  image:
+    repository: 853771734544.dkr.ecr.us-east-1.amazonaws.com/translator-rabbitmq
+    tag: "4.0"
+    pullPolicy: Always
+
+ingress:
+  enabled: true
+  className: alb
+  annotations:
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/tags: Name=ARS_ALB_TAG_VALUE,Environment=ENVIRONMENT_TAG_VALUE
+    alb.ingress.kubernetes.io/security-groups: ARS_ALB_SG_VALUE
+    alb.ingress.kubernetes.io/ssl-policy: ELBSecurityPolicy-TLS-1-2-Ext-2018-06
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS":443}]'
+    # AWS LB Controller >= 2.2 replacement for the legacy actions.ssl-redirect
+    # action-service pair the deploy/ chart used
+    alb.ingress.kubernetes.io/ssl-redirect: '443'
+    alb.ingress.kubernetes.io/success-codes: '200'
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/load-balancer-attributes: idle_timeout.timeout_seconds=600
+  host: ARS_HOSTNAME_VALUE
+  path: /
+  pathType: Prefix
+
+# Pin every pod to the ARS node group, as deploy/values.yaml does.
+affinity:
+  nodeAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: application
+              operator: In
+              values:
+                - ars
+tolerations:
+  - key: "transltr"
+    value: "ars"
+    operator: "Equal"
+    effect: "NoSchedule"
