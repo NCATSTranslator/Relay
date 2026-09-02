@@ -597,7 +597,7 @@ def post_process(mesg,key, agent_name):
         mesg.save()
 
 
-    results = get_safe(data,"results")
+    results = get_safe(data,"message","results")
     if results is not None and len(results)>0:
         logging.info("calculating Confidence for agent %s and pk %s" % (agent_name, str(key)))
         try:
