@@ -22,7 +22,7 @@ image:
   #   docker build -t containers.renci.org/translator/relay-ars:<tag> .
   #   docker push containers.renci.org/translator/relay-ars:<tag>
   repository: containers.renci.org/translator/relay-ars
-  tag: 0.0.2
+  tag: 0.0.3
   pullPolicy: IfNotPresent
 
 # Needed if the Harbor project is private (kubectl create secret docker-registry ...)
@@ -67,11 +67,11 @@ arsserver:
     threads: 4
   resources:
     requests:
-      cpu: "3"
-      memory: 8Gi
+      cpu: "2"
+      memory: 3Gi
     limits:
-      cpu: "6"
-      memory: 12Gi
+      cpu: "4"
+      memory: 6Gi
 
 celeryworker:
   # 3x10 = 30 worker slots; expensiveGate.limit 20 caps concurrent merges
@@ -81,11 +81,11 @@ celeryworker:
 
   resources:
     requests:
-      cpu: "1"
-      memory: 3Gi
-    limits:
       cpu: "4"
       memory: 12Gi
+    limits:
+      cpu: "8"
+      memory: 16Gi
 
 expensiveGate:
   limit: "20"
