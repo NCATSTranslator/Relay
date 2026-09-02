@@ -32402,5 +32402,15 @@
             "biolink:MolecularMixture",
             "biolink:ChemicalMixture"
         ]
+    },
+    "NCIT:C4876": {
+        "name": "Symptom",
+        "type": [
+            "biolink:PhenotypicFeature",
+            "biolink:DiseaseOrPhenotypicFeature",
+            "biolink:BiologicalEntity",
+            "biolink:ThingWithTaxon",
+            "biolink:NamedThing"
+        ]
     }
 }
