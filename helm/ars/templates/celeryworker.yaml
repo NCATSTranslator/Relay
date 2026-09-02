@@ -1,55 +1,73 @@
+{{- /*
+One Deployment per worker pool in .Values.celeryworkers. Each pool consumes only
+the queues in its `queues` value, so the `heavy` pool's replicas x concurrency is
+the cluster-wide cap on concurrent memory-heavy work.
+Beat runs in its own single-replica Deployment.
+*/ -}}
+{{- $root := . -}}
+{{- range $name, $pool := .Values.celeryworkers }}
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "ars.fullname" . }}-worker
+  name: {{ include "ars.fullname" $root }}-worker-{{ $name }}
   labels:
-    {{- include "ars.labels" . | nindent 4 }}
+    {{- include "ars.labels" $root | nindent 4 }}
     app.kubernetes.io/component: worker
+    app.kubernetes.io/pool: {{ $name }}
 spec:
-  replicas: {{ .Values.celeryworker.replicas }}
+  replicas: {{ $pool.replicas }}
   selector:
     matchLabels:
-      {{- include "ars.selectorLabels" . | nindent 6 }}
+      {{- include "ars.selectorLabels" $root | nindent 6 }}
       app.kubernetes.io/component: worker
+      app.kubernetes.io/pool: {{ $name }}
   template:
     metadata:
       labels:
-        {{- include "ars.selectorLabels" . | nindent 8 }}
+        {{- include "ars.selectorLabels" $root | nindent 8 }}
         app.kubernetes.io/component: worker
+        app.kubernetes.io/pool: {{ $name }}
       annotations:
-        checksum/settings: {{ include "ars.settingsChecksum" . }}
+        checksum/settings: {{ include "ars.settingsChecksum" $root }}
     spec:
-      {{- include "ars.podScheduling" . | nindent 6 }}
+      {{- include "ars.podScheduling" $root | nindent 6 }}
       initContainers:
         - name: wait-for-mysql
-          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
-          imagePullPolicy: {{ .Values.image.pullPolicy }}
-          command: ["/bin/wait-for", "{{ include "ars.mysqlHost" . }}:{{ include "ars.mysqlPort" . }}", "-t", "300"]
+          image: "{{ $root.Values.image.repository }}:{{ $root.Values.image.tag }}"
+          imagePullPolicy: {{ $root.Values.image.pullPolicy }}
+          command: ["/bin/wait-for", "{{ include "ars.mysqlHost" $root }}:{{ include "ars.mysqlPort" $root }}", "-t", "300"]
         - name: wait-for-rabbitmq
-          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
-          imagePullPolicy: {{ .Values.image.pullPolicy }}
-          command: ["/bin/wait-for", "{{ include "ars.rabbitmqHost" . }}:{{ include "ars.rabbitmqPort" . }}", "-t", "300"]
-        {{- if .Values.redis.enabled }}
+          image: "{{ $root.Values.image.repository }}:{{ $root.Values.image.tag }}"
+          imagePullPolicy: {{ $root.Values.image.pullPolicy }}
+          command: ["/bin/wait-for", "{{ include "ars.rabbitmqHost" $root }}:{{ include "ars.rabbitmqPort" $root }}", "-t", "300"]
+        {{- if $root.Values.redis.enabled }}
         - name: wait-for-redis
-          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
-          imagePullPolicy: {{ .Values.image.pullPolicy }}
-          command: ["/bin/wait-for", "{{ include "ars.redisHost" . }}:6379", "-t", "300"]
+          image: "{{ $root.Values.image.repository }}:{{ $root.Values.image.tag }}"
+          imagePullPolicy: {{ $root.Values.image.pullPolicy }}
+          command: ["/bin/wait-for", "{{ include "ars.redisHost" $root }}:6379", "-t", "300"]
         {{- end }}
       containers:
         - name: celeryworker
-          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
-          imagePullPolicy: {{ .Values.image.pullPolicy }}
-          # Worker only -- beat runs in its own single-replica Deployment so
-          # scaling workers never duplicates the schedule.
+          image: "{{ $root.Values.image.repository }}:{{ $root.Values.image.tag }}"
+          imagePullPolicy: {{ $root.Values.image.pullPolicy }}
           command: ["/bin/sh", "-c"]
           args:
             - >-
               cd /ars/tr_sys &&
               celery -A tr_sys worker -l info
-              --concurrency={{ .Values.celeryworker.concurrency }}
+              -Q {{ $pool.queues }}
+              -n {{ $name }}@%h
+              --concurrency={{ $pool.concurrency }}
               --prefetch-multiplier=1
+              {{- if $pool.maxTasksPerChild }}
+              --max-tasks-per-child={{ $pool.maxTasksPerChild }}
+              {{- end }}
+              {{- if $pool.maxMemoryPerChildKb }}
+              --max-memory-per-child={{ $pool.maxMemoryPerChildKb }}
+              {{- end }}
           env:
-            {{- include "ars.commonEnv" . | nindent 12 }}
+            {{- include "ars.commonEnv" $root | nindent 12 }}
           volumeMounts:
             - name: settings
               mountPath: /ars/tr_sys/tr_sys/settings.py
@@ -64,11 +82,12 @@ spec:
             periodSeconds: 20
             timeoutSeconds: 5
             failureThreshold: 3
-          {{- with .Values.celeryworker.resources }}
+          {{- with $pool.resources }}
           resources:
             {{- toYaml . | nindent 12 }}
           {{- end }}
       volumes:
         - name: settings
           configMap:
-            name: {{ include "ars.fullname" . }}-settings
+            name: {{ include "ars.fullname" $root }}-settings
+{{- end }}

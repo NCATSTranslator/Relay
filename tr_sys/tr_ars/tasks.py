@@ -22,19 +22,9 @@ import base64
 import os
 import hashlib
 from requests.exceptions import RequestException, Timeout
-from tr_sys.celery_gates.context import (expensive_section)
 
 logger = get_task_logger(__name__)
 tracer = trace.get_tracer(__name__)
-
-# @shared_task(bind=True, acks_late=True, max_retries=50, default_retry_delay=2)
-# def test_expensive(self, seconds=10):
-#     logger.info(f"[{self.request.id}] before expensive section")
-#     with expensive_section(self):
-#         logger.info(f"[{self.request.id}] ✅ ENTER expensive section")
-#         time.sleep(seconds)
-#         logger.info(f"[{self.request.id}] ✅ EXIT expensive section")
-#     logger.info(f"[{self.request.id}] after expensive section")
 
 @shared_task(name="send-message-to-actor")
 def send_message(actor_dict, mesg_dict, timeout=300):

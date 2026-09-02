@@ -81,25 +81,38 @@ arsserver:
       cpu: "2"
       memory: 4Gi
 
-celeryworker:
-  # Scale capacity with REPLICAS, not concurrency: merge tasks are memory-heavy
-  # (multi-MB TRAPI messages), so concurrency multiplies peak memory inside one
-  # pod's limit while replicas spread it. The redis expensive-token gate is
-  # global across replicas, so total worker slots (replicas * concurrency)
-  # should stay ABOVE expensiveGate.limit -- the gate then caps concurrent
-  # merges cluster-wide and the surplus slots keep cheap tasks (client
-  # notifications, timeout sweeps) from starving behind merges. Concurrency
-  # only needs to cover HTTP wait time on annotator/appraiser calls; 8-10 is
-  # plenty, and pod memory limit / concurrency bounds worst-case merge size.
-  replicas: 1
-  concurrency: 10
-  resources:
-    requests:
-      cpu: 500m
-      memory: 1Gi
-    limits:
-      cpu: "2"
-      memory: 4Gi
+# Two celery worker pools, one Deployment each (templates/celeryworker.yaml).
+# Memory-heavy tasks are routed to the `heavy` queue (task_routes in
+# everything else stays on the default `celery` queue.
+# heavy.replicas * heavy.concurrency is the cluster-wide cap on concurrent heavy
+# work; size memory per slot (limit / concurrency ~ one large merge or ingest).
+celeryworkers:
+  heavy:
+    queues: heavy
+    replicas: 1
+    concurrency: 4
+    # Recycle a child process after this many tasks. Prefork children keep the
+    # RSS of the largest message they ever parsed, so without this a pod's
+    # memory only ratchets upward (same idea as gunicorn's maxRequests).
+    maxTasksPerChild: 20
+    resources:
+      requests:
+        cpu: 500m
+        memory: 2Gi
+      limits:
+        cpu: "2"
+        memory: 8Gi
+  light:
+    queues: celery
+    replicas: 1
+    concurrency: 4
+    resources:
+      requests:
+        cpu: 100m
+        memory: 512Mi
+      limits:
+        cpu: "1"
+        memory: 1Gi
 
 # Beat is always exactly 1 replica (a second scheduler would double-fire tasks)
 celerybeat:
@@ -115,23 +128,13 @@ celerybeat:
       cpu: 500m
       memory: 1Gi
 
-# Global concurrency gate for expensive tasks (tr_sys/tr_sys/celery_gates/expensive_gate.py).
-# The limit is cluster-wide (redis-backed), spanning all worker replicas. It only
-# does anything while limit < celeryworker.replicas * concurrency; at the old
-# defaults (12 tokens, 10 slots) it never bound. Dev default 8 leaves 2 of the
-# 10 slots free for non-merge tasks.
-expensiveGate:
-  limit: "8"
-  leaseMs: "180000"
-  renewSec: "15"
-  zkey: "ars:expensive_tokens"
-  # Celery retry budget for contention (no free token, or the merge db lock is
-  # held); constant 2-5s backoff between attempts, so ~6 min worst-case wait.
-  taskMaxRetries: "100"
 
 # merge_and_post_process retry tuning (tr_sys/tr_ars/utils.py)
 merge:
-  # Retry cap for real errors during merge, tracked separately from contention
+  # Retry cap for waiting on the per-parent merge db lock; constant 2-5s backoff
+  # between attempts, so ~6 min worst case. Each retry only republishes pks.
+  lockMaxRetries: "100"
+  # Retry cap for real errors during merge, tracked separately from lock
   # retries; exponential backoff 1,2,4,8,16s then capped at 30s (~2 min total).
   errorMaxRetries: "8"
 

@@ -156,8 +156,6 @@ expansion so the password never appears in the manifest.
       key: rabbitmq-password
 - name: CELERY_BROKER_URL
   value: "amqp://$(RABBITMQ_USER):$(RABBITMQ_PASSWORD)@{{ include "ars.rabbitmqHost" . }}:{{ include "ars.rabbitmqPort" . }}//"
-- name: REDIS_URL
-  value: {{ include "ars.redisUrl" . | quote }}
 - name: ARS_REDIS_HOST
   value: {{ include "ars.redisHost" . | quote }}
 - name: AES_MASTER_KEY
@@ -178,16 +176,8 @@ expansion so the password never appears in the manifest.
 # to the public URL instead -- it is one or the other, not both.
 - name: ARS_DEFAULT_HOST
   value: {{ .Values.django.defaultHost | default (printf "http://%s.%s.svc.cluster.local:%v" (include "ars.fullname" .) .Release.Namespace .Values.service.port) | quote }}
-- name: ARS_EXPENSIVE_LIMIT
-  value: {{ .Values.expensiveGate.limit | quote }}
-- name: ARS_EXPENSIVE_LEASE_MS
-  value: {{ .Values.expensiveGate.leaseMs | quote }}
-- name: ARS_EXPENSIVE_RENEW_SEC
-  value: {{ .Values.expensiveGate.renewSec | quote }}
-- name: ARS_EXPENSIVE_ZKEY
-  value: {{ .Values.expensiveGate.zkey | quote }}
-- name: ARS_EXPENSIVE_TASK_MAX_RETRIES
-  value: {{ .Values.expensiveGate.taskMaxRetries | quote }}
+- name: ARS_MERGE_LOCK_MAX_RETRIES
+  value: {{ .Values.merge.lockMaxRetries | quote }}
 - name: ARS_MERGE_ERROR_MAX_RETRIES
   value: {{ .Values.merge.errorMaxRetries | quote }}
 - name: JAEGER_HOST

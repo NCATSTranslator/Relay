@@ -54,22 +54,30 @@ arsserver:
       cpu: "4"
       memory: 8Gi
 
-celeryworker:
-  # 3x10 = 30 worker slots; expensiveGate.limit 20 caps concurrent 
-  # merges below that, leaving 10 slots for non-merge tasks.
-  replicas: 3
-  concurrency: 10
-
-  resources:
-    requests:
-      cpu: "1"
-      memory: 2Gi
-    limits:
-      cpu: "4"
-      memory: 8Gi
-
-expensiveGate:
-  limit: "20"
+celeryworkers:
+  heavy:
+    queues: heavy
+    replicas: 4
+    concurrency: 5
+    maxTasksPerChild: 20
+    resources:
+      requests:
+        cpu: "2"
+        memory: 4Gi
+      limits:
+        cpu: "4"
+        memory: 12Gi
+  light:
+    queues: celery
+    replicas: 2
+    concurrency: 4
+    resources:
+      requests:
+        cpu: 250m
+        memory: 1Gi
+      limits:
+        cpu: "1"
+        memory: 2Gi
 
 mysql:
   # NCATS environments use the external (RDS) database, as the Jenkins deploy does.

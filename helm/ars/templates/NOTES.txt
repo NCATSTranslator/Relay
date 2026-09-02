@@ -2,7 +2,9 @@ ARS {{ .Chart.AppVersion }} deployed as release {{ .Release.Name }} in namespace
 
 Components:
   {{ include "ars.fullname" . }}-server   Django/gunicorn API ({{ .Values.arsserver.replicas }} replica(s))
-  {{ include "ars.fullname" . }}-worker   celery worker ({{ .Values.celeryworker.replicas }} replica(s))
+{{- range $name, $pool := .Values.celeryworkers }}
+  {{ include "ars.fullname" $ }}-worker-{{ $name }}   celery worker, queue(s) {{ $pool.queues }} ({{ $pool.replicas }} x {{ $pool.concurrency }} slots)
+{{- end }}
   {{ include "ars.fullname" . }}-beat     celery beat (always 1)
 {{- if .Values.mysql.enabled }}
   {{ include "ars.fullname" . }}-mysql    MySQL {{ .Values.mysql.image.tag }} (in-cluster, PVC {{ .Values.mysql.persistence.size }})

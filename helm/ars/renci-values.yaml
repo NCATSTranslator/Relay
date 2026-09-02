@@ -73,22 +73,30 @@ arsserver:
       cpu: "4"
       memory: 6Gi
 
-celeryworker:
-  # 3x10 = 30 worker slots; expensiveGate.limit 20 caps concurrent merges
-  # below that, leaving 10 slots for non-merge tasks.
-  replicas: 3
-  concurrency: 10
-
-  resources:
-    requests:
-      cpu: "4"
-      memory: 12Gi
-    limits:
-      cpu: "8"
-      memory: 16Gi
-
-expensiveGate:
-  limit: "20"
+celeryworkers:
+  heavy:
+    queues: heavy
+    replicas: 4
+    concurrency: 5
+    maxTasksPerChild: 20
+    resources:
+      requests:
+        cpu: "3"
+        memory: 10Gi
+      limits:
+        cpu: "6"
+        memory: 16Gi
+  light:
+    queues: celery
+    replicas: 2
+    concurrency: 4
+    resources:
+      requests:
+        cpu: 250m
+        memory: 1Gi
+      limits:
+        cpu: "1"
+        memory: 2Gi
 
 mysql:
   enabled: true
@@ -99,7 +107,7 @@ mysql:
     # until that is confirmed. "basic" may not support online expansion.
     size: 120Gi
     storageClass: basic
-  # The busiest component: all 30 celery merge slots and 8 gunicorn workers
+  # The busiest component: all 20 heavy worker slots and 16 gunicorn workers
   # contend here, and merges hold a row lock while reading and writing multi-MB
   # blobs. The MySQL default buffer pool is 128MB, which sends nearly every one
   # of those reads to disk; keep it at roughly half the memory limit.

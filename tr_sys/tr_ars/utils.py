@@ -37,13 +37,12 @@ from pydantic import ValidationError
 from opentelemetry import trace
 from opentelemetry.trace import Status, StatusCode
 
-from tr_sys.celery_gates.expensive_gate import (exp_backoff_with_jitter, constant_backoff_with_jitter,
-                                                TASK_MAX_RETRIES)
+from tr_sys.celery_gates.backoff import (exp_backoff_with_jitter, constant_backoff_with_jitter,
+                                         MERGE_LOCK_MAX_RETRIES)
 
 tracer = trace.get_tracer(__name__)
 import asyncio
 import zstandard as zstd
-from tr_sys.celery_gates.context import (expensive_section)
 from celery.exceptions import Retry, MaxRetriesExceededError
 from tr_sys.otel_config import count_error, record_error
 
@@ -711,8 +710,8 @@ def unlock_merge(message: Message) -> None:
 @shared_task(name="merge-and-post-process", bind=True, acks_late=True, max_retries=None)
 def merge_and_post_process(self, parent_pk, child_pk, agent_name, error_retries=0):
     """
-    Safe merge & post-process task:
-    - Acquire expensive token (expensive_section) first
+    Safe merge & post-process task (runs on the `heavy` queue, see celery.py task_routes;
+    the heavy worker pool's concurrency is what bounds how many of these run at once):
     - Load the child message to merge from child_pk
     - Acquire DB boolean lock (inside short select_for_update atomic)
     - Do merge_received(), post_process() and notifications
@@ -727,10 +726,9 @@ def merge_and_post_process(self, parent_pk, child_pk, agent_name, error_retries=
 
     Retry functionality:
     - The built-in Celery retry functionality, tracked by the counter self.request.retries and enforced by Celery,
-      is used for all tasks, contention is the main cause for a retry (no available expensive tokens or the
-      merge db lock is occupied). This is done by setting max_retries to TASK_MAX_RETRIES in expensive_section()
-      and in this function after a failed merge lock acquisition. When this kind of retry occurs we use a quick
-      delay to avoid pointless downtime waiting on ourselves.
+      is used for all tasks, contention is the main cause for a retry (the merge db lock is occupied).
+      This is done by passing max_retries=MERGE_LOCK_MAX_RETRIES after a failed merge lock acquisition.
+      When this kind of retry occurs we use a quick delay to avoid pointless downtime waiting on ourselves.
     - Retries for errors in merging are handled separately by error_retries, an arg based counter
       for actual merge_and_post_process errors, capped by MERGE_ERROR_MAX_RETRIES, enforced by the code here
       and not celery's internal retry check. These use exponential backoff (1, 2, 4, 8, 16s, then capped at 30s)
@@ -754,137 +752,126 @@ def merge_and_post_process(self, parent_pk, child_pk, agent_name, error_retries=
     task_span.set_attribute("merge.attempt", attempt)
     logging.info(f"🚀Starting merge for %s with parent PK: %s"% (agent_name,parent_pk))
     try:
-        #Acquire an expensive token so we don't hold DB locked while waiting
-        with expensive_section(self, max_retries=TASK_MAX_RETRIES):
-            logging.info("[%s] 🟢 acquired expensive token", self.request.id)
+        # Load the payload before the row lock (this decompresses a multi-MB
+        # body) so we don't hold the parent locked while doing it.
+        try:
+            with tracer.start_as_current_span("merge.load_child") as load_span:
+                load_span.set_attribute("merge.child_pk", str(child_pk))
+                child = Message.objects.get(pk=child_pk)
+                message_to_merge = get_safe(child.decompress_dict(), "message")
+        except Message.DoesNotExist:
+            # The child row is gone; retrying cannot bring it back.
+            outcome = "child_missing"
+            logging.error("Child message %s no longer exists for agent %s (parent=%s); skipping merge.",
+                          child_pk, agent_name, parent_pk)
+            return
+        if message_to_merge is None:
+            outcome = "child_empty"
+            logging.error("Child message %s for agent %s has no 'message' to merge; skipping.",
+                          child_pk, agent_name)
+            return
 
-            # Load the payload here: inside the token (this decompresses a multi-MB
-            # body) but before the row lock, so we don't hold the parent locked
-            # while doing it.
+        # short critical section: lock row + decide if we can merge
+        try:
+            with transaction.atomic():
+                # a span of its own because select_for_update can block here
+                with tracer.start_as_current_span("merge.lock.acquire") as lock_span:
+                    parent = get_object_or_404(Message.objects.select_for_update().filter(pk=parent_pk))
+                    logging.info("the merge semaphore for agent %s is %s"% (agent_name, parent.merge_semaphore))
+                    # how many merges this parent has already absorbed, read off the row we just loaded
+                    version_index = len(parent.merged_versions_list or [])
+                    task_span.set_attribute("merge.version_index", version_index)
+                    lock_span.set_attribute("merge.version_index", version_index)
+                    lock_span.set_attribute("merge.agent", agent_name)
+                    lock_span.set_attribute("merge.attempt", attempt)
+                    #try to acquire DB boolean lock
+                    lock_acquired = try_lock_merge(parent)
+                    lock_span.set_attribute("merge.lock.acquired", lock_acquired)
+                    task_span.set_attribute("merge.lock.acquired", lock_acquired)
+                if not lock_acquired:
+                    # Another task holds the merge lock. Retry after a quick delay.
+                    delay = constant_backoff_with_jitter()
+                    outcome = "lock_contended"
+                    task_span.set_attribute("merge.lock.retry_delay_seconds", delay)
+                    logging.info("🔄 merge lock held for %s (parent=%s); retrying in %.1fs (retries=%s)",
+                                 agent_name, parent_pk, delay, self.request.retries)
+                    # raise retry — requeues the task and frees the worker slot.
+                    raise self.retry(countdown=delay, max_retries=MERGE_LOCK_MAX_RETRIES)
+                else:
+                    logging.info(" the merge semaphore for agent %s is %s"% (agent_name, parent.merge_semaphore))
+                    locked = True
+                # Perform the merge and persist minimal durable state inside the transaction
+                logging.info(f"[{self.request.id}] ✅ ENTER expensive section")
+                logging.info("Before merging for %s with parent PK: %s", agent_name, parent_pk)
+                #merging
+                with tracer.start_as_current_span("merge.merge_received") as merge_span:
+                    merge_span.set_attribute("merge.agent", agent_name)
+                    merge_span.set_attribute("merge.version_index", version_index)
+                    merged, parent, stats = merge_received(parent, message_to_merge, agent_name)
+                    # sizes of what we just produced, straight off the stats merge_received already computed
+                    if isinstance(stats, dict):
+                        for stat in ("results", "knowledge_graph_nodes", "knowledge_graph_edges"):
+                            if stat in stats:
+                                merge_span.set_attribute("merge.%s" % stat, stats[stat])
+                                task_span.set_attribute("merge.%s" % stat, stats[stat])
+                logging.info(f"After merging for %s with parent PK: %s"% (agent_name,parent_pk))
+                parent.save(update_fields=['params','merged_versions_list','merged_version'])
+
+                if merged is None:
+                    outcome = "merge_returned_none"
+                    logging.info("merge_received returned None for %s %s", agent_name, parent_pk)
+                    return
+
+                notification={
+                    "event_type":"merged_version_begun",
+                    "complete":False,
+                    "merged_versions_list":parent.merged_versions_list if parent.merged_versions_list is not None else []
+                }
+                parent.notify_subscribers(notification)
+        except Message.DoesNotExist:
+            outcome = "parent_missing"
+            logging.info("Message %s does not exist. Skipping merge.🚨" % parent_pk)
+            return
+
+        # At this point: transaction committed, merged + parent persisted.
+        # Release the DB boolean lock immediately so other merges can proceed.
+        if locked and parent is not None:
             try:
-                with tracer.start_as_current_span("merge.load_child") as load_span:
-                    load_span.set_attribute("merge.child_pk", str(child_pk))
-                    child = Message.objects.get(pk=child_pk)
-                    message_to_merge = get_safe(child.decompress_dict(), "message")
-            except Message.DoesNotExist:
-                # The child row is gone; retrying cannot bring it back.
-                outcome = "child_missing"
-                logging.error("Child message %s no longer exists for agent %s (parent=%s); skipping merge.",
-                              child_pk, agent_name, parent_pk)
-                return
-            if message_to_merge is None:
-                outcome = "child_empty"
-                logging.error("Child message %s for agent %s has no 'message' to merge; skipping.",
-                              child_pk, agent_name)
-                return
-
-            # short critical section: lock row + decide if we can merge
-            try:
-                with transaction.atomic():
-                    # a span of its own because select_for_update can block here
-                    with tracer.start_as_current_span("merge.lock.acquire") as lock_span:
-                        parent = get_object_or_404(Message.objects.select_for_update().filter(pk=parent_pk))
-                        logging.info("the merge semaphore for agent %s is %s"% (agent_name, parent.merge_semaphore))
-                        # how many merges this parent has already absorbed, read off the row we just loaded
-                        version_index = len(parent.merged_versions_list or [])
-                        task_span.set_attribute("merge.version_index", version_index)
-                        lock_span.set_attribute("merge.version_index", version_index)
-                        lock_span.set_attribute("merge.agent", agent_name)
-                        lock_span.set_attribute("merge.attempt", attempt)
-                        #try to acquire DB boolean lock
-                        lock_acquired = try_lock_merge(parent)
-                        lock_span.set_attribute("merge.lock.acquired", lock_acquired)
-                        task_span.set_attribute("merge.lock.acquired", lock_acquired)
-                    if not lock_acquired:
-                        # Another task holds the merge lock. Retry after a quick delay.
-                        delay = constant_backoff_with_jitter()
-                        outcome = "lock_contended"
-                        task_span.set_attribute("merge.lock.retry_delay_seconds", delay)
-                        logging.info("🔄 merge lock held for %s (parent=%s); retrying in %.1fs (retries=%s)",
-                                     agent_name, parent_pk, delay, self.request.retries)
-                        # raise retry — releases the expensive token (expensive_section finally),
-                        # requeues the task and frees the worker.
-                        raise self.retry(countdown=delay, max_retries=TASK_MAX_RETRIES)
-                    else:
-                        logging.info(" the merge semaphore for agent %s is %s"% (agent_name, parent.merge_semaphore))
-                        locked = True
-                    # Perform the merge and persist minimal durable state inside the transaction
-                    logging.info(f"[{self.request.id}] ✅ ENTER expensive section")
-                    logging.info("Before merging for %s with parent PK: %s", agent_name, parent_pk)
-                    #merging
-                    with tracer.start_as_current_span("merge.merge_received") as merge_span:
-                        merge_span.set_attribute("merge.agent", agent_name)
-                        merge_span.set_attribute("merge.version_index", version_index)
-                        merged, parent, stats = merge_received(parent, message_to_merge, agent_name)
-                        # sizes of what we just produced, straight off the stats merge_received already computed
-                        if isinstance(stats, dict):
-                            for stat in ("results", "knowledge_graph_nodes", "knowledge_graph_edges"):
-                                if stat in stats:
-                                    merge_span.set_attribute("merge.%s" % stat, stats[stat])
-                                    task_span.set_attribute("merge.%s" % stat, stats[stat])
-                    logging.info(f"After merging for %s with parent PK: %s"% (agent_name,parent_pk))
-                    parent.save(update_fields=['params','merged_versions_list','merged_version'])
-
-                    if merged is None:
-                        outcome = "merge_returned_none"
-                        logging.info("merge_received returned None for %s %s", agent_name, parent_pk)
-                        return
-
-                    notification={
-                        "event_type":"merged_version_begun",
-                        "complete":False,
-                        "merged_versions_list":parent.merged_versions_list if parent.merged_versions_list is not None else []
-                    }
-                    parent.notify_subscribers(notification)
-            except Message.DoesNotExist:
-                outcome = "parent_missing"
-                logging.info("Message %s does not exist. Skipping merge.🚨" % parent_pk)
-                return
-
-            # At this point: transaction committed, merged + parent persisted.
-            # Release the DB boolean lock immediately so other merges can proceed.
-            if locked and parent is not None:
-                try:
-                    unlock_merge(parent)
-                    locked = False
-                except Exception as e:
-                    logging.exception("Failed to release DB merge_semaphore for parent %s", parent_pk)
-                    record_error(e)
+                unlock_merge(parent)
+                locked = False
+            except Exception as e:
+                logging.exception("Failed to release DB merge_semaphore for parent %s", parent_pk)
+                record_error(e)
 
 
-            logging.info('merged data for agent %s with pk %s is returned & ready to be preprocessed' % (agent_name, str(merged.id)))
-            #post-process
-            # span is nested inside expensive_gate.hold, so the trace shows the token being held across the annotator/appraiser calls
-            with tracer.start_as_current_span("merge.post_process") as post_span:
-                post_span.set_attribute("merge.agent", agent_name)
-                post_span.set_attribute("merge.merged_pk", str(merged.id))
-                merged, code, status = post_process(merged, merged.id, agent_name)
-                post_span.set_attribute("merge.post_process.code", code)
-                post_span.set_attribute("merge.post_process.status", status)
-            logging.info('post processing complete for agent %s with pk %s is returned & ready to be preprocessed' % (agent_name, str(merged.id)))
-            notification= {"event_type": "merged_version_available",
-                           "complete": False,
-                           "merged_version": str(merged.pk),
-                           "merged_versions_list": parent.merged_versions_list if parent.merged_versions_list is not None else [],
-                           'stats': stats}
-            parent.notify_subscribers(notification)
+        logging.info('merged data for agent %s with pk %s is returned & ready to be preprocessed' % (agent_name, str(merged.id)))
+        #post-process
+        with tracer.start_as_current_span("merge.post_process") as post_span:
+            post_span.set_attribute("merge.agent", agent_name)
+            post_span.set_attribute("merge.merged_pk", str(merged.id))
+            merged, code, status = post_process(merged, merged.id, agent_name)
+            post_span.set_attribute("merge.post_process.code", code)
+            post_span.set_attribute("merge.post_process.status", status)
+        logging.info('post processing complete for agent %s with pk %s is returned & ready to be preprocessed' % (agent_name, str(merged.id)))
+        notification= {"event_type": "merged_version_available",
+                       "complete": False,
+                       "merged_version": str(merged.pk),
+                       "merged_versions_list": parent.merged_versions_list if parent.merged_versions_list is not None else [],
+                       'stats': stats}
+        parent.notify_subscribers(notification)
 
-            merged.status = status
-            merged.code = code
-            merged.save()
-            outcome = "merged"
-            logging.info(f"[{self.request.id}] ✅ EXIT expensive section")
+        merged.status = status
+        merged.code = code
+        merged.save()
+        outcome = "merged"
 
     except Retry:
-        # If we bubble here, expensive_section requested a retry before acquiring a token,
-        # or we explicitly raised retry while inside; allow it to propagate (worker freed).
-        if outcome == "unknown":
-            outcome = "gate_unavailable"
+        # lock contention retry raised above; let it propagate (worker slot freed)
         logging.info("Task retry requested — requeueing (parent=%s, retries=%s)",parent_pk, self.request.retries)
         raise
 
     except MaxRetriesExceededError:
-        # General retry budget exhausted (due to token gate or merge db lock).
+        # Lock retry budget exhausted (MERGE_LOCK_MAX_RETRIES).
         # This is not a real error, so keep it out of the catch-all Exception handling below.
         outcome = "retry_budget_exhausted"
         task_span.set_status(Status(StatusCode.ERROR, "exhausted the retry budget waiting on contention"))

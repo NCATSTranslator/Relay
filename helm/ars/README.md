@@ -15,7 +15,7 @@ Differences from `deploy/`:
 | `settings.py` | injected by Jenkins, `sed`-substituted | in the chart (`files/settings.py`), reads env vars; credentials via a Secret |
 | Migrations | `manage.py migrate` in the server container command | post-install/post-upgrade hook Job |
 | Celery beat | started inside the worker script | own single-replica Deployment |
-| Scaling | impossible (replicating the pod duplicates broker + redis) | `arsserver.replicas` / `celeryworker.replicas` |
+| Scaling | impossible (replicating the pod duplicates broker + redis) | `arsserver.replicas` / `celeryworkers.<pool>.replicas` |
 
 ## Quick start (kind / minikube / any dev cluster)
 
