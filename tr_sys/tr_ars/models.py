@@ -35,7 +35,7 @@ class Agent(ARSModel):
     contact = models.EmailField(null=True)
     registered = models.DateTimeField(default=timezone.now)
     updated = models.DateTimeField(auto_now=True)
-        
+
     def __str__(self):
         return 'agent{name:%s, uri:%s}' % (self.name, self.uri)
 
@@ -83,7 +83,7 @@ class Message(ARSModel):
         ('W', 'Waiting'),
         ('U', 'Unknown')
     )
-    
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False, db_index=True)
     name = models.SlugField('Message name', null=False)
     code = models.PositiveSmallIntegerField('HTTP status code',
@@ -162,6 +162,26 @@ class Message(ARSModel):
             logger.error("❌ failed to compress data %s"% e)
             print("Error compressing data:", e)
 
+    def save_compressed_bytes(self, raw):
+        """Compress an already-serialized JSON body without parsing it.
+
+        For an ARA callback parsing a multi-MB body only to re-serialize it is
+        expensive and isn't needed anymore. Instead, we use this to compress
+        the message as is, and parse it later when we actually do the work on it.
+        decompress_dict() reads what this writes.
+        """
+        if raw is None:
+            return
+        if isinstance(raw, str):
+            raw = raw.encode('utf-8')
+        if raw.startswith(b'\x28\xb5\x2f\xfd'):
+            self.data = raw
+            return
+        start = t.time()
+        self.data = zstd.ZstdCompressor().compress(raw)
+        logger.debug("compressed %s raw bytes for pk %s in %.2fs",
+                     len(raw), str(self.pk), t.time() - start)
+
     def decompress_dict(self):
         try:
             # Check if self.data is already a dictionary
@@ -208,7 +228,7 @@ class Message(ARSModel):
                                 logger.info("✅ Parsed dict keys: %s; message keys: %s", list(original_data.keys()), list(message.keys()))
                             else:
                                 logger.warning("'message' is not a dict. Top-level keys: %s", list(original_data.keys()))
-            
+
                             total_time = t.time() - start
                             logging.info(f"TOTAL TIME TAKEN for agent {self.actor.agent.name} to decompress: {total_time:.2f} seconds")
                             return original_data

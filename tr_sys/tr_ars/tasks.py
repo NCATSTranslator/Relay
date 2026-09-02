@@ -215,7 +215,7 @@ def send_message(actor_dict, mesg_dict, timeout=300):
                     #parent = get_object_or_404(Message.objects.filter(pk=parent_pk))
                     #logging.info(f'parent merged_versions_list before going into merge&post-process for pk: %s are %s' % (parent_pk,parent.merged_versions_list))
                     #utils.merge_and_post_process(parent_pk,message_to_merge['message'],agent_name)
-                    
+
                     # The task loads the body from this row instead of taking it in the
                     # celery payload (rdata was already saved to it above), so enqueue
                     # on_commit to guarantee the row is visible when a worker picks it up.
@@ -234,6 +234,97 @@ def send_message(actor_dict, mesg_dict, timeout=300):
         else:
             logging.debug("Skipping merge and post for "+str(mesg.pk)+
                           " because the contributing message is in state: "+str(mesg.code))
+
+@shared_task(name="ingest-ara-response", bind=True, acks_late=True)
+def ingest_ara_response(self, child_pk, status='D'):
+    """Everything the ARA-callback django view used to do after receiving the body.
+
+    The view now stores the raw bytes and returns 201 without parsing them.
+    Parsing, pre_merge_process, validation and the resulting notifications all
+    happen here, so a multi-MB (sometimes tens of MB) callback never expands into
+    a large parsed dict inside an ARS api server gunicorn worker. Doing it here
+    means it gets handled by the celery workers instead.
+
+    `status` is the ARA-supplied tr_ars.message.status header, defaulting to 'D'.
+    """
+    with tracer.start_as_current_span("ingest_ara_response") as span:
+        span.set_attribute("pk", str(child_pk))
+        mesg = Message.objects.get(pk=child_pk)
+        actor = Actor.objects.get(pk=mesg.actor_id)
+        inforesid = actor.inforesid
+        agent_name = str(actor.agent.name)
+        parent = get_object_or_404(Message.objects.filter(pk=mesg.ref_id))
+        span.set_attribute("agent", inforesid)
+        code = 200
+        data = None
+        try:
+            data = mesg.decompress_dict()
+            res = utils.get_safe(data, "message", "results")
+            result_length = len(res) if res is not None else None
+            span.set_attribute("ara_n_results", result_length if result_length is not None else -1)
+            parent.notify_subscribers({
+                "event_type": "ara_response_complete",
+                "ara_name": inforesid,
+                "child_uuid": str(mesg.pk),
+                "ara_response_status": status,
+                "ara_n_results": result_length,
+            })
+            logger.info('received msg from agent: %s with parent pk: %s and result: %s',
+                        inforesid, mesg.ref_id, result_length)
+
+            if res is not None and result_length > 0:
+                mesg.result_count = result_length
+                mesg.result_stat = utils.ScoreStatCalc(res)
+                utils.pre_merge_process(data, child_pk, agent_name, inforesid)
+                if "validate" in mesg.params.keys() and not mesg.params["validate"]:
+                    valid = True
+                else:
+                    utils.remove_phantom_support_graphs(data)
+                    valid = utils.validate(data)
+                if not valid:
+                    logger.debug("Validation problem found for agent %s with pk %s", agent_name, mesg.ref_id)
+                    mesg.status = 'E'
+                    mesg.code = 422
+                    mesg.save_compressed_dict(data)
+                    mesg.save()
+                    parent.notify_subscribers({
+                        "event_type": "ara_failed_validation",
+                        "ara_name": inforesid,
+                        "child_uuid": str(mesg.pk),
+                        "ara_response_status": 'E',
+                        "ara_n_results": result_length,
+                    })
+                    return
+                mesg.status = status
+                mesg.code = code
+                # pre_merge_process mutated data in place; the merge task loads the
+                # child row, so persist the processed form before enqueueing it.
+                mesg.save_compressed_dict(data)
+                mesg.save()
+                if agent_name.startswith('ara-'):
+                    parent_pk = mesg.ref_id
+                    transaction.on_commit(
+                        lambda: utils.merge_and_post_process.apply_async(
+                            (parent_pk, child_pk, agent_name)))
+                return
+
+            # No results: record that explicitly (None results means result_count 0)
+            mesg.status = status
+            mesg.code = code
+            mesg.result_count = 0
+            mesg.save()
+        except Exception as e:
+            logger.error("Unexpected error ingesting ARA response for pk %s: %s",
+                         child_pk, traceback.format_exception(type(e), e, e.__traceback__))
+            mesg.status = 'E'
+            mesg.code = 500
+            if isinstance(data, dict):
+                log_entry = {"message": "Internal ARS Server Error",
+                             "timestamp": str(mesg.updated_at), "level": "ERROR"}
+                data.setdefault('logs', []).append(log_entry)
+                mesg.save_compressed_dict(data)
+            mesg.save()
+
 
 @shared_task(name="catch_timeout")
 def catch_timeout_async():
