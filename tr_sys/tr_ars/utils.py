@@ -598,11 +598,11 @@ def post_process(mesg,key, agent_name):
 
 
     results = get_safe(data,"results")
-    if results is not None:
+    if results is not None and len(results)>0:
         logging.info("calculating Confidence for agent %s and pk %s" % (agent_name, str(key)))
         try:
             #appraise(mesg,data,agent_name)
-                appraise_confidence(mesg["results"])
+            appraise_confidence(results)
         except Exception as e:
             logging.exception("confidence calculations failed mesg for agent %s is %s: %s"% (agent_name, mesg.code, mesg.status))
             record_error(e)
