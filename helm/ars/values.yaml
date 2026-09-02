@@ -42,6 +42,13 @@ django:
   debug: "true"
   allowedHosts: "*"
   logLevel: DEBUG
+  # Base URL the ARAs use to call this ARS back with results (see
+  # ARS_DEFAULT_HOST in _helpers.tpl). Leave EMPTY when the ARAs run in this
+  # cluster, it then defaults to the internal FQDN, which resolves from any
+  # namespace. Set it to the public URL (e.g. "https://ars.apps.renci.org")
+  # only when the ARAs are genuinely outside the cluster; that routes callbacks
+  # and proxy calls out through the ingress and back in.
+  defaultHost: ""
 
 secrets:
   # If set, no Secret is rendered and this pre-existing Secret is used instead.
@@ -97,13 +104,17 @@ celeryworker:
 
 # Beat is always exactly 1 replica (a second scheduler would double-fire tasks)
 celerybeat:
+  # Beat's workload is tiny (one scheduler tick, catch_timeout every 3 min) but it
+  # loads the same app image as the workers: Django + tr_ars.tasks/utils pulls in
+  # reasoner-pydantic, biothings_annotator, zstandard and the OTEL instrumentation
+  # for ~200MB RSS before it does anything. Anything under ~512Mi OOMs at import.
   resources:
     requests:
-      cpu: 50m
-      memory: 128Mi
+      cpu: 100m
+      memory: 512Mi
     limits:
-      cpu: 250m
-      memory: 256Mi
+      cpu: 500m
+      memory: 1Gi
 
 # Global concurrency gate for expensive tasks (tr_sys/tr_sys/celery_gates/expensive_gate.py).
 # The limit is cluster-wide (redis-backed), spanning all worker replicas. It only
@@ -128,6 +139,17 @@ merge:
 migrations:
   # Run `manage.py migrate` as a post-install/post-upgrade hook Job
   enabled: true
+  # Same story as celerybeat: the job does almost no work but loads the whole
+  # app (~200MB RSS) to run Django's migrate. Without an explicit request the
+  # namespace LimitRange default applies, which is often small enough to OOM
+  # the job before it reaches the database -- and a failed hook fails the release.
+  resources:
+    requests:
+      cpu: 100m
+      memory: 512Mi
+    limits:
+      cpu: "1"
+      memory: 1Gi
 
 mysql:
   # true: deploy a single-node MySQL StatefulSet (dev). false: use external.*

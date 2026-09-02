@@ -135,8 +135,16 @@ expansion so the password never appears in the manifest.
       key: django-secret-key
 - name: DJANGO_DEBUG
   value: {{ .Values.django.debug | quote }}
+- name: POD_IP
+  valueFrom:
+    fieldRef:
+      fieldPath: status.podIP
+# django.allowedHosts only needs the PUBLIC hostname(s). The in-cluster addresses
+# are appended here: kubelet probes reach the pod by IP, and the app calls itself
+# by service name (see ARS_DEFAULT_HOST below). Django rejects any Host header not
+# in this list with DisallowedHost, which would fail the readiness probe forever.
 - name: DJANGO_ALLOWED_HOSTS
-  value: {{ .Values.django.allowedHosts | quote }}
+  value: "{{ .Values.django.allowedHosts }},{{ include "ars.fullname" . }},{{ include "ars.fullname" . }}.{{ .Release.Namespace }}.svc.cluster.local,localhost,127.0.0.1,$(POD_IP)"
 - name: DJANGO_LOG_LEVEL
   value: {{ .Values.django.logLevel | quote }}
 - name: RABBITMQ_USER
@@ -157,8 +165,19 @@ expansion so the password never appears in the manifest.
     secretKeyRef:
       name: {{ include "ars.secretName" . }}
       key: aes-master-key
+# Base URL the ARS uses to reach ITSELF. Two things are built from it (tr_ars/tasks.py):
+#   1. outbound: agent URIs are relative ("/ara-aragorn/api/"), so this + the path
+#      hits this deployment's own per-agent proxy views, which forward to the real ARA;
+#   2. the callback URL handed to each ARA so it can POST results back -- and
+#      default_ars_app/api.py forwards that callback verbatim to the ARA.
+# Because of (2) the ARAs must be able to resolve this address. The default is the
+# cluster-internal FQDN, which resolves from ANY namespace in the cluster (a bare
+# service name only resolves within this one, so ARAs in another namespace would
+# silently fail to call back and every child would sit at Running until
+# catch_timeout marks it 598). For ARAs outside the cluster set django.defaultHost
+# to the public URL instead -- it is one or the other, not both.
 - name: ARS_DEFAULT_HOST
-  value: "http://{{ include "ars.fullname" . }}:{{ .Values.service.port }}"
+  value: {{ .Values.django.defaultHost | default (printf "http://%s.%s.svc.cluster.local:%v" (include "ars.fullname" .) .Release.Namespace .Values.service.port) | quote }}
 - name: ARS_EXPENSIVE_LIMIT
   value: {{ .Values.expensiveGate.limit | quote }}
 - name: ARS_EXPENSIVE_LEASE_MS

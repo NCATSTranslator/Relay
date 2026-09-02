@@ -36,6 +36,10 @@ spec:
           command: ["python", "tr_sys/manage.py", "migrate", "--noinput"]
           env:
             {{- include "ars.commonEnv" . | nindent 12 }}
+          {{- with .Values.migrations.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           volumeMounts:
             - name: settings
               mountPath: /ars/tr_sys/tr_sys/settings.py
