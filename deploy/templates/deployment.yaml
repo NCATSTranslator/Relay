@@ -28,7 +28,7 @@ spec:
               --chdir /ars/tr_sys
               --bind 0.0.0.0:{{ .Values.arsserver.containerPort }}
               --worker-class {{ .Values.arsserver.gunicorn.workerClass | default "gthread" }}
-              --workers {{ .Values.arsserver.gunicorn.workers | default 16 }}
+              --workers {{ .Values.arsserver.gunicorn.workers | default 8 }}
               --threads {{ .Values.arsserver.gunicorn.threads | default 4 }}
               --timeout {{ .Values.arsserver.gunicorn.timeout | default 360 }}
               --graceful-timeout {{ .Values.arsserver.gunicorn.gracefulTimeout | default 120 }}
