@@ -64,14 +64,14 @@ arsserver:
   replicas: 2
   gunicorn:
     workers: 8
-    threads: 8
+    threads: 4
   resources:
     requests:
       cpu: "3"
-      memory: 2Gi
+      memory: 8Gi
     limits:
       cpu: "6"
-      memory: 6Gi
+      memory: 12Gi
 
 celeryworker:
   # 3x10 = 30 worker slots; expensiveGate.limit 20 caps concurrent merges
