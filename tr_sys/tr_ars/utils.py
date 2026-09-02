@@ -1774,7 +1774,6 @@ def appraise_confidence(results):
         result["ordering_components"]= {
             "confidence": confidence
         }
-    return results
 
 def get_confidence(result):
     """
