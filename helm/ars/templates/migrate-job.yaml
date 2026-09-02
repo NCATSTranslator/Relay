@@ -1,0 +1,51 @@
+{{- if .Values.migrations.enabled }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "ars.fullname" . }}-migrate
+  labels:
+    {{- include "ars.labels" . | nindent 4 }}
+    app.kubernetes.io/component: migrate
+  annotations:
+    # post-install/post-upgrade so the in-cluster MySQL exists before we wait on it.
+    # The web pods start in parallel; on a fresh database requests that touch
+    # not-yet-created tables can 500 for the short window until this completes.
+    helm.sh/hook: post-install,post-upgrade
+    helm.sh/hook-weight: "0"
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+spec:
+  backoffLimit: 3
+  template:
+    metadata:
+      labels:
+        {{- include "ars.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: migrate
+    spec:
+      {{- include "ars.podScheduling" . | nindent 6 }}
+      restartPolicy: Never
+      initContainers:
+        - name: wait-for-mysql
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: ["/bin/wait-for", "{{ include "ars.mysqlHost" . }}:{{ include "ars.mysqlPort" . }}", "-t", "300"]
+      containers:
+        - name: migrate
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          workingDir: /ars
+          command: ["python", "tr_sys/manage.py", "migrate", "--noinput"]
+          env:
+            {{- include "ars.commonEnv" . | nindent 12 }}
+          {{- with .Values.migrations.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          volumeMounts:
+            - name: settings
+              mountPath: /ars/tr_sys/tr_sys/settings.py
+              subPath: settings.py
+      volumes:
+        - name: settings
+          configMap:
+            name: {{ include "ars.fullname" . }}-settings
+{{- end }}

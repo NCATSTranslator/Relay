@@ -1,0 +1,160 @@
+# RENCI Sterling overlay for the helm/ars chart.
+#
+# Conventions here follow the unencrypted parts of
+# https://github.com/helxplatform/translator-devops (the *-populated.yaml files
+# there are git-crypt encrypted, so anything environment-secret is a fill-in):
+#   - <name>.apps.renci.org hostnames, cert-manager cluster-issuer "letsencrypt",
+#     TLS secret named "<host>-tls"
+#   - nginx ingress with long proxy timeouts (Translator queries are long-running)
+#   - storageClass "basic" for ReadWriteOnce PVCs
+#     (https://wiki.renci.org/index.php?title=Kubernetes_Cloud/Sterling#Persistent_Storage)
+#   - Jaeger deployed from the translator-devops jaeger chart; the ARS code
+#     default (http://jaeger-otel-collector.sri:4317) already points at it
+#
+#   helm upgrade --install ars ./helm/ars -n <namespace> -f ./helm/ars/renci-values.yaml
+#
+# Everything not listed here inherits the dev defaults from values.yaml,
+# including the in-cluster MySQL/Redis/RabbitMQ (Sterling has no RDS).
+
+image:
+  # There is no public ARS image and Sterling cannot pull from the NCATS ECR,
+  # so push a build somewhere Sterling can reach, e.g. RENCI Harbor:
+  #   docker build -t containers.renci.org/translator/relay-ars:<tag> .
+  #   docker push containers.renci.org/translator/relay-ars:<tag>
+  repository: containers.renci.org/translator/relay-ars
+  tag: 0.0.3
+  pullPolicy: IfNotPresent
+
+# Needed if the Harbor project is private (kubectl create secret docker-registry ...)
+imagePullSecrets: []
+#  - name: renci-harbor
+
+env:
+  # SmartAPI maturity: RENCI instances run against development-maturity ARAs/KPs
+  TR_ENV: development
+  # RENCI-hosted instances of the Translator SRI services where they exist
+  TR_APPRAISE: "http://answer-appraiser:9096/get_appraisal"
+  # no RENCI-hosted annotator; use the public one
+  TR_ANNOTATOR: "https://biothings.ncats.io/curie"
+
+otel:
+  # jaeger chart from translator-devops. On RENCI the collector lives in the same
+  # namespace as the ARS (translator-exp), so the bare service name resolves; the
+  # chart default targets "sri" instead, which is where NCATS runs it. If the ARS
+  # ever moves to a different namespace than the collector, qualify this
+  # (e.g. "http://jaeger-otel-collector.translator-exp") -- a bare name will not
+  # resolve across namespaces, and the exporter fails silently into the logs.
+  jaegerHost: "http://jaeger-otel-collector"
+  jaegerPort: "4317"
+
+django:
+  debug: "false"
+  allowedHosts: "ars.apps.renci.org"
+  logLevel: INFO
+
+secrets:
+  # Keep real credentials out of this file (translator-devops encrypts its
+  # populated values with git-crypt; we don't have that set up here).
+  # Create the Secret out-of-band with keys: django-secret-key, aes-master-key,
+  # mysql-root-password, mysql-password, rabbitmq-password.
+  existingSecret: ars-secrets
+
+# Moderate sizing -- Sterling namespaces carry resource quotas
+arsserver:
+  replicas: 2
+  gunicorn:
+    workers: 8
+    threads: 4
+  resources:
+    requests:
+      cpu: "2"
+      memory: 3Gi
+    limits:
+      cpu: "4"
+      memory: 6Gi
+
+celeryworker:
+  # 3x10 = 30 worker slots; expensiveGate.limit 20 caps concurrent merges
+  # below that, leaving 10 slots for non-merge tasks.
+  replicas: 3
+  concurrency: 10
+
+  resources:
+    requests:
+      cpu: "4"
+      memory: 12Gi
+    limits:
+      cpu: "8"
+      memory: 16Gi
+
+expensiveGate:
+  limit: "20"
+
+mysql:
+  enabled: true
+  persistence:
+    # Messages are stored as compressed TRAPI blobs. Pruning of non-retained
+    # messages (see Message.retain) is handled outside this repo, so it may not
+    # be wired up for this in-cluster database -- size for unbounded growth
+    # until that is confirmed. "basic" may not support online expansion.
+    size: 120Gi
+    storageClass: basic
+  # The busiest component: all 30 celery merge slots and 8 gunicorn workers
+  # contend here, and merges hold a row lock while reading and writing multi-MB
+  # blobs. The MySQL default buffer pool is 128MB, which sends nearly every one
+  # of those reads to disk; keep it at roughly half the memory limit.
+  extraArgs:
+    - "--innodb-buffer-pool-size=4G"
+  resources:
+    requests:
+      cpu: "1"
+      memory: 6Gi
+    limits:
+      cpu: "4"
+      memory: 8Gi
+
+rabbitmq:
+  enabled: true
+  persistence:
+    size: 30Gi
+    storageClass: basic
+  resources:
+    requests:
+      cpu: 500m
+      memory: 1Gi
+    limits:
+      cpu: "2"
+      memory: 4Gi
+
+redis:
+  enabled: true
+
+ingress:
+  enabled: true
+  # Sterling's nginx ingress controller is the cluster default
+  className: ""
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt
+    # Long-running Translator queries: same timeout set the other
+    # translator-devops charts use (aragorn, answer-appraiser)
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "86400"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "86400"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "86400"
+    nginx.ingress.kubernetes.io/send-timeout: "86400"
+    nginx.ingress.kubernetes.io/connection-proxy-header: keep-alive
+    nginx.ingress.kubernetes.io/service-upstream: "true"
+    nginx.ingress.kubernetes.io/upstream-keepalive-timeout: "86400"
+    # TRAPI messages are large
+    nginx.ingress.kubernetes.io/proxy-body-size: 512m
+  host: ars.apps.renci.org
+  path: /
+  pathType: ImplementationSpecific
+  tls:
+    - secretName: ars.apps.renci.org-tls
+      hosts:
+        - ars.apps.renci.org
+
+# No node pinning on Sterling (the application=ars affinity is an NCATS EKS thing)
+affinity: {}
+tolerations: []
+nodeSelector: {}

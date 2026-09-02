@@ -1,0 +1,31 @@
+ARS {{ .Chart.AppVersion }} deployed as release {{ .Release.Name }} in namespace {{ .Release.Namespace }}.
+
+Components:
+  {{ include "ars.fullname" . }}-server   Django/gunicorn API ({{ .Values.arsserver.replicas }} replica(s))
+  {{ include "ars.fullname" . }}-worker   celery worker ({{ .Values.celeryworker.replicas }} replica(s))
+  {{ include "ars.fullname" . }}-beat     celery beat (always 1)
+{{- if .Values.mysql.enabled }}
+  {{ include "ars.fullname" . }}-mysql    MySQL {{ .Values.mysql.image.tag }} (in-cluster, PVC {{ .Values.mysql.persistence.size }})
+{{- else }}
+  external MySQL at {{ .Values.mysql.external.host }}:{{ .Values.mysql.external.port }}
+{{- end }}
+{{- if .Values.rabbitmq.enabled }}
+  {{ include "ars.fullname" . }}-rabbitmq RabbitMQ {{ .Values.rabbitmq.image.tag }} (in-cluster, PVC {{ .Values.rabbitmq.persistence.size }})
+{{- end }}
+{{- if .Values.redis.enabled }}
+  {{ include "ars.fullname" . }}-redis    Redis {{ .Values.redis.image.tag }} (in-cluster)
+{{- end }}
+
+Migrations run automatically via the {{ include "ars.fullname" . }}-migrate Job
+(post-install/post-upgrade hook); on a first install give it a minute before use.
+
+To reach the API:
+{{- if .Values.ingress.enabled }}
+  http://{{ .Values.ingress.host }}{{ .Values.ingress.path }}
+{{- else }}
+  kubectl -n {{ .Release.Namespace }} port-forward svc/{{ include "ars.fullname" . }} 8000:{{ .Values.service.port }}
+  curl http://localhost:8000/ars/api/health
+{{- end }}
+
+NOTE: the default credentials in values.yaml (secrets.*) are for throwaway dev
+instances only -- override them or set secrets.existingSecret for anything shared.
