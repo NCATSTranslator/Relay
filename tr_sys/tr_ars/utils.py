@@ -577,8 +577,6 @@ def post_process(mesg,key, agent_name):
         mesg.code=code
         mesg.save()
 
-
-
     logging.info("Pre node annotation for agent %s pk: %s" % (agent_name, str(key)))
     try:
         annotate_nodes(mesg,data,agent_name)
@@ -599,44 +597,18 @@ def post_process(mesg,key, agent_name):
         mesg.save()
 
 
-    logging.info("pre appraiser for agent %s and pk %s" % (agent_name, str(key)))
-    try:
-        appraise(mesg,data,agent_name)
-    except Exception as e:
-        logging.exception("appraiser failed mesg for agent %s is %s: %s"% (agent_name, mesg.code, mesg.status))
-        record_error(e)
-
-    if mesg.code == 422:
-        return mesg, mesg.code, mesg.status
-    else:
+    results = get_safe(data,"message","results")
+    if results is not None and len(results)>0:
+        logging.info("calculating Confidence for agent %s and pk %s" % (agent_name, str(key)))
         try:
-            results = get_safe(data,"message","results")
-            if results is not None:
-                logging.info("+++ pre-scoring for agent: %s & pk: %s" % (agent_name, key))
-                new_res=scoring.compute_from_results(results)
-                data['message']['results']=new_res
-                logging.info("scoring succeeded for agent %s and pk %s" % (agent_name, key))
-            else:
-                logging.error('results from appraiser returns None, cant do the scoring')
-            print()
+            #appraise(mesg,data,agent_name)
+            appraise_confidence(results)
         except Exception as e:
-            status='E'
-            code = 422
-            mesg.save(update_fields=['status','code'])
-            log_tuple =[
-                "Error in f-score calculation: "+ str(e),
-                datetime.now().strftime('%H:%M:%S'),
-                "ERROR"
-            ]
-            add_log_entry(data,log_tuple)
-            logging.exception("Error in f-score calculation")
+            logging.exception("confidence calculations failed mesg for agent %s is %s: %s"% (agent_name, mesg.code, mesg.status))
             record_error(e)
-            mesg.save_compressed_dict(data)
-            return mesg, code, status
-
         try:
-            mesg.result_count = len(new_res)
-            mesg.result_stat = ScoreStatCalc(new_res)
+            mesg.result_count = len(results)
+            mesg.result_stat = ScoreStatCalc(results)
             logging.info("scoring stat calculation succeeded  for agent %s and pk %s" % (agent_name, key))
         except Exception as e:
             logging.exception("Error in ScoreStatCalculation or result count")
@@ -653,25 +625,25 @@ def post_process(mesg,key, agent_name):
             mesg.save_compressed_dict(data)
             return mesg, code, status
 
-        try:
-            mesg.save_compressed_dict(data)
-            logging.info("Time before save")
-            logging.info('the mesg before save code: %s and status: %s'%(mesg.code, mesg.status))
-            with transaction.atomic():
-                if mesg.code == 202:
-                    code = 200
-                    status='D'
-                mesg.code=code
-                mesg.status=status
-                #mesg.save()
-            logging.info("Time after save")
+    try:
+        mesg.save_compressed_dict(data)
+        logging.info("Time before save")
+        logging.info('the mesg before save code: %s and status: %s'%(mesg.code, mesg.status))
+        with transaction.atomic():
+            if mesg.code == 202:
+                code = 200
+                status='D'
+            mesg.code=code
+            mesg.status=status
+            #mesg.save()
+        logging.info("Time after save")
 
-        except DatabaseError as e:
-            status ='E'
-            code=422
-            logging.exception("Final save failed")
-            record_error(e)
-        return mesg, code, status
+    except DatabaseError as e:
+        status ='E'
+        code=422
+        logging.exception("Final save failed")
+        record_error(e)
+    return mesg, code, status
 
 # def lock_merge(message):
 #     pass
@@ -1059,6 +1031,7 @@ def scrub_null_attributes(data):
             nodeAttributes = get_safe(nodeStuff,"attributes")
             if nodeAttributes is not None:
                 while None in nodeAttributes:
+                    logging.info("scrubnull: Found node attributes of None value")
                     nodeAttributes.remove(None)
 
     if edges is not None:
@@ -1072,6 +1045,7 @@ def scrub_null_attributes(data):
                     if "attributes" in edgeAttribute.keys():
                         edgeAttributeAttributes= get_safe(edgeAttribute,"attributes")
                         if edgeAttributeAttributes is None:
+                            logging.info("scrubnull: Found edge attributes of None value")
                             edgeAttribute['attributes']=[]
 
             edgeSources=get_safe(edgeStuff, "sources")
@@ -1093,6 +1067,7 @@ def scrub_null_attributes(data):
 
 
             if len(sources_to_remove)>0:
+                logging.info("scrubnull: Found bad sources "+str(len(sources_to_remove)))
                 bad_sources.append(sources_to_remove)
             for key, sources in sources_to_remove.items():
                 for source in sources:
@@ -1107,6 +1082,7 @@ def scrub_null_attributes(data):
         for aux_graph_id,aux_graph in aux_graphs.items():
             if 'attributes' in aux_graph.keys() and aux_graph['attributes'] is None:
                 aux_graph['attributes']=[]
+                logging.info("scrubnull: Found bad attributes in aux graphs")
 
 
 
@@ -1320,6 +1296,7 @@ def decorate_edges_with_infores(data,inforesid):
                     if source['resource_role']=="primary_knowledge_source":
                         has_primary=True
                 if not has_self:
+                    logging.info("decorateEdges: found lacking self")
                     #if we already have a primary knowledge source but not our self, we add ourself as an aggregator
                     if has_primary:
                         self_source['resource_role']="aggregator_knowledge_source"
@@ -1790,3 +1767,25 @@ def remove_phantom_support_graphs(response):
 
     else:
         logging.debug("Response lacking edges and/or auxiliary_graphs.  No phantom support graphs to remove.")
+
+def appraise_confidence(results):
+    for result in results:
+        confidence = get_confidence(result)
+        result["ordering_components"]= {
+            "confidence": confidence,
+            "clinical_evidence":0.0,
+            "novelty":0.0
+        }
+
+def get_confidence(result):
+    """
+    This function iterates through the answers from multiple ARAs,
+    It multiplies values of (1- score(ara[i])) for each ara
+    Finally this product value is subtracted from 1
+    """
+    score_product = 1
+    for analysis in result.get("analyses") or []:
+        if analysis.get("score") is not None:
+            score_product = score_product * (1 - analysis["score"])
+    confidence_score = 1 - score_product
+    return confidence_score
