@@ -452,7 +452,7 @@ def mergeDicts(dcurrent,dmerged):
                                 mmap[md["resource_id"]]=md
                             #adding special case for qualifiers on edges 05/18/2026
                             elif "qualifier_type_id" in md.keys():
-                                mmap[md["resource_id"]]=md
+                                mmap[md["qualifier_type_id"]]=md
                             else:
                                 #logging.debug("list item lacking id? "+str(cd))
                                 pass
