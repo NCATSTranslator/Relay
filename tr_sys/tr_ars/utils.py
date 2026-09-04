@@ -37,14 +37,16 @@ from pydantic import ValidationError
 from opentelemetry import trace
 from opentelemetry.trace import Status, StatusCode
 
-from tr_sys.celery_gates.expensive_gate import exp_backoff_with_jitter
+from tr_sys.celery_gates.expensive_gate import (exp_backoff_with_jitter, constant_backoff_with_jitter,
+                                                TASK_MAX_RETRIES)
 
 tracer = trace.get_tracer(__name__)
 import asyncio
 import zstandard as zstd
 from tr_sys.celery_gates.context import (expensive_section)
+from celery.exceptions import Retry, MaxRetriesExceededError
 from tr_sys.otel_config import count_error, record_error
-from celery.exceptions import Retry
+
 
 ARS_ACTOR = {
     'channel': [],
@@ -59,6 +61,7 @@ ARS_ACTOR = {
 NORMALIZER_URL=os.getenv("TR_NORMALIZER") if os.getenv("TR_NORMALIZER") is not None else "https://nodenorm-es.ci.transltr.io/get_normalized_nodes"
 ANNOTATOR_URL=os.getenv("TR_ANNOTATOR") if os.getenv("TR_ANNOTATOR") is not None else "https://biothings.ncats.io/curie"
 APPRAISER_URL=os.getenv("TR_APPRAISE") if os.getenv("TR_APPRAISE") is not None else "https://answerappraiser.ci.transltr.io/get_appraisal"
+MERGE_ERROR_MAX_RETRIES = int(os.getenv("ARS_MERGE_ERROR_MAX_RETRIES", "8"))
 
 class QueryGraph():
     def __init__(self,qg):
@@ -676,15 +679,31 @@ def unlock_merge(message: Message) -> None:
         logging.exception("Failed to release merge_semaphore for message %s", getattr(message, "pk", "<unknown>"))
         raise
 
-@shared_task(name="merge-and-post-process", bind=True, acks_late=True, max_retries=20)
-def merge_and_post_process(self, parent_pk,message_to_merge, agent_name):
+
+@shared_task(name="merge-and-post-process", bind=True, acks_late=True, max_retries=None)
+def merge_and_post_process(self, parent_pk, message_to_merge, agent_name, error_retries=0):
     """
     Safe merge & post-process task:
     - Acquire expensive token (expensive_section) first
     - Acquire DB boolean lock (inside short select_for_update atomic)
     - Do merge_received(), post_process() and notifications
     - Always release DB boolean lock in finally
-    - Use self.request.retries for retry/backoff
+
+    Retry functionality:
+    - The built-in Celery retry functionality, tracked by the counter self.request.retries and enforced by Celery,
+      is used for all tasks, contention is the main cause for a retry (no available expensive tokens or the
+      merge db lock is occupied). This is done by setting max_retries to TASK_MAX_RETRIES in expensive_section()
+      and in this function after a failed merge lock acquisition. When this kind of retry occurs we use a quick
+      delay to avoid pointless downtime waiting on ourselves.
+    - Retries for errors in merging are handled separately by error_retries, an arg based counter
+      for actual merge_and_post_process errors, capped by MERGE_ERROR_MAX_RETRIES, enforced by the code here
+      and not celery's internal retry check. These use exponential backoff (1, 2, 4, 8, 16s, then capped at 30s)
+      to give downstream services time to recover, so the default cap of 8 buys about two minutes of patience —
+      enough to outlast an annotator/appraiser restart or a rolling deploy.
+    - Note that max_retries=None in the merge_and_post_process decorator signature means celery imposes no
+      limit of its own: contention retry sites must pass max_retries explicitly, while the error path
+      intentionally omits it and relies on the error_retries cap instead. Future changes should preserve that
+      split — a retry with neither limit would loop forever.
     """
     merged=None
     stats={}
@@ -699,7 +718,7 @@ def merge_and_post_process(self, parent_pk,message_to_merge, agent_name):
     logging.info(f"🚀Starting merge for %s with parent PK: %s"% (agent_name,parent_pk))
     try:
         #Acquire an expensive token so we don't hold DB locked while waiting
-        with expensive_section(self):
+        with expensive_section(self, max_retries=TASK_MAX_RETRIES):
             logging.info("[%s] 🟢 acquired expensive token", self.request.id)
 
             # short critical section: lock row + decide if we can merge
@@ -720,23 +739,15 @@ def merge_and_post_process(self, parent_pk,message_to_merge, agent_name):
                         lock_span.set_attribute("merge.lock.acquired", lock_acquired)
                         task_span.set_attribute("merge.lock.acquired", lock_acquired)
                     if not lock_acquired:
-                        #someone else already locked it & possibly going through merge, retry ...
-                        retries = self.request.retries
-                        if retries < 10:
-                            delay = 5
-                            outcome = "lock_contended"
-                            task_span.set_attribute("merge.lock.retry_delay_seconds", delay)
-                            if retries >= 7:
-                                logging.warning("⚠️ High retry count (%s) for merge lock on parent=%s agent=%s.Retrying in %ss",retries, parent_pk, agent_name, delay)
-                            else:
-                                logging.info(" 🔄 Merged_version locked for %s. Attempt %s. Retrying in %ss",agent_name, retries, delay)
-                            # raise retry — this will release the expensive token (expensive_section finally), stop the task, requeues it and free the worker
-                            raise self.retry(countdown=delay)
-                        else:
-                            outcome = "lock_budget_exhausted"
-                            task_span.set_status(Status(StatusCode.ERROR, "gave up waiting for the per-parent merge lock"))
-                            logging.info("❌ Merging failed for %s %s after retries", agent_name, parent_pk)
-                            return
+                        # Another task holds the merge lock. Retry after a quick delay.
+                        delay = constant_backoff_with_jitter()
+                        outcome = "lock_contended"
+                        task_span.set_attribute("merge.lock.retry_delay_seconds", delay)
+                        logging.info("🔄 merge lock held for %s (parent=%s); retrying in %.1fs (retries=%s)",
+                                     agent_name, parent_pk, delay, self.request.retries)
+                        # raise retry — releases the expensive token (expensive_section finally),
+                        # requeues the task and frees the worker.
+                        raise self.retry(countdown=delay, max_retries=TASK_MAX_RETRIES)
                     else:
                         logging.info(" the merge semaphore for agent %s is %s"% (agent_name, parent.merge_semaphore))
                         locked = True
@@ -815,7 +826,35 @@ def merge_and_post_process(self, parent_pk,message_to_merge, agent_name):
         logging.info("Task retry requested — requeueing (parent=%s, retries=%s)",parent_pk, self.request.retries)
         raise
 
+    except MaxRetriesExceededError:
+        # General retry budget exhausted (due to token gate or merge db lock).
+        # This is not a real error, so keep it out of the catch-all Exception handling below.
+        outcome = "retry_budget_exhausted"
+        task_span.set_status(Status(StatusCode.ERROR, "exhausted the retry budget waiting on contention"))
+        logging.error("❌ Merge gave up after exhausting the retry budget for agent %s pk %s (retries=%s).",
+                      agent_name, parent_pk, self.request.retries)
+        # surface the failure to API consumers, not just logs/OTEL
+        try:
+            if parent is None:
+                parent = Message.objects.filter(pk=parent_pk).first()
+            if parent is not None:
+                parent.notify_subscribers({
+                    "event_type": "merged_version_failed",
+                    "agent_name": agent_name,
+                    "reason": "retry_budget_exhausted",
+                    "merged_versions_list": parent.merged_versions_list if parent.merged_versions_list is not None else []
+                })
+        except Exception as notify_error:
+            logging.exception("Failed to notify subscribers of merge retry exhaustion for parent %s", parent_pk)
+            record_error(notify_error)
+        raise
+
     except Exception as e:
+        # TODO - it would be best to categorize and handle different kinds of errors in different ways here.
+        # If there is a deterministic error (ie something wrong with the data) retrying is a waste of time and
+        # hogs resources for no reason. Transient errors such as issues with postgres or service calls to annotator
+        # or appraiser are legitimate reasons to retry and should go through the retry process. It would also be
+        # good to log the kinds of errors occurring and/or make them visible to OTEL.
         outcome = "error"
         logging.info("Problem with merger for agent %s pk: %s " % (agent_name, (parent_pk)))
         logging.info(e, exc_info=True)
@@ -825,9 +864,14 @@ def merge_and_post_process(self, parent_pk,message_to_merge, agent_name):
             merged.status='E'
             merged.code = 422
             merged.save()
-        # retry on post_process failure
-        delay = exp_backoff_with_jitter(self.request.retries)
-        raise self.retry(exc=e, countdown=delay)
+        if error_retries >= MERGE_ERROR_MAX_RETRIES:
+            logging.error("Merge for agent %s pk %s failed after %s error retries; giving up.",
+                          agent_name, parent_pk, error_retries)
+            raise
+        delay = exp_backoff_with_jitter(error_retries)
+        raise self.retry(
+            kwargs={**(self.request.kwargs or {}), "error_retries": error_retries + 1},
+            exc=e, countdown=delay)
 
     finally:
         task_span.set_attribute("merge.outcome", outcome)
