@@ -14,7 +14,7 @@
 #   helm upgrade --install ars ./helm/ars -n <namespace> -f ./helm/ars/renci-values.yaml
 #
 # Everything not listed here inherits the dev defaults from values.yaml,
-# including the in-cluster MySQL/Redis/RabbitMQ (Sterling has no RDS).
+# including the in-cluster MySQL/RabbitMQ (Sterling has no RDS).
 
 image:
   # There is no public ARS image and Sterling cannot pull from the NCATS ECR,
@@ -133,9 +133,6 @@ rabbitmq:
     limits:
       cpu: "2"
       memory: 4Gi
-
-redis:
-  enabled: true
 
 ingress:
   enabled: true

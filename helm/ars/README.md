@@ -1,7 +1,7 @@
 # ars (self-contained dev chart)
 
-A Helm chart that deploys the ARS **and all of its backing services** — MySQL,
-Redis and RabbitMQ — so a dev instance comes up on any Kubernetes cluster with
+A Helm chart that deploys the ARS **and all of its backing services** — MySQL
+and RabbitMQ — so a dev instance comes up on any Kubernetes cluster with
 no externally supplied files. It is the outcome of `deploy/HELM_DEPENDENCIES.md`;
 the Jenkins-driven production chart in `deploy/` is untouched.
 
@@ -9,13 +9,14 @@ Differences from `deploy/`:
 
 | | `deploy/` | `helm/ars/` |
 |---|---|---|
-| Topology | one pod, 4 containers over `localhost` | one pod per component (server / worker / beat / mysql / redis / rabbitmq) |
+| Topology | one pod, 4 containers over `localhost` | one pod per component (server / heavy worker / light worker / beat / mysql / rabbitmq) |
 | MySQL | external, invisible to the chart | in-cluster StatefulSet + PVC by default, or `mysql.enabled=false` + `mysql.external.*` |
-| RabbitMQ / Redis | sidecars, no volume | own pods; RabbitMQ gets a PVC (celery is configured for persistent delivery) |
+| RabbitMQ | sidecar, no volume | own pod with a PVC (celery is configured for persistent delivery) |
+| Redis | sidecar (token gate + unused Channels layer) | gone; nothing in the app uses it anymore |
 | `settings.py` | injected by Jenkins, `sed`-substituted | in the chart (`files/settings.py`), reads env vars; credentials via a Secret |
 | Migrations | `manage.py migrate` in the server container command | post-install/post-upgrade hook Job |
 | Celery beat | started inside the worker script | own single-replica Deployment |
-| Scaling | impossible (replicating the pod duplicates broker + redis) | `arsserver.replicas` / `celeryworkers.<pool>.replicas` |
+| Scaling | impossible (replicating the pod duplicates the broker) | `arsserver.replicas` / `celeryworkers.<pool>.replicas` |
 
 ## Quick start (kind / minikube / any dev cluster)
 
@@ -50,10 +51,6 @@ mysql:
     port: 3306
     database: arsdb
     username: ars
-redis:
-  enabled: false
-  external:
-    url: redis://my-elasticache:6379/0
 ```
 
 Passwords always come from the release Secret — set `secrets.mysqlPassword`

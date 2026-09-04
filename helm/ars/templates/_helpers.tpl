@@ -81,18 +81,6 @@ Name of the Secret holding all credentials.
 {{- if .Values.mysql.enabled }}{{ .Values.mysql.auth.username }}{{- else }}{{ .Values.mysql.external.username }}{{- end }}
 {{- end }}
 
-{{- define "ars.redisHost" -}}
-{{- printf "%s-redis" (include "ars.fullname" .) }}
-{{- end }}
-
-{{- define "ars.redisUrl" -}}
-{{- if .Values.redis.enabled }}
-{{- printf "redis://%s:6379/0" (include "ars.redisHost" .) }}
-{{- else }}
-{{- required "redis.external.url is required when redis.enabled=false" .Values.redis.external.url }}
-{{- end }}
-{{- end }}
-
 {{- define "ars.rabbitmqHost" -}}
 {{- if .Values.rabbitmq.enabled }}
 {{- printf "%s-rabbitmq" (include "ars.fullname" .) }}
@@ -156,8 +144,6 @@ expansion so the password never appears in the manifest.
       key: rabbitmq-password
 - name: CELERY_BROKER_URL
   value: "amqp://$(RABBITMQ_USER):$(RABBITMQ_PASSWORD)@{{ include "ars.rabbitmqHost" . }}:{{ include "ars.rabbitmqPort" . }}//"
-- name: ARS_REDIS_HOST
-  value: {{ include "ars.redisHost" . | quote }}
 - name: AES_MASTER_KEY
   valueFrom:
     secretKeyRef:

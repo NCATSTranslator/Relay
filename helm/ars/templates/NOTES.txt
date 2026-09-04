@@ -14,9 +14,6 @@ Components:
 {{- if .Values.rabbitmq.enabled }}
   {{ include "ars.fullname" . }}-rabbitmq RabbitMQ {{ .Values.rabbitmq.image.tag }} (in-cluster, PVC {{ .Values.rabbitmq.persistence.size }})
 {{- end }}
-{{- if .Values.redis.enabled }}
-  {{ include "ars.fullname" . }}-redis    Redis {{ .Values.redis.image.tag }} (in-cluster)
-{{- end }}
 
 Migrations run automatically via the {{ include "ars.fullname" . }}-migrate Job
 (post-install/post-upgrade hook); on a first install give it a minute before use.

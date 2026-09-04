@@ -3,7 +3,7 @@ name: ars
 description: >-
   Helm chart for the ARS (Autonomous Relay System) and its backing services.
   Unlike deploy/ (the Jenkins-driven production chart), this chart is
-  self-contained: it deploys MySQL, Redis and RabbitMQ alongside the app so a
+  self-contained: it deploys MySQL and RabbitMQ alongside the app so a
   dev instance can be installed on any cluster with no externally supplied
   config files.
 type: application

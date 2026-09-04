@@ -33,7 +33,6 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'corsheaders',
-#    'channels',
     'tr_ars.apps.ARSConfig',
     'tr_ara_aragorn.aragorn_app.AppConfig',
     'tr_ara_arax.arax_app.AppConfig',
@@ -91,17 +90,6 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'tr_sys.wsgi.application'
-# Channels
-ASGI_APPLICATION = 'tr_sys.routing.application'
-
-CHANNEL_LAYERS = {
-    'default': {
-        'BACKEND': 'channels_redis.core.RedisChannelLayer',
-        'CONFIG': {
-            "hosts": [(os.environ.get('ARS_REDIS_HOST', '127.0.0.1'), 6379)],
-        },
-    },
-}
 
 # Database
 # https://docs.djangoproject.com/en/1.11/ref/settings/#databases

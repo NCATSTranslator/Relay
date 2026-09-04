@@ -88,13 +88,6 @@ mysql:
     database: ARS_DB_NAME_VALUE
     username: ARS_DB_USER_VALUE
 
-redis:
-  enabled: true
-  image:
-    repository: 853771734544.dkr.ecr.us-east-1.amazonaws.com/translator-redis
-    tag: "6.2"
-    pullPolicy: Always
-
 rabbitmq:
   enabled: true
   image:

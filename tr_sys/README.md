@@ -3,7 +3,7 @@ ARS implementation
 
 ### Prerequisites
 
-Require python 3+, django 3.1+ and channels packages.
+Require python 3+ and django 4.2+.
 
 Test your python environment
 ```bash

@@ -41,12 +41,6 @@ spec:
           image: "{{ $root.Values.image.repository }}:{{ $root.Values.image.tag }}"
           imagePullPolicy: {{ $root.Values.image.pullPolicy }}
           command: ["/bin/wait-for", "{{ include "ars.rabbitmqHost" $root }}:{{ include "ars.rabbitmqPort" $root }}", "-t", "300"]
-        {{- if $root.Values.redis.enabled }}
-        - name: wait-for-redis
-          image: "{{ $root.Values.image.repository }}:{{ $root.Values.image.tag }}"
-          imagePullPolicy: {{ $root.Values.image.pullPolicy }}
-          command: ["/bin/wait-for", "{{ include "ars.redisHost" $root }}:6379", "-t", "300"]
-        {{- end }}
       containers:
         - name: celeryworker
           image: "{{ $root.Values.image.repository }}:{{ $root.Values.image.tag }}"
