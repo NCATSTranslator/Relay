@@ -21,6 +21,7 @@ import re
 from objsize import get_deep_size
 from django.shortcuts import get_object_or_404
 from .scoring import compute_from_results
+from . import ranker_fusion
 from collections import Counter
 from reasoner_pydantic import (
     Query as vQuery,
@@ -541,7 +542,7 @@ def pre_merge_process(data,key, agent_name,inforesid):
         logging.exception("Error in ARS score normalization")
         raise e
 
-def post_process(mesg,key, agent_name):
+def post_process(mesg,key, agent_name, incoming_message=None):
 
     data = mesg.decompress_dict()
 
@@ -607,6 +608,38 @@ def post_process(mesg,key, agent_name):
             logging.exception("confidence calculations failed mesg for agent %s is %s: %s"% (agent_name, mesg.code, mesg.status))
             record_error(e)
         try:
+            rrf_summary = apply_ranker_fusion(mesg, data, agent_name, incoming_message)
+            if rrf_summary.get("applied"):
+                logging.info(
+                    "Weighted RRF ranker fusion applied for agent %s pk %s: %s",
+                    agent_name,
+                    key,
+                    rrf_summary,
+                )
+                add_log_entry(
+                    data,
+                    [
+                        "Weighted RRF ranker fusion applied: %s" % rrf_summary,
+                        datetime.now().strftime('%H:%M:%S'),
+                        "DEBUG",
+                    ],
+                )
+                results = get_safe(data, "message", "results")
+            else:
+                logging.info(
+                    "Weighted RRF ranker fusion skipped for agent %s pk %s: %s",
+                    agent_name,
+                    key,
+                    rrf_summary,
+                )
+        except Exception as e:
+            logging.exception(
+                "Weighted RRF ranker fusion failed for agent %s pk %s",
+                agent_name,
+                key,
+            )
+            record_error(e)
+        try:
             mesg.result_count = len(results)
             mesg.result_stat = ScoreStatCalc(results)
             logging.info("scoring stat calculation succeeded  for agent %s and pk %s" % (agent_name, key))
@@ -644,6 +677,62 @@ def post_process(mesg,key, agent_name):
         logging.exception("Final save failed")
         record_error(e)
     return mesg, code, status
+
+def apply_ranker_fusion(mesg, data, incoming_agent_name=None, incoming_message=None):
+    if not ranker_fusion.is_enabled():
+        return {"applied": False, "reason": "disabled"}
+
+    if mesg.ref_id is None:
+        return {"applied": False, "reason": "missing_parent"}
+
+    if mesg.actor.inforesid != "infores:ars" and mesg.actor.agent.name != "ars-ars-agent":
+        return {"applied": False, "reason": "not_ars_merged_message"}
+
+    config = ranker_fusion.get_config()
+    weights = config["weights"]
+    ranker_results_by_source = {}
+
+    incoming_source = ranker_fusion.configured_source(
+        None,
+        incoming_agent_name,
+        weights,
+    )
+    if incoming_source is not None and incoming_message is not None:
+        incoming_results = get_safe(incoming_message, "results")
+        if incoming_results is None:
+            incoming_results = get_safe(incoming_message, "message", "results")
+        if incoming_results:
+            ranker_results_by_source[incoming_source] = incoming_results
+
+    children = (
+        Message.objects.select_related("actor", "actor__agent")
+        .filter(ref_id=mesg.ref_id, status="D")
+        .exclude(actor__inforesid="infores:ars")
+        .order_by("timestamp")
+    )
+    for child in children:
+        source = ranker_fusion.configured_source(
+            child.actor.inforesid,
+            child.actor.agent.name,
+            weights,
+        )
+        if source is None:
+            continue
+
+        child_data = child.decompress_dict()
+        child_results = get_safe(child_data, "message", "results")
+        if child_results:
+            ranker_results_by_source[source] = child_results
+
+    if not ranker_results_by_source:
+        return {"applied": False, "reason": "no_configured_ranker_children"}
+
+    return ranker_fusion.apply_weighted_rrf(
+        data,
+        ranker_results_by_source,
+        weights,
+        config["c_value"],
+    )
 
 # def lock_merge(message):
 #     pass
@@ -790,7 +879,7 @@ def merge_and_post_process(self, parent_pk,message_to_merge, agent_name):
             with tracer.start_as_current_span("merge.post_process") as post_span:
                 post_span.set_attribute("merge.agent", agent_name)
                 post_span.set_attribute("merge.merged_pk", str(merged.id))
-                merged, code, status = post_process(merged, merged.id, agent_name)
+                merged, code, status = post_process(merged, merged.id, agent_name, message_to_merge)
                 post_span.set_attribute("merge.post_process.code", code)
                 post_span.set_attribute("merge.post_process.status", status)
             logging.info('post processing complete for agent %s with pk %s is returned & ready to be preprocessed' % (agent_name, str(merged.id)))
