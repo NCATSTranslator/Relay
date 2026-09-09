@@ -679,7 +679,8 @@ def post_process(mesg,key, agent_name, incoming_message=None):
     return mesg, code, status
 
 def apply_ranker_fusion(mesg, data, incoming_agent_name=None, incoming_message=None):
-    if not ranker_fusion.ARS_RRF_ENABLED:
+    config = ranker_fusion.get_config()
+    if not config["enabled"]:
         return {"applied": False, "reason": "disabled"}
 
     if mesg.ref_id is None:
@@ -688,7 +689,6 @@ def apply_ranker_fusion(mesg, data, incoming_agent_name=None, incoming_message=N
     if mesg.actor.inforesid != "infores:ars" and mesg.actor.agent.name != "ars-ars-agent":
         return {"applied": False, "reason": "not_ars_merged_message"}
 
-    config = ranker_fusion.get_config()
     weights = config["weights"]
     ranker_results_by_source = {}
 

@@ -3,49 +3,38 @@ import os
 
 logger = logging.getLogger(__name__)
 
-ARS_RRF_ENABLED = os.getenv("ARS_RRF_ENABLED", "true").strip().lower() in {
-    "1",
-    "true",
-    "yes",
-    "on",
-}
+
+def _get_enabled():
+    return os.getenv("ARS_RRF_ENABLED", "true").strip().lower() == "true"
 
 
-def parse_ranker_weights():
+def _parse_ranker_weights():
     default_weights = {
         "infores:aragorn": 0.9,
         "infores:arax": 0.1,
     }
-    
-    rrf_weights = {
-        "infores:aragorn": os.getenv("ARS_RRF_ARAGORN_WEIGHT", default_weights["infores:aragorn"]),
-        "infores:arax": os.getenv("ARS_RRF_ARAX_WEIGHT", default_weights["infores:arax"]),
-    }
-    
-    parsed = {}
-    try:
-        for key, value in rrf_weights.items():
-            weight = float(value)
-            if weight < 0:
-                raise ValueError("ranker weights must be non-negative")
-            parsed[key] = weight
 
-        if abs(sum(parsed.values()) - 1.0) > 1e-9:
-            raise ValueError("ranker weights must sum to 1")
-        
-        return parsed
+    try:
+        aragorn_weight = float(
+            os.getenv("ARS_RRF_ARAGORN_WEIGHT", default_weights["infores:aragorn"])
+        )
+        if aragorn_weight < 0 or aragorn_weight > 1:
+            raise ValueError("ARAGORN weight must be between 0 and 1")
+
+        return {
+            "infores:aragorn": aragorn_weight,
+            "infores:arax": round(1.0 - aragorn_weight, 8),
+        }
     
     except ValueError as e:
         logger.warning(
-            "Invalid environment variable ARS_RRF_ARAGORN_WEIGHT or "
-            "ARS_RRF_ARAX_WEIGHT set; using default weights "
-            "0.9 and 0.1, respectively: %s",
-            e,
+            f"Invalid environment variable ARS_RRF_ARAGORN_WEIGHT set; using default weights "
+            f"0.9 and 0.1, respectively: {e}"
         )
         return default_weights
 
 
-def get_c_value():
+def _get_c_value():
     default_c = 40
     rrf_c = str(os.getenv("ARS_RRF_C", default_c))
     try:
@@ -62,38 +51,33 @@ def get_c_value():
 
 def get_config():
     return {
-        "enabled": ARS_RRF_ENABLED,
-        "weights": parse_ranker_weights(),
-        "c_value": get_c_value(),
+        "enabled": _get_enabled(),
+        "weights": _parse_ranker_weights(),
+        "c_value": _get_c_value(),
     }
 
 
-def source_candidates(inforesid=None, agent_name=None):
-    candidates = []
-    for value in (inforesid, agent_name):
-        if value:
-            source = str(value).strip().lower()
-            candidates.append(source)
-            if source.startswith("infores:"):
-                candidates.append(source.split(":", 1)[1])
-            if source.startswith("ara-"):
-                short_name = source[4:]
-                candidates.append(short_name)
-                candidates.append("infores:" + short_name)
-    return candidates
-
-
 def configured_source(inforesid, agent_name, weights):
-    for candidate in source_candidates(inforesid, agent_name):
-        if candidate in weights:
-            return candidate
+    if inforesid:
+        source = str(inforesid).strip().lower()
+        if source in weights:
+            return source
+
+    if agent_name:
+        source = str(agent_name).strip().lower()
+        if source in weights:
+            return source
+        if source.startswith("ara-"):
+            source = "infores:" + source[4:]
+            if source in weights:
+                return source
+
     return None
 
 
-def result_key(result):
+def _result_key(result):
     """
-    Build the same practical answer identity ARS uses for result merging:
-    a frozenset of bound node IDs.
+    Build a frozenset of bound node IDs for a single input result dict with "node_bindings" key.
     """
     node_bindings = result.get("node_bindings") or {}
     ids = set()
@@ -108,10 +92,21 @@ def result_key(result):
     return frozenset(ids)
 
 
-def rank_map_from_results(results):
+def _rank_map_from_results(results):
+    """
+    converts a ranker's ordered result list into a lookup table by building a lookup dict 
+    mapping node_binding id frozenset in a result item to its index or ranked position in result list
+    Args:
+        results (list): a ordered list of ranked results by a ranker
+
+    Returns:
+        dict: a lookup dict with node binding id frozenset as keys. Note that if two results 
+        produce the same frozenset key, only the first rank is kept. That preserves the best 
+        rank from that ranker for duplicate-equivalent answers.
+    """
     rank_map = {}
     for index, result in enumerate(results or [], start=1):
-        key = result_key(result)
+        key = _result_key(result)
         if key is not None and key not in rank_map:
             rank_map[key] = index
     return rank_map
@@ -120,10 +115,18 @@ def rank_map_from_results(results):
 def apply_weighted_rrf(data, ranker_results_by_source, weights, c_value):
     """
     Sort data["message"]["results"] in-place with weighted Reciprocal Rank Fusion.
+    Args:
+        data (_type_): input data["message"]["results"] to be sorted in place
+        ranker_results_by_source (_type_): dict of already-ranked result lists from each ranker 
+        source "infores:aragorn" and "infores:arax" with the list order reflecting that 
+        ranker's ranking order.
+        weights (_type_): weights dict controlling each ranker's contribution for two rankers 
+        "infores:aragorn" and "infores:arax"
+        c_value (_type_): RRF dampening constant. Each matched result gets contribution of weight / (c_value + rank)
 
-    Returns a summary dict suitable for logging. The function is intentionally
-    pure with respect to external services; callers provide ranker result lists.
+    Returns: a summary dict suitable for logging.
     """
+    
     message = data.get("message") if isinstance(data, dict) else None
     if not isinstance(message, dict):
         return {"applied": False, "reason": "missing_message"}
@@ -136,7 +139,7 @@ def apply_weighted_rrf(data, ranker_results_by_source, weights, c_value):
     for source, source_results in ranker_results_by_source.items():
         source_key = str(source).strip().lower()
         if source_key in weights:
-            rank_map = rank_map_from_results(source_results)
+            rank_map = _rank_map_from_results(source_results)
             if rank_map:
                 rank_maps[source_key] = rank_map
 
@@ -146,7 +149,7 @@ def apply_weighted_rrf(data, ranker_results_by_source, weights, c_value):
     scored = []
     matched = 0
     for original_index, result in enumerate(results):
-        key = result_key(result)
+        key = _result_key(result)
         score = 0.0
         source_ranks = {}
         source_contributions = {}
@@ -168,9 +171,7 @@ def apply_weighted_rrf(data, ranker_results_by_source, weights, c_value):
         return {"applied": False, "reason": "no_matching_results"}
 
     scored.sort(key=lambda item: (-item[0], item[1]))
-    for rank, (score, _, result, source_ranks, source_contributions) in enumerate(
-        scored, start=1
-    ):
+    for rank, (score, _, result, source_ranks, source_contributions) in enumerate(scored, start=1):
         result["rrf_score"] = score
         result["rrf_ranker_ranks"] = source_ranks
         result["rrf_ranker_contributions"] = source_contributions

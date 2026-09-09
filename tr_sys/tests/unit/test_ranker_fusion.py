@@ -1,4 +1,16 @@
-from tr_ars import ranker_fusion
+import importlib.util
+from pathlib import Path
+
+
+def load_ranker_fusion():
+    module_path = Path(__file__).parents[2] / "tr_ars" / "ranker_fusion.py"
+    spec = importlib.util.spec_from_file_location("ranker_fusion", module_path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+ranker_fusion = load_ranker_fusion()
 
 
 def make_result(*ids):
@@ -11,43 +23,76 @@ def make_result(*ids):
     }
 
 
-def test_parse_ranker_weights_from_env(monkeypatch):
+def test_parse_ranker_config(monkeypatch):
     monkeypatch.setenv("ARS_RRF_ARAGORN_WEIGHT", "0.8")
-    monkeypatch.setenv("ARS_RRF_ARAX_WEIGHT", "0.2")
+    monkeypatch.setenv("ARS_RRF_C", "50")
+    monkeypatch.setenv("ARS_RRF_ENABLED", "true")
 
-    weights = ranker_fusion.parse_ranker_weights()
+    rf_config = ranker_fusion.get_config()
 
-    assert weights == {
+    weights = {
         "infores:aragorn": 0.8,
         "infores:arax": 0.2,
     }
-
-
-def test_parse_ranker_weights_defaults_on_invalid_sum(monkeypatch):
-    monkeypatch.setenv("ARS_RRF_ARAGORN_WEIGHT", "0.8")
-    monkeypatch.setenv("ARS_RRF_ARAX_WEIGHT", "0.3")
-
-    weights = ranker_fusion.parse_ranker_weights()
-
-    assert weights == {
-        "infores:aragorn": 0.9,
-        "infores:arax": 0.1,
+    
+    assert rf_config == {
+        "enabled": True,
+        "weights": weights,
+        "c_value": 50,
     }
 
 
-def test_get_c_value_from_env(monkeypatch):
-    monkeypatch.setenv("ARS_RRF_C", "50")
+def test_parse_ranker_config_derives_arax_weight(monkeypatch):
+    monkeypatch.setenv("ARS_RRF_ARAGORN_WEIGHT", "0.7")
+    monkeypatch.setenv("ARS_RRF_ARAX_WEIGHT", "0.9")
 
-    assert ranker_fusion.get_c_value() == 50
+    rf_config = ranker_fusion.get_config()
+
+    assert rf_config["weights"] == {
+        "infores:aragorn": 0.7,
+        "infores:arax": 0.3,
+    }
 
 
-def test_get_c_value_defaults_on_invalid_env(monkeypatch):
+def test_parse_ranker_config_defaults_on_invalid(monkeypatch):
+    monkeypatch.setenv("ARS_RRF_ARAGORN_WEIGHT", "1.2")
     monkeypatch.setenv("ARS_RRF_C", "-1")
+    monkeypatch.setenv("ARS_RRF_ENABLED", "true")
 
-    assert ranker_fusion.get_c_value() == 40
+    rf_config = ranker_fusion.get_config()
+    
+    default_weights = {
+        "infores:aragorn": 0.9,
+        "infores:arax": 0.1,
+    }
+    default_c = 40
+
+    assert rf_config == {
+        "enabled": True,
+        "weights": default_weights,
+        "c_value": default_c,
+    }
 
 
-def test_configured_source_accepts_ara_agent_alias():
+def test_parse_ranker_config_reads_enabled_from_env(monkeypatch):
+    monkeypatch.setenv("ARS_RRF_ENABLED", "false")
+
+    rf_config = ranker_fusion.get_config()
+
+    assert rf_config["enabled"] is False
+
+
+def test_configured_source_matches_infores_directly():
+    source = ranker_fusion.configured_source(
+        "infores:arax",
+        "ara-arax",
+        {"infores:arax": 0.2},
+    )
+
+    assert source == "infores:arax"
+
+
+def test_configured_source_accepts_incoming_ara_agent_alias():
     source = ranker_fusion.configured_source(
         None,
         "ara-aragorn",
@@ -55,16 +100,6 @@ def test_configured_source_accepts_ara_agent_alias():
     )
 
     assert source == "infores:aragorn"
-
-
-def test_configured_source_accepts_short_name_alias():
-    source = ranker_fusion.configured_source(
-        "infores:arax",
-        "ara-arax",
-        {"arax": 0.2},
-    )
-
-    assert source == "arax"
 
 
 def test_weighted_rrf_sorts_results_and_adds_metadata():
