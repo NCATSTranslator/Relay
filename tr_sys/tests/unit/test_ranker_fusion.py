@@ -11,10 +11,11 @@ def make_result(*ids):
     }
 
 
-def test_parse_ranker_weights_csv():
-    weights = ranker_fusion.parse_ranker_weights(
-        "infores:aragorn=0.8,infores:arax=0.2"
-    )
+def test_parse_ranker_weights_from_env(monkeypatch):
+    monkeypatch.setenv("ARS_RRF_ARAGORN_WEIGHT", "0.8")
+    monkeypatch.setenv("ARS_RRF_ARAX_WEIGHT", "0.2")
+
+    weights = ranker_fusion.parse_ranker_weights()
 
     assert weights == {
         "infores:aragorn": 0.8,
@@ -22,15 +23,28 @@ def test_parse_ranker_weights_csv():
     }
 
 
-def test_parse_ranker_weights_json():
-    weights = ranker_fusion.parse_ranker_weights(
-        '{"infores:aragorn": 0.75, "infores:arax": 0.25}'
-    )
+def test_parse_ranker_weights_defaults_on_invalid_sum(monkeypatch):
+    monkeypatch.setenv("ARS_RRF_ARAGORN_WEIGHT", "0.8")
+    monkeypatch.setenv("ARS_RRF_ARAX_WEIGHT", "0.3")
+
+    weights = ranker_fusion.parse_ranker_weights()
 
     assert weights == {
-        "infores:aragorn": 0.75,
-        "infores:arax": 0.25,
+        "infores:aragorn": 0.9,
+        "infores:arax": 0.1,
     }
+
+
+def test_get_c_value_from_env(monkeypatch):
+    monkeypatch.setenv("ARS_RRF_C", "50")
+
+    assert ranker_fusion.get_c_value() == 50
+
+
+def test_get_c_value_defaults_on_invalid_env(monkeypatch):
+    monkeypatch.setenv("ARS_RRF_C", "-1")
+
+    assert ranker_fusion.get_c_value() == 40
 
 
 def test_configured_source_accepts_ara_agent_alias():

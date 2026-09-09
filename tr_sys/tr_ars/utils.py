@@ -679,7 +679,7 @@ def post_process(mesg,key, agent_name, incoming_message=None):
     return mesg, code, status
 
 def apply_ranker_fusion(mesg, data, incoming_agent_name=None, incoming_message=None):
-    if not ranker_fusion.is_enabled():
+    if not ranker_fusion.ARS_RRF_ENABLED:
         return {"applied": False, "reason": "disabled"}
 
     if mesg.ref_id is None:

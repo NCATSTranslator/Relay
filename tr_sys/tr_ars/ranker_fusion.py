@@ -1,88 +1,69 @@
-import json
 import logging
 import os
-import re
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_RRF_C = 60
-DEFAULT_RRF_WEIGHTS = {
-    "infores:aragorn": 0.5,
-    "infores:arax": 0.5,
+ARS_RRF_ENABLED = os.getenv("ARS_RRF_ENABLED", "true").strip().lower() in {
+    "1",
+    "true",
+    "yes",
+    "on",
 }
 
 
-def is_enabled():
-    raw = os.getenv("ARS_RRF_ENABLED", "true").strip().lower()
-    return raw not in {"0", "false", "no", "off"}
-
-
-def parse_ranker_weights(raw=None):
-    """
-    Parse ARS_RRF_RANKER_WEIGHTS.
-
-    Supported forms:
-      - infores:aragorn=0.8,infores:arax=0.2
-      - {"infores:aragorn": 0.8, "infores:arax": 0.2}
-    """
-    if raw is None or not raw.strip():
-        return dict(DEFAULT_RRF_WEIGHTS)
-
-    raw = raw.strip()
+def parse_ranker_weights():
+    default_weights = {
+        "infores:aragorn": 0.9,
+        "infores:arax": 0.1,
+    }
+    
+    rrf_weights = {
+        "infores:aragorn": os.getenv("ARS_RRF_ARAGORN_WEIGHT", default_weights["infores:aragorn"]),
+        "infores:arax": os.getenv("ARS_RRF_ARAX_WEIGHT", default_weights["infores:arax"]),
+    }
+    
     parsed = {}
     try:
-        if raw.startswith("{"):
-            loaded = json.loads(raw)
-            items = loaded.items()
-        else:
-            parts = [part.strip() for part in re.split(r"[;,]", raw) if part.strip()]
-            items = []
-            for part in parts:
-                if "=" not in part:
-                    raise ValueError("weight entries must use key=value")
-                key, value = part.split("=", 1)
-                items.append((key, value))
-
-        for key, value in items:
-            normalized_key = str(key).strip().lower()
+        for key, value in rrf_weights.items():
             weight = float(value)
-            if not normalized_key:
-                raise ValueError("ranker source cannot be empty")
             if weight < 0:
                 raise ValueError("ranker weights must be non-negative")
-            parsed[normalized_key] = weight
-    except Exception as e:
+            parsed[key] = weight
+
+        if abs(sum(parsed.values()) - 1.0) > 1e-9:
+            raise ValueError("ranker weights must sum to 1")
+        
+        return parsed
+    
+    except ValueError as e:
         logger.warning(
-            "Invalid ARS_RRF_RANKER_WEIGHTS=%r; using defaults: %s", raw, e
+            "Invalid environment variable ARS_RRF_ARAGORN_WEIGHT or "
+            "ARS_RRF_ARAX_WEIGHT set; using default weights "
+            "0.9 and 0.1, respectively: %s",
+            e,
         )
-        return dict(DEFAULT_RRF_WEIGHTS)
-
-    if not parsed or sum(parsed.values()) <= 0:
-        logger.warning(
-            "ARS_RRF_RANKER_WEIGHTS must contain at least one positive weight; "
-            "using defaults."
-        )
-        return dict(DEFAULT_RRF_WEIGHTS)
-    return parsed
+        return default_weights
 
 
-def get_c_value(raw=None):
-    if raw is None:
-        raw = os.getenv("ARS_RRF_C", str(DEFAULT_RRF_C))
+def get_c_value():
+    default_c = 40
+    rrf_c = str(os.getenv("ARS_RRF_C", default_c))
     try:
-        c_value = int(raw)
+        c_value = int(rrf_c)
         if c_value < 0:
             raise ValueError("C must be non-negative")
+        
         return c_value
+    
     except Exception as e:
-        logger.warning("Invalid ARS_RRF_C=%r; using %s: %s", raw, DEFAULT_RRF_C, e)
-        return DEFAULT_RRF_C
+        logger.warning(f"Invalid environment variable ARS_RRF_C set; using default {default_c}: {e}")
+        return default_c
 
 
 def get_config():
     return {
-        "enabled": is_enabled(),
-        "weights": parse_ranker_weights(os.getenv("ARS_RRF_RANKER_WEIGHTS")),
+        "enabled": ARS_RRF_ENABLED,
+        "weights": parse_ranker_weights(),
         "c_value": get_c_value(),
     }
 
