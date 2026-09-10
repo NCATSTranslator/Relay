@@ -116,13 +116,13 @@ def apply_weighted_rrf(data, ranker_results_by_source, weights, c_value):
     """
     Sort data["message"]["results"] in-place with weighted Reciprocal Rank Fusion.
     Args:
-        data (_type_): input data["message"]["results"] to be sorted in place
-        ranker_results_by_source (_type_): dict of already-ranked result lists from each ranker 
+        data (dict): input data["message"]["results"] to be sorted in place
+        ranker_results_by_source (dict): dict of already-ranked result lists from each ranker 
         source "infores:aragorn" and "infores:arax" with the list order reflecting that 
         ranker's ranking order.
-        weights (_type_): weights dict controlling each ranker's contribution for two rankers 
+        weights (dict): weights dict controlling each ranker's contribution for two rankers 
         "infores:aragorn" and "infores:arax"
-        c_value (_type_): RRF dampening constant. Each matched result gets contribution of weight / (c_value + rank)
+        c_value (float): RRF dampening constant. Each matched result gets contribution of weight / (c_value + rank)
 
     Returns: a summary dict suitable for logging.
     """
