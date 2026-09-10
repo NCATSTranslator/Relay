@@ -692,11 +692,7 @@ def apply_ranker_fusion(mesg, data, incoming_agent_name=None, incoming_message=N
     weights = config["weights"]
     ranker_results_by_source = {}
 
-    incoming_source = ranker_fusion.configured_source(
-        None,
-        incoming_agent_name,
-        weights,
-    )
+    incoming_source = ranker_fusion.configured_source(None, incoming_agent_name, weights)
     if incoming_source is not None and incoming_message is not None:
         incoming_results = get_safe(incoming_message, "results")
         if incoming_results is None:
@@ -711,11 +707,7 @@ def apply_ranker_fusion(mesg, data, incoming_agent_name=None, incoming_message=N
         .order_by("timestamp")
     )
     for child in children:
-        source = ranker_fusion.configured_source(
-            child.actor.inforesid,
-            child.actor.agent.name,
-            weights,
-        )
+        source = ranker_fusion.configured_source(child.actor.inforesid, child.actor.agent.name, weights)
         if source is None:
             continue
 
@@ -727,12 +719,7 @@ def apply_ranker_fusion(mesg, data, incoming_agent_name=None, incoming_message=N
     if not ranker_results_by_source:
         return {"applied": False, "reason": "no_configured_ranker_children"}
 
-    return ranker_fusion.apply_weighted_rrf(
-        data,
-        ranker_results_by_source,
-        weights,
-        config["c_value"],
-    )
+    return ranker_fusion.apply_weighted_rrf(data, ranker_results_by_source, weights, config["c_value"])
 
 # def lock_merge(message):
 #     pass

@@ -53,7 +53,7 @@ def get_config():
     return {
         "enabled": _get_enabled(),
         "weights": _parse_ranker_weights(),
-        "c_value": _get_c_value(),
+        "c_value": _get_c_value()
     }
 
 
