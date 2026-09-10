@@ -542,7 +542,7 @@ def pre_merge_process(data,key, agent_name,inforesid):
         logging.exception("Error in ARS score normalization")
         raise e
 
-def post_process(mesg,key, agent_name, incoming_message=None):
+def post_process(mesg, key, agent_name, incoming_message=None):
 
     data = mesg.decompress_dict()
 
@@ -879,7 +879,7 @@ def merge_and_post_process(self, parent_pk,message_to_merge, agent_name):
             with tracer.start_as_current_span("merge.post_process") as post_span:
                 post_span.set_attribute("merge.agent", agent_name)
                 post_span.set_attribute("merge.merged_pk", str(merged.id))
-                merged, code, status = post_process(merged, merged.id, agent_name, message_to_merge)
+                merged, code, status = post_process(merged, merged.id, agent_name, incoming_message=message_to_merge)
                 post_span.set_attribute("merge.post_process.code", code)
                 post_span.set_attribute("merge.post_process.status", status)
             logging.info('post processing complete for agent %s with pk %s is returned & ready to be preprocessed' % (agent_name, str(merged.id)))
