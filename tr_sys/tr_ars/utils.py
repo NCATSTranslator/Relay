@@ -608,7 +608,7 @@ def post_process(mesg, key, agent_name, incoming_message=None):
             logging.exception("confidence calculations failed mesg for agent %s is %s: %s"% (agent_name, mesg.code, mesg.status))
             record_error(e)
         try:
-            rrf_summary = apply_ranker_fusion(mesg, data, agent_name, incoming_message)
+            rrf_summary = apply_ranker_fusion(mesg, data, incoming_agent_name=agent_name, incoming_message=incoming_message)
             if rrf_summary.get("applied"):
                 logging.info(
                     "Weighted RRF ranker fusion applied for agent %s pk %s: %s",
