@@ -1,5 +1,7 @@
+import math
 import logging
 import os
+
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +20,7 @@ def _parse_ranker_weights():
         aragorn_weight = float(
             os.getenv("ARS_RRF_ARAGORN_WEIGHT", default_weights["infores:aragorn"])
         )
-        if aragorn_weight < 0 or aragorn_weight > 1:
+        if not math.isfinite(aragorn_weight) or aragorn_weight < 0 or aragorn_weight > 1:
             raise ValueError("ARAGORN weight must be between 0 and 1")
 
         return {
@@ -171,11 +173,21 @@ def apply_weighted_rrf(data, ranker_results_by_source, weights, c_value):
         return {"applied": False, "reason": "no_matching_results"}
 
     scored.sort(key=lambda item: (-item[0], item[1]))
+
+    previous_score = None
+    previous_rank = None
     for rank, (score, _, result, source_ranks, source_contributions) in enumerate(scored, start=1):
         result["rrf_score"] = score
         result["rrf_ranker_ranks"] = source_ranks
         result["rrf_ranker_contributions"] = source_contributions
-        result["rrf_rank"] = rank
+
+        if score != previous_score:
+            previous_score = score
+            previous_rank = rank
+            result["rrf_rank"] = rank
+        else:
+            # tied score, hence tied rank
+            result["rrf_rank"] = previous_rank
 
     message["results"] = [result for _, _, result, _, _ in scored]
     return {

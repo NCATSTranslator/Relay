@@ -74,6 +74,17 @@ def test_parse_ranker_config_defaults_on_invalid(monkeypatch):
     }
 
 
+def test_parse_ranker_config_defaults_on_nan_weight(monkeypatch):
+    monkeypatch.setenv("ARS_RRF_ARAGORN_WEIGHT", "nan")
+
+    rf_config = ranker_fusion.get_config()
+
+    assert rf_config["weights"] == {
+        "infores:aragorn": 0.9,
+        "infores:arax": 0.1,
+    }
+
+
 def test_parse_ranker_config_reads_enabled_from_env(monkeypatch):
     monkeypatch.setenv("ARS_RRF_ENABLED", "false")
 
@@ -153,6 +164,28 @@ def test_weighted_rrf_keeps_unmatched_results_at_end_stably():
     ]
     assert data["message"]["results"][1]["rrf_score"] == 0.0
     assert data["message"]["results"][2]["rrf_score"] == 0.0
+
+
+def test_weighted_rrf_tied_scores_share_rank():
+    result_a = make_result("CHEBI:1")
+    result_b = make_result("CHEBI:2")
+    data = {"message": {"results": [result_b, result_a]}}
+
+    summary = ranker_fusion.apply_weighted_rrf(
+        data,
+        {
+            "infores:aragorn": [result_a, result_b],
+            "infores:arax": [result_b, result_a],
+        },
+        {"infores:aragorn": 0.5, "infores:arax": 0.5},
+        60,
+    )
+
+    assert summary["applied"] is True
+    assert data["message"]["results"] == [result_b, result_a]
+    assert data["message"]["results"][0]["rrf_score"] == data["message"]["results"][1]["rrf_score"]
+    assert data["message"]["results"][0]["rrf_rank"] == 1
+    assert data["message"]["results"][1]["rrf_rank"] == 1
 
 
 def test_weighted_rrf_noops_without_matching_ranker_results():
