@@ -26,8 +26,11 @@ imagePullSecrets: []
 env:
   # SmartAPI maturity level: production | staging | testing | development
   TR_ENV: development
-  TR_APPRAISE: "https://answerappraiser.ci.transltr.io/get_appraisal"
-  TR_ANNOTATOR: "https://biothings.ncats.io/curie"
+  # biothings_annotator backend: "biothings" (the package default) or
+  # "elasticsearch". With "elasticsearch" the package connects to
+  # ELASTICSEARCH_CONNECTION, which defaults to "in_cluster"
+  # (http://elasticsearch.es-core-components.svc.cluster.local:9200).
+  ANNOTATOR_QUERY_BACKEND: biothings
 # Extra env vars appended verbatim to all app containers (list of EnvVar)
 extraEnv: []
 

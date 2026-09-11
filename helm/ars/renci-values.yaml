@@ -32,10 +32,6 @@ imagePullSecrets: []
 env:
   # SmartAPI maturity: RENCI instances run against development-maturity ARAs/KPs
   TR_ENV: development
-  # RENCI-hosted instances of the Translator SRI services where they exist
-  TR_APPRAISE: "http://answer-appraiser:9096/get_appraisal"
-  # no RENCI-hosted annotator; use the public one
-  TR_ANNOTATOR: "https://biothings.ncats.io/curie"
 
 otel:
   # jaeger chart from translator-devops. On RENCI the collector lives in the same

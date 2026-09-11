@@ -19,8 +19,7 @@ image:
 env:
   # maturity per environment: ci=staging, test=testing, prod=production
   TR_ENV: TR_ENV_VALUE
-  TR_APPRAISE: TR_APPRAISE_VALUE
-  TR_ANNOTATOR: TR_ANNOTATOR_VALUE
+  ANNOTATOR_QUERY_BACKEND: elasticsearch
 
 django:
   debug: "false"
