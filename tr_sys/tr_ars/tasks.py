@@ -138,6 +138,9 @@ def send_message(actor_dict, mesg_dict, timeout=300):
                         child_pk=str(mesg.pk)
                         logger.info("Running pre_merge_process for agent %s with %s" % (agent_name, len(results)))
                         utils.pre_merge_process(message_to_merge,child_pk, agent_name, inforesid)
+                        if "validate" not in mesg.params.keys() or mesg.params["validate"]:
+                            # preserving previous behavior, only remove phantom support graphs when validate=true
+                            utils.remove_phantom_support_graphs(message_to_merge)
                     #Whether we did any additional processing or not, we need to save what we have
                     mesg.code = status_code
                     mesg.status = status
@@ -192,7 +195,6 @@ def send_message(actor_dict, mesg_dict, timeout=300):
             if "validate" in mesg.params.keys() and not mesg.params["validate"]:
                 valid = True
             else:
-                utils.remove_phantom_support_graphs(message_to_merge)
                 valid = utils.validate(message_to_merge)
             if valid:
                 if agent_name.startswith('ara-'):
