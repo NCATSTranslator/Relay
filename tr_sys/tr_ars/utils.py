@@ -514,11 +514,6 @@ def pre_merge_process(data,key, agent_name,inforesid):
     mesg = get_object_or_404(Message.objects.filter(pk=key))
     logging.info("Pre node norm for "+str(key))
     try:
-        scrub_null_attributes(data)
-    except Exception as e:
-        logging.exception("Error in the scrubbing of null attributes")
-        raise e
-    try:
         logging.info("Skipping node normalization "+str(key))
         #normalize_nodes(data,agent_name,key)
         logging.info("node norm success for "+str(key))
@@ -559,26 +554,6 @@ def post_process(mesg,key, agent_name):
         mesg.status=status
         mesg.code=code
         mesg.save()
-
-    logging.info("pre scrub null for agent %s and pk %s" % (agent_name, str(key)))
-    try:
-        scrub_null_attributes(data)
-    except Exception as e:
-        status='E'
-        code=444
-        logging.exception(f"Problem with the second scrubbing of null attributes for agent: {agent_name} pk: {str(key)}")
-        record_error(e)
-        post_processing_error(mesg,data,"Error in second scrubbing of null attributes")
-        log_tuple =[
-            "Error in second scrubbing of null attributes",
-            datetime.now().strftime('%H:%M:%S'),
-            "DEBUG"
-        ]
-        add_log_entry(data,log_tuple)
-        mesg.status=status
-        mesg.code=code
-        mesg.save()
-
     logging.info("Pre node annotation for agent %s pk: %s" % (agent_name, str(key)))
     try:
         annotate_nodes(mesg,data,agent_name)
@@ -1080,71 +1055,6 @@ def remove_blocked(mesg, data, blocklist=None):
         logging.info(e, exc_info=True)
         logging.info('error message %s' % str(e))
         raise e
-
-
-def scrub_null_attributes(data):
-    nodes = get_safe(data,"message","knowledge_graph","nodes")
-    edges = get_safe(data,"message","knowledge_graph","edges")
-    aux_graphs = get_safe(data,"message","auxiliary_graphs")
-    if nodes is not None:
-        for nodeId,nodeStuff in nodes.items():
-            nodeAttributes = get_safe(nodeStuff,"attributes")
-            if nodeAttributes is not None:
-                while None in nodeAttributes:
-                    logging.info("scrubnull: Found node attributes of None value")
-                    nodeAttributes.remove(None)
-
-    if edges is not None:
-        bad_sources = []
-        for edgeId, edgeStuff in edges.items():
-            edgeAttributes =get_safe(edgeStuff,"attributes")
-            if edgeAttributes is not None:
-                while None in edgeAttributes:
-                    edgeAttributes.remove(None)
-                for edgeAttribute in edgeAttributes:
-                    if "attributes" in edgeAttribute.keys():
-                        edgeAttributeAttributes= get_safe(edgeAttribute,"attributes")
-                        if edgeAttributeAttributes is None:
-                            logging.info("scrubnull: Found edge attributes of None value")
-                            edgeAttribute['attributes']=[]
-
-            edgeSources=get_safe(edgeStuff, "sources")
-            sources_to_remove = {}
-            for edge_source in edgeSources:
-                if 'resource_id' not in edge_source.keys() or edge_source["resource_id"] is None:
-                    #logging.info('found Null in resource_id : %s' % (edge_source))
-                    if edgeId not in sources_to_remove.keys():
-                        sources_to_remove[edgeId]=[edge_source]
-                    else:
-                        sources_to_remove[edgeId].append(edge_source)
-
-                if 'upstream_resource_ids' not in edge_source.keys() or ('upstream_resource_ids' in edge_source.keys() and edge_source["upstream_resource_ids"] is None):
-                    #logging.info('found Null in upstream_resource_ids : %s' % (edge_source))
-                    edge_source["upstream_resource_ids"]=[]
-                if 'upstream_resource_ids' in edge_source.keys() and isinstance(edge_source['upstream_resource_ids'], list):
-                    while None in edge_source["upstream_resource_ids"]:
-                        edge_source["upstream_resource_ids"].remove(None)
-
-
-            if len(sources_to_remove)>0:
-                logging.info("scrubnull: Found bad sources "+str(len(sources_to_remove)))
-                bad_sources.append(sources_to_remove)
-            for key, sources in sources_to_remove.items():
-                for source in sources:
-                    edgeSources.remove(source)
-        log_tuple =[
-            "Removed the following bad sources: "+ str(bad_sources),
-            datetime.now().strftime('%H:%M:%S'),
-            "DEBUG"
-        ]
-        #add_log_entry(data,log_tuple)
-    if aux_graphs is not None:
-        for aux_graph_id,aux_graph in aux_graphs.items():
-            if 'attributes' in aux_graph.keys() and aux_graph['attributes'] is None:
-                aux_graph['attributes']=[]
-                logging.info("scrubnull: Found bad attributes in aux graphs")
-
-
 
 def appraise(mesg, data, agent_name, compress = True):
     CopyForMax = copy.deepcopy(data)
