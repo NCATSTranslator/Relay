@@ -110,21 +110,11 @@ class Message(ARSModel):
     def __str__(self):
         return "message[%s]{name:%s, status:%s}" % (self.id,
                                                     self.name, self.status)
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        # # Decompress the compressed data when initializing the model instance
-        if self.data and self.data is not None:
-            self.original_data = self.data
-        else:
-            self.original_data = {}
-
     def save(self, *args, **kwargs):
-        # Compress the data before saving
         logger.info("Entering save")
-        if self.original_data:
+        if self.data is not None and not isinstance(self.data, (bytes, bytearray, memoryview)):
             logger.info('Compressing the data at save call')
-            self.save_compressed_dict(self.original_data)
-            self.original_data = {}  # Clear original data to avoid redundancy
+            self.save_compressed_dict(self.data)
 
         super().save(*args, **kwargs)
         if self.should_notify() and self.ref is None:
