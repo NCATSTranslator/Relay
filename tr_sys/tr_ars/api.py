@@ -757,8 +757,15 @@ def get_or_create_actor(data):
     try:
         actor = Actor.objects.get(
              agent=agent, path=data['path'])
-        if inforesid in inactive_actors:
-            actor.active=False
+        # Keep the active flag in sync with config.yaml's inactive_clients on every
+        # startup. This must be saved on its own: the saves below are conditional on
+        # the inforesid or channel changing, so without this an existing actor would
+        # keep whatever active value it already had and the config entry would be a
+        # no-op (the actor is also re-created on each restart by AppConfig.ready()).
+        should_be_active = inforesid not in inactive_actors
+        if actor.active != should_be_active:
+            actor.active = should_be_active
+            actor.save(update_fields=['active'])
         if (actor.inforesid is not None):
             if not actor.inforesid == inforesid:
                 inforesid_update=True

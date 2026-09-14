@@ -12,13 +12,13 @@ httpclients:
 #
   infores:aragorn:
     # https://aragorn.renci.org/1.2
-    endpoint: asyncquery 
+    endpoint: asyncquery
     params:
   infores:arax:
-    endpoint: asyncquery 
+    endpoint: asyncquery
     params:
   infores:biothings-explorer:
-    endpoint: asyncquery 
+    endpoint: asyncquery
     params:
   infores:shepherd-aragorn:
     endpoint: asyncquery
@@ -30,28 +30,28 @@ httpclients:
     endpoint: asyncquery
     params:
   infores:improving-agent:
-    endpoint: query 
+    endpoint: query
     params:
   infores:unsecret-agent:
-    endpoint: query 
+    endpoint: query
     params:
   infores:workflow-runner:
-    endpoint: query 
+    endpoint: query
     params:
   infores:cqs:
     endpoint: asyncquery
     params:
   infores:automat-cam-kp:
-    endpoint: query 
+    endpoint: query
     params: limit=100
   infores:connections-hypothesis:
-    endpoint: query 
+    endpoint: query
     params:
   infores:cohd:
-    endpoint: query 
+    endpoint: query
     params:
   infores:genetics-data-provider:
-    endpoint: query 
+    endpoint: query
     params:
   infores:multiomics-clinicaltrials:
     endpoint: query
@@ -60,16 +60,32 @@ httpclients:
     endpoint: query
     params:
   infores:molepro:
-    endpoint: query 
+    endpoint: query
     params:
   infores:openpredict:
-    endpoint: query 
+    endpoint: query
     params:
   infores:text-mining-provider-targeted:
     endpoint: query
     params:
 
 inactive_clients:
-  - infores:aragorn-ranker-exp
-  - infores:tr_ara_ncats
-  - infores:tr_ara_wfr
+  # Only the three shepherd ARAs (infores:shepherd-aragorn, shepherd-arax,
+  # shepherd-bte) stay active; the shepherds reach the KPs themselves, so the ARS
+  # no longer queries the ARAs or KPs below directly.
+  - infores:aragorn
+  - infores:arax
+  - infores:biothings-explorer
+  - infores:improving-agent
+  - infores:unsecret-agent
+  - infores:workflow-runner
+  - infores:cqs
+  - infores:automat-cam-kp
+  - infores:connections-hypothesis
+  - infores:cohd
+  - infores:genetics-data-provider
+  - infores:multiomics-clinicaltrials
+  - infores:multiomics-drugapprovals
+  - infores:molepro
+  - infores:openpredict
+  - infores:text-mining-provider-targeted
