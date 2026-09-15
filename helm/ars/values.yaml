@@ -142,7 +142,7 @@ merge:
   errorMaxRetries: "8"
 
 migrations:
-  # Run `manage.py migrate` as a post-install/post-upgrade hook Job
+  # Run `manage.py migrate` as a post-install/pre-upgrade hook Job
   enabled: true
   # Same story as celerybeat: the job does almost no work but loads the whole
   # app (~200MB RSS) to run Django's migrate. Without an explicit request the

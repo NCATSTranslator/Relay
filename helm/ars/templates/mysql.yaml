@@ -36,6 +36,7 @@ spec:
         app.kubernetes.io/component: mysql
     spec:
       {{- include "ars.podScheduling" . | nindent 6 }}
+      terminationGracePeriodSeconds: 300
       containers:
         - name: mysql
           image: "{{ .Values.mysql.image.repository }}:{{ .Values.mysql.image.tag }}"
@@ -67,10 +68,21 @@ spec:
           volumeMounts:
             - name: data
               mountPath: /var/lib/mysql
+          startupProbe:
+            exec:
+              command:
+                - sh
+                - -c
+                - mysqladmin ping -h 127.0.0.1 -u"$MYSQL_USER" -p"$MYSQL_PASSWORD" --silent
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 180
           livenessProbe:
-            tcpSocket:
-              port: mysql
-            initialDelaySeconds: 60
+            exec:
+              command:
+                - sh
+                - -c
+                - mysqladmin ping -h 127.0.0.1 -u"$MYSQL_USER" -p"$MYSQL_PASSWORD" --silent
             periodSeconds: 20
             timeoutSeconds: 5
             failureThreshold: 3
@@ -80,7 +92,6 @@ spec:
                 - sh
                 - -c
                 - mysql -h 127.0.0.1 -u"$MYSQL_USER" -p"$MYSQL_PASSWORD" -e 'SELECT 1'
-            initialDelaySeconds: 20
             periodSeconds: 10
             timeoutSeconds: 5
             failureThreshold: 6

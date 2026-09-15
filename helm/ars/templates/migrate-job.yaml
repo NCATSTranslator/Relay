@@ -7,10 +7,16 @@ metadata:
     {{- include "ars.labels" . | nindent 4 }}
     app.kubernetes.io/component: migrate
   annotations:
-    # post-install/post-upgrade so the in-cluster MySQL exists before we wait on it.
-    # The web pods start in parallel; on a fresh database requests that touch
-    # not-yet-created tables can 500 for the short window until this completes.
-    helm.sh/hook: post-install,post-upgrade
+    # install: post-install, because the in-cluster MySQL doesn't exist yet
+    # pre-install. The web pods start in parallel; on a fresh database requests
+    # that touch not-yet-created tables can 500 until this completes.
+    # upgrade: pre-upgrade, so it runs against the MySQL that is already up and
+    # BEFORE any manifest changes. As post-upgrade it raced the StatefulSet
+    # rollout (an upgrade that touches mysql.* restarts that pod) and hung in
+    # wait-for-mysql; it also let new app code query columns not yet created.
+    # Consequence: migrations must stay backward compatible with the previous
+    # release's code (additive), since old pods keep running against them.
+    helm.sh/hook: post-install,pre-upgrade
     helm.sh/hook-weight: "0"
     helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
 spec:

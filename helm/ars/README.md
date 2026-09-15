@@ -14,7 +14,7 @@ Differences from `deploy/`:
 | RabbitMQ | sidecar, no volume | own pod with a PVC (celery is configured for persistent delivery) |
 | Redis | sidecar (token gate + unused Channels layer) | gone; nothing in the app uses it anymore |
 | `settings.py` | injected by Jenkins, `sed`-substituted | in the chart (`files/settings.py`), reads env vars; credentials via a Secret |
-| Migrations | `manage.py migrate` in the server container command | post-install/post-upgrade hook Job |
+| Migrations | `manage.py migrate` in the server container command | post-install/pre-upgrade hook Job (keep migrations backward compatible) |
 | Celery beat | started inside the worker script | own single-replica Deployment |
 | Scaling | impossible (replicating the pod duplicates the broker) | `arsserver.replicas` / `celeryworkers.<pool>.replicas` |
 
