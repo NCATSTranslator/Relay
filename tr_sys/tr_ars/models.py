@@ -92,6 +92,7 @@ class Message(ARSModel):
     actor = models.ForeignKey(Actor, null=False, on_delete=models.CASCADE)
     timestamp = models.DateTimeField(auto_now_add=True,db_index=True)
     updated_at = models.DateTimeField(auto_now=True)
+    received_at = models.DateTimeField("time the agent's response was received", null=True, blank=True)
     data = models.BinaryField('data payload', null=True)
     url = models.URLField('location of data', max_length=256, null=True)
     ref = models.ForeignKey('self', null=True, blank=True,

@@ -490,6 +490,7 @@ def message(req, key):
     elif req.method == 'POST':
         with tracer.start_as_current_span('message') as span:
             span.set_attribute("pk", str(key))
+            claimed = 0
             try:
                 mesg = Message.objects.get(pk=key)
                 status = 'D'
@@ -506,6 +507,14 @@ def message(req, key):
                 if mesg.status == 'E':
                     return HttpResponse("Response received but Message is already in state "+str(mesg.code)+". Response rejected\n", status=400)
 
+                # Record the time that the message is received.
+                # This also checks if there is already a message with this pk with a received_at stamp,
+                # another way to reject duplicate ARA responses.
+                received_at_timestamp = timezone.now()
+                claimed = Message.objects.filter(pk=key, received_at__isnull=True).update(received_at=received_at_timestamp)
+                if not claimed:
+                    return HttpResponse('ARS has already received a response for pk: %s' % str(key))
+
                 # Previously we had a pre-merge phase that ran here. It deserialized the json,
                 # ran some operations on it, serialized it again, and then queued it up for celery.
                 # We also then encoded decompressed and serialized the whole message again to send it back to the ARA,
@@ -520,7 +529,8 @@ def message(req, key):
                 # pre_merge_process, validation, notifications, the merge) to
                 # ingest_ara_response.
                 mesg.save_compressed_bytes(req.body)
-                mesg.save()
+                # update_fields: a full save would write this instance's received_at (None) back
+                mesg.save(update_fields=['data', 'updated_at'])
                 child_pk = str(mesg.pk)
                 # Use on_commit so a worker can't read the row too early
                 transaction.on_commit(
@@ -533,6 +543,14 @@ def message(req, key):
 
             except Exception as e:
                 logger.error("Unexpected error 12: {} with the pk: %s".format(traceback.format_exception(type(e), e, e.__traceback__), key))
+                if claimed:
+                    # If we get here some unexpected error happened on our end,
+                    # like failing to queue the ingest_ara_response task.
+                    # Here we set received_at back to None so that an ARA could
+                    # see this 500 and retry successfully. Setting received_at=None
+                    # also allows this message to get timed out appropriately, it
+                    # will just look like no response was ever received.
+                    Message.objects.filter(pk=key).update(received_at=None)
                 return HttpResponse('Internal server error', status=500)
     else:
         return HttpResponse('Method %s not supported!' % req.method, status=400)

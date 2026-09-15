@@ -328,12 +328,13 @@ def catch_timeout_async():
     max_time_pathfinder = now-timezone.timedelta(minutes=5)
 
     #retrieving last 15 min running records might become overwhelming, so we might need to refine this filter to grab records between 4 min< x < 15 min or have 2 sets (for standard/pathfinder) queires
-    messages = Message.objects.filter(timestamp__gt=time_threshold, status__in='R').values_list('actor','id','timestamp','updated_at','params')
+    messages = Message.objects.filter(timestamp__gt=time_threshold, status__in='R').values_list('actor','id','timestamp','updated_at','params','received_at')
     for mesg in messages:
         mpk=mesg[0]
         id = mesg[1]
         actor = Agent.objects.get(pk=mpk)
         timestamp=mesg[2]
+        received_at=mesg[5]
         query_type=mesg[4]['query_type'] if actor.name != 'ars-ars-agent' else None
 
         logging.info(f'actor: {actor} id: {mesg[1]} timestamp: {mesg[2]} updated_at {mesg[3]} query_type {query_type}')
@@ -353,6 +354,12 @@ def catch_timeout_async():
                 message.save(update_fields=['status','code','updated_at'])
             else:
                 continue
+        elif received_at is not None:
+            # If received_at is set, the agent has already responded in time
+            # and the message is headed to ingest-ara-response. We don't want
+            # to time out ARA responses based on our own concurrency
+            # bottleneck, so let it continue on.
+            continue
         else:
             if query_type == 'standard' and timestamp < max_time:
                 logging.info(f'for actor: {actor.name}, and pk {str(id)} of query type: {query_type}, the status is still "Running" after 5 min, setting code to 598')
