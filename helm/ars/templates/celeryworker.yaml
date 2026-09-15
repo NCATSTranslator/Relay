@@ -17,6 +17,8 @@ metadata:
     app.kubernetes.io/pool: {{ $name }}
 spec:
   replicas: {{ $pool.replicas }}
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       {{- include "ars.selectorLabels" $root | nindent 6 }}
