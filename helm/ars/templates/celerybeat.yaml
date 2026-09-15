@@ -1,0 +1,64 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "ars.fullname" . }}-beat
+  labels:
+    {{- include "ars.labels" . | nindent 4 }}
+    app.kubernetes.io/component: beat
+spec:
+  # Never scale this: N beat schedulers fire every periodic task N times.
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      {{- include "ars.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: beat
+  template:
+    metadata:
+      labels:
+        {{- include "ars.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: beat
+      annotations:
+        checksum/settings: {{ include "ars.settingsChecksum" . }}
+    spec:
+      {{- include "ars.podScheduling" . | nindent 6 }}
+      initContainers:
+        - name: wait-for-rabbitmq
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: ["/bin/wait-for", "{{ include "ars.rabbitmqHost" . }}:{{ include "ars.rabbitmqPort" . }}", "-t", "300"]
+      containers:
+        - name: celerybeat
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: ["/bin/sh", "-c"]
+          args:
+            - >-
+              cd /ars/tr_sys &&
+              celery -A tr_sys beat -l info
+              -s /tmp/celerybeat-schedule
+          env:
+            {{- include "ars.commonEnv" . | nindent 12 }}
+          volumeMounts:
+            - name: settings
+              mountPath: /ars/tr_sys/tr_sys/settings.py
+              subPath: settings.py
+          livenessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - "pgrep -f 'celery.*beat' || exit 1"
+            initialDelaySeconds: 30
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 3
+          {{- with .Values.celerybeat.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+      volumes:
+        - name: settings
+          configMap:
+            name: {{ include "ars.fullname" . }}-settings

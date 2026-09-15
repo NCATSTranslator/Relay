@@ -34,12 +34,6 @@ services:
       - ./config/tr_sys_settings.py:/ars/tr_sys/tr_sys/settings.py
     depends_on:
       - arsdb
-      - redis
-  redis:
-    image: redis:6.2
-    container_name: ars_redis
-    expose:
-      - 6379
   celery_worker:
     command: sh -c "wait-for rabbitmq:5672 -t 30 && wait-for arsserver:8000 -t 60 -- /bin/bash /ars/config/start_celery.sh"
     container_name: celery_worker

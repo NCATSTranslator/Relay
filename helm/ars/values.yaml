@@ -1,0 +1,234 @@
+# Dev-oriented defaults for the self-contained ARS chart.
+#
+# Everything needed for `helm install` on a plain cluster is here: in-cluster
+# MySQL/RabbitMQ, dev credentials, and an app image name that matches a
+# local `docker build -t relay_ars .` (load it into kind/minikube, or override
+# image.repository/tag with an ECR image).
+#
+# The secrets block holds DEV-ONLY defaults. Override them (or set
+# secrets.existingSecret) for any instance that is reachable by anyone else.
+
+nameOverride: ""
+fullnameOverride: ""
+
+image:
+  # The ARS app image, used by the web server, celery worker, celery beat and
+  # the migration job. `relay_ars` matches the docker-compose build tag; for a
+  # shared cluster point this at the ECR repo instead, e.g.
+  # 853771734544.dkr.ecr.us-east-1.amazonaws.com/translator-ars
+  repository: relay_ars
+  tag: latest
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+
+# Translator environment wiring (external HTTP services -- not deployed here)
+env:
+  # SmartAPI maturity level: production | staging | testing | development
+  TR_ENV: development
+  # biothings_annotator backend: "biothings" (the package default) or
+  # "elasticsearch". With "elasticsearch" the package connects to
+  # ELASTICSEARCH_CONNECTION, which defaults to "in_cluster"
+  # (http://elasticsearch.es-core-components.svc.cluster.local:9200).
+  ANNOTATOR_QUERY_BACKEND: biothings
+# Extra env vars appended verbatim to all app containers (list of EnvVar)
+extraEnv: []
+
+# OTLP trace export (tr_sys/tr_sys/otel_config.py). If the collector does not
+# exist in your cluster the exporter just logs connection errors; harmless.
+otel:
+  jaegerHost: "http://jaeger-otel-collector.sri"
+  jaegerPort: "4317"
+
+django:
+  debug: "true"
+  allowedHosts: "*"
+  logLevel: DEBUG
+  # Base URL the ARAs use to call this ARS back with results (see
+  # ARS_DEFAULT_HOST in _helpers.tpl). Leave EMPTY when the ARAs run in this
+  # cluster, it then defaults to the internal FQDN, which resolves from any
+  # namespace. Set it to the public URL (e.g. "https://ars.apps.renci.org")
+  # only when the ARAs are genuinely outside the cluster; that routes callbacks
+  # and proxy calls out through the ingress and back in.
+  defaultHost: ""
+
+secrets:
+  # If set, no Secret is rendered and this pre-existing Secret is used instead.
+  # It must contain the same keys the template creates (see templates/secret.yaml).
+  existingSecret: ""
+  # ------ dev-only defaults below ------
+  djangoSecretKey: "ars-dev-insecure-secret-key-change-me"
+  # base64-encoded 32-byte AES key (the app base64-decodes this; see tr_ars/tasks.py)
+  aesMasterKey: "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY="
+  mysqlRootPassword: "ars-dev-root-password"
+  mysqlPassword: "ars-dev-password"
+  rabbitmqPassword: "ars-dev-password"
+
+arsserver:
+  replicas: 1
+  containerPort: 8000
+  gunicorn:
+    workerClass: gthread
+    # Dev-sized. Production (deploy/values.yaml) runs 8x4; concurrency ~= workers * threads.
+    workers: 4
+    threads: 8
+    timeout: 360
+    gracefulTimeout: 120
+    maxRequests: 1000
+    maxRequestsJitter: 100
+  resources:
+    requests:
+      cpu: 500m
+      memory: 1Gi
+    limits:
+      cpu: "2"
+      memory: 4Gi
+
+# Two celery worker pools, one Deployment each (templates/celeryworker.yaml).
+# Memory-heavy tasks are routed to the `heavy` queue (task_routes in
+# everything else stays on the default `celery` queue.
+# heavy.replicas * heavy.concurrency is the cluster-wide cap on concurrent heavy
+# work; size memory per slot (limit / concurrency ~ one large merge or ingest).
+celeryworkers:
+  heavy:
+    queues: heavy
+    replicas: 1
+    concurrency: 4
+    # Recycle a child process after this many tasks. Prefork children keep the
+    # RSS of the largest message they ever parsed, so without this a pod's
+    # memory only ratchets upward (same idea as gunicorn's maxRequests).
+    maxTasksPerChild: 20
+    resources:
+      requests:
+        cpu: 500m
+        memory: 2Gi
+      limits:
+        cpu: "2"
+        memory: 8Gi
+  light:
+    queues: celery
+    replicas: 1
+    concurrency: 4
+    resources:
+      requests:
+        cpu: 100m
+        memory: 512Mi
+      limits:
+        cpu: "1"
+        memory: 1Gi
+
+# Beat is always exactly 1 replica (a second scheduler would double-fire tasks)
+celerybeat:
+  # Beat's workload is tiny (one scheduler tick, catch_timeout every 3 min) but it
+  # loads the same app image as the workers: Django + tr_ars.tasks/utils pulls in
+  # reasoner-pydantic, biothings_annotator, zstandard and the OTEL instrumentation
+  # for ~200MB RSS before it does anything. Anything under ~512Mi OOMs at import.
+  resources:
+    requests:
+      cpu: 100m
+      memory: 512Mi
+    limits:
+      cpu: 500m
+      memory: 1Gi
+
+
+# merge_and_post_process retry tuning (tr_sys/tr_ars/utils.py)
+merge:
+  # Retry cap for waiting on the per-parent merge db lock; constant 2-5s backoff
+  # between attempts, so ~6 min worst case. Each retry only republishes pks.
+  lockMaxRetries: "100"
+  # Retry cap for real errors during merge, tracked separately from lock
+  # retries; exponential backoff 1,2,4,8,16s then capped at 30s (~2 min total).
+  errorMaxRetries: "8"
+
+migrations:
+  # Run `manage.py migrate` as a post-install/pre-upgrade hook Job
+  enabled: true
+  # Same story as celerybeat: the job does almost no work but loads the whole
+  # app (~200MB RSS) to run Django's migrate. Without an explicit request the
+  # namespace LimitRange default applies, which is often small enough to OOM
+  # the job before it reaches the database -- and a failed hook fails the release.
+  resources:
+    requests:
+      cpu: 100m
+      memory: 512Mi
+    limits:
+      cpu: "1"
+      memory: 1Gi
+
+mysql:
+  # true: deploy a single-node MySQL StatefulSet (dev). false: use external.*
+  enabled: true
+  image:
+    repository: mysql
+    tag: "8.0"
+    pullPolicy: IfNotPresent
+  auth:
+    database: arsdb
+    username: ars
+  persistence:
+    size: 8Gi
+    storageClass: ""
+  # Extra mysqld flags. The merge path reads and writes multi-MB compressed
+  # message blobs under a row lock, so on any instance carrying real traffic set
+  # --innodb-buffer-pool-size to roughly half the memory limit below; the MySQL
+  # default is 128MB, which sends nearly every blob read to disk.
+  extraArgs: []
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: "1"
+      memory: 2Gi
+  # Used when enabled=false (e.g. RDS). Password comes from the Secret either way.
+  external:
+    host: ""
+    port: 3306
+    database: arsdb
+    username: ars
+
+rabbitmq:
+  # true: deploy a single-node RabbitMQ StatefulSet with a persistent volume
+  enabled: true
+  image:
+    repository: rabbitmq
+    tag: "3.13"
+    pullPolicy: IfNotPresent
+  auth:
+    # guest/guest only works over localhost, so a split-pod deploy needs a real user
+    username: ars
+  persistence:
+    size: 4Gi
+    storageClass: ""
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: "1"
+      memory: 1Gi
+  external:
+    host: ""
+    port: 5672
+    username: ""
+
+service:
+  type: ClusterIP
+  port: 80
+
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  host: ars.local
+  path: /
+  pathType: Prefix
+  tls: []
+
+# Applied to every pod in the release. Left empty so the chart schedules on any
+# cluster; the production node pinning (application=ars label + transltr taint)
+# lives in deploy/values.yaml and can be copied here per-environment.
+affinity: {}
+tolerations: []
+nodeSelector: {}

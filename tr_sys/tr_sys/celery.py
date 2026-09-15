@@ -37,6 +37,16 @@ app.conf.beat_schedule = {
         'schedule': crontab(minute='*/3'),
     },
 }
+# Memory-heavy tasks ie a merge, or ingesting an ARA callback; both expand a
+# multi-MB TRAPI message ~10x in memory. They go to their own queue, consumed only
+# by the `heavy` worker pool. That pool's replicas x concurrency IS the
+# cluster-wide cap on concurrent heavy work (it replaced the redis token gate).
+# Everything else stays on the default queue so cheap tasks never wait on heavy tasks.
+app.conf.task_routes = {
+    "merge-and-post-process": {"queue": "heavy"},
+    "ingest-ara-response": {"queue": "heavy"},
+}
+
 # this make sure that celery and rabbitMQ can reprocess the unacknowledged messages
 app.conf.update(
     task_acks_late=True, #task messages will be acknowledged after the task has been executed
