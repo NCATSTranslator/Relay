@@ -1686,6 +1686,10 @@ def appraise_confidence(results):
             "clinical_evidence":0.0,
             "novelty":0.0
         }
+    results.sort(
+        key=lambda result: result["ordering_components"]["confidence"],
+        reverse=True,
+    )
 
 def get_confidence(result):
     """
