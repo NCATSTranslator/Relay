@@ -10,7 +10,6 @@ from django.db import transaction, DatabaseError
 import requests
 import statistics
 from .api import get_ars_actor, get_or_create_actor
-from . import scoring
 from .models import Message, Channel
 from scipy.stats import rankdata
 from celery import shared_task
@@ -20,7 +19,6 @@ import time as sleeptime
 import re
 from objsize import get_deep_size
 from django.shortcuts import get_object_or_404
-from .scoring import compute_from_results
 from collections import Counter
 from reasoner_pydantic import (
     Query as vQuery,
