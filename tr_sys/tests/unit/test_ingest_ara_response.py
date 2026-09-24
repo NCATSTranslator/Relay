@@ -22,6 +22,7 @@ PARENT_PK = "parent-pk-1"
 def _message(results, agent_name="ara-shepherd-test", params=None):
     mesg = MagicMock()
     mesg.pk = CHILD_PK
+    mesg.status = "R"
     mesg.ref_id = PARENT_PK
     mesg.actor_id = 7
     mesg.params = params if params is not None else {}
@@ -144,6 +145,21 @@ def test_failure_marks_message_error_500(env):
     assert mesg.status == "E"
     assert mesg.code == 500
     mesg.save.assert_called()
+    env["merge_enqueue"].assert_not_called()
+
+
+def test_message_no_longer_running_is_skipped(env):
+    """e.g. catch_timeout already marked it 598 while the task sat in the queue."""
+    mesg = _message(results=[{"a": 1}])
+    mesg.status = "E"
+    env["message_cls"].objects.get.return_value = mesg
+
+    result = tasks.ingest_ara_response.apply(args=(CHILD_PK, "D"))
+
+    assert result.state == "SUCCESS"
+    mesg.decompress_dict.assert_not_called()
+    mesg.save.assert_not_called()
+    env["parent"].notify_subscribers.assert_not_called()
     env["merge_enqueue"].assert_not_called()
 
 

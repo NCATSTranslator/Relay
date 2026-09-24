@@ -14,6 +14,7 @@ import traceback
 from django.utils import timezone
 from django.shortcuts import get_object_or_404
 from django.db import transaction
+from django.db.models import Q
 from opentelemetry import trace
 import time as sleeptime
 from .api import decrypt_secret
@@ -242,6 +243,12 @@ def ingest_ara_response(self, child_pk, status='D'):
     with tracer.start_as_current_span("ingest_ara_response") as span:
         span.set_attribute("pk", str(child_pk))
         mesg = Message.objects.get(pk=child_pk)
+        if mesg.status != 'R':
+            # Already timed out by catch_timeout (or otherwise finished) while this
+            # task sat in the queue; don't flip it back to Done or merge it.
+            logger.info("Skipping ingest for pk %s, message is already in state %s (code %s)",
+                        child_pk, mesg.status, mesg.code)
+            return
         actor = Actor.objects.get(pk=mesg.actor_id)
         inforesid = actor.inforesid
         agent_name = str(actor.agent.name)
@@ -326,9 +333,17 @@ def catch_timeout_async():
     max_time = now-timezone.timedelta(minutes=5)
     max_time_merged=now-timezone.timedelta(minutes=8)
     max_time_pathfinder = now-timezone.timedelta(minutes=5)
+    # Upper bound on how long a received ARA response may wait for ingest-ara-response
+    # to finish. Generous so a heavy-queue backlog doesn't time out real responses,
+    # but finite so a lost or crashed ingest task can't leave the parent waiting forever.
+    max_time_ingest = now-timezone.timedelta(minutes=20)
 
     #retrieving last 15 min running records might become overwhelming, so we might need to refine this filter to grab records between 4 min< x < 15 min or have 2 sets (for standard/pathfinder) queires
-    messages = Message.objects.filter(timestamp__gt=time_threshold, status__in='R').values_list('actor','id','timestamp','updated_at','params','received_at')
+    # Received-but-unfinished messages (received_at is set) are included regardless of timestamp,
+    # otherwise one whose ingest never completes would age out of the window before its deadline.
+    messages = Message.objects.filter(
+        Q(timestamp__gt=time_threshold) | Q(received_at__isnull=False),
+        status__in='R').values_list('actor','id','timestamp','updated_at','params','received_at')
     for mesg in messages:
         mpk=mesg[0]
         id = mesg[1]
@@ -358,7 +373,15 @@ def catch_timeout_async():
             # If received_at is set, the agent has already responded in time
             # and the message is headed to ingest-ara-response. We don't want
             # to time out ARA responses based on our own concurrency
-            # bottleneck, so let it continue on.
+            # bottleneck, so let it continue on unless ingest has clearly
+            # been lost, in which case time it out so the parent can finish.
+            if received_at < max_time_ingest:
+                logging.info(f'for actor: {actor.name}, and pk {str(id)}, response was received at {received_at} but ingest has not finished after 20 min, setting code to 598')
+                message = get_object_or_404(Message.objects.filter(pk=id))
+                message.code = 598
+                message.status = 'E'
+                message.updated_at = timezone.now()
+                message.save(update_fields=['status','code','updated_at'])
             continue
         else:
             if query_type == 'standard' and timestamp < max_time:
