@@ -490,119 +490,67 @@ def message(req, key):
     elif req.method == 'POST':
         with tracer.start_as_current_span('message') as span:
             span.set_attribute("pk", str(key))
+            claimed = 0
             try:
-                data = json.loads(req.body)
-                #if 'query_graph' not in data or 'knowledge_graph' not in data or 'results' not in data:
-                #    return HttpResponse('Not a valid Translator API json', status=400)
-                mesg = get_object_or_404(Message.objects.filter(pk=key))
+                mesg = Message.objects.get(pk=key)
                 status = 'D'
-                code = 200
                 if 'tr_ars.message.status' in req.headers:
                     status = req.headers['tr_ars.message.status']
-                res=utils.get_safe(data,"message","results")
-                #kg = utils.get_safe(data,"message", "knowledge_graph")
-                actor = Actor.objects.get(pk=mesg.actor_id)
-                inforesid =actor.inforesid
-                parent=get_object_or_404(Message.objects.filter(pk=mesg.ref_id))
-                if res is not None:
-                    result_length = len(res)
-                else:
-                    result_length = None
-                notification = {
-                    "event_type":"ara_response_complete",
-                    "ara_name":actor.inforesid,
-                    "child_uuid":str(mesg.pk),
-                    "ara_response_status": status,
-                    "ara_n_results":result_length
-                }
-                parent.notify_subscribers(notification)
-                span.set_attribute("agent", inforesid)
-                logging.info('received msg from agent: %s with parent pk: %s and result: %s' % (str(inforesid), str(mesg.ref_id),str(result_length)))
-                if mesg.status=='D':
-                    return HttpResponse('ARS has already received %s results from pk: %s' % (str(result_length), str(key)))
-                if mesg.result_count is not None and mesg.result_count >0:
-                    return HttpResponse('ARS already has a response with: %s results for pk %s \nWe are temporarily '
-                                       'disallowing subsequent updates to PKs which already have results\n'
-                                       % (str(result_length), str(key)),status=409)
 
-                if mesg.status=='E':
-                    return HttpResponse("Response received but Message is already in state "+str(mesg.code)+". Response rejected\n",status=400)
-                if res is not None and result_length>0:
-                    mesg.result_count = result_length
-                    scorestat = utils.ScoreStatCalc(res)
-                    mesg.result_stat = scorestat
-                    #before we do basically anything else, we normalize
-                    parent_pk = mesg.ref_id
-                    #message_to_merge =utils.get_safe(data,"message")
-                    message_to_merge = data
-                    agent_name = str(mesg.actor.agent.name)
-                    logger.info("Running pre_merge_process for agent %s with %s" % (agent_name, result_length))
-                    utils.pre_merge_process(message_to_merge,key, agent_name, inforesid)
-                    if mesg.data and 'results' in mesg.data and mesg.data['results'] != None and len(mesg.data['results']) > 0:
-                        mesg = Message.create(name=mesg.name, status=status, actor=mesg.actor, ref=mesg)
-                    if "validate" in mesg.params.keys() and not mesg.params["validate"]:
-                        valid = True
-                    else:
-                        utils.remove_phantom_support_graphs(message_to_merge)
-                        valid = utils.validate(message_to_merge)
-                    if valid:
-                        if agent_name.startswith('ara-'):
-                            logger.info("pre async call for agent %s" % agent_name)
-                            #utils.merge_and_post_process(parent_pk,message_to_merge['message'],agent_name)
-                            utils.merge_and_post_process.apply_async((parent_pk,message_to_merge['message'],agent_name))
-                            logger.info("post async call for agent %s" % agent_name)
-                    else:
-                        logger.debug("Validation problem found for agent %s with pk %s" % (agent_name, str(mesg.ref_id)))
-                        code = 422
-                        status = 'E'
-                        mesg.status = status
-                        mesg.code = code
-                        mesg.save_compressed_dict(data)
-                        mesg.save()
-                        notification = {
-                            "event_type":"ara_failed_validation",
-                            "ara_name":actor.inforesid,
-                            "child_uuid":str(mesg.pk),
-                            "ara_response_status": status,
-                            "ara_n_results":result_length
-                        }
-                        parent.notify_subscribers(notification)
-                        return HttpResponse("Problem with TRAPI Validation",
-                                            status=422)
+                # Duplicate / late-response guards
+                if mesg.status == 'D':
+                    return HttpResponse('ARS has already received results from pk: %s' % str(key))
+                if mesg.result_count is not None and mesg.result_count > 0:
+                    return HttpResponse('ARS already has a response for pk %s \nWe are temporarily '
+                                        'disallowing subsequent updates to PKs which already have results\n'
+                                        % str(key), status=409)
+                if mesg.status == 'E':
+                    return HttpResponse("Response received but Message is already in state "+str(mesg.code)+". Response rejected\n", status=400)
 
-                mesg.status = status
-                mesg.code = code
-                mesg.save_compressed_dict(data)
-                #06-09-2026: Making a design choice that None results means result_count of 0
-                #saves us from having to check for None all over the place.
-                if res is None:
-                    mesg.result_count = 0
-                mesg.save()
+                # Record the time that the message is received.
+                # This also checks if there is already a message with this pk with a received_at stamp,
+                # another way to reject duplicate ARA responses.
+                received_at_timestamp = timezone.now()
+                claimed = Message.objects.filter(pk=key, received_at__isnull=True).update(received_at=received_at_timestamp)
+                if not claimed:
+                    return HttpResponse('ARS has already received a response for pk: %s' % str(key))
 
-                return HttpResponse(json.dumps(mesg.to_dict(), indent=2),
-                                    status=201)
+                # Previously we had a pre-merge phase that ran here. It deserialized the json,
+                # ran some operations on it, serialized it again, and then queued it up for celery.
+                # We also then encoded decompressed and serialized the whole message again to send it back to the ARA,
+                # which it never actually uses anymore. (mesg.save_compressed_dict(data) AND json.dumps(mesg.to_dict()))
+                # That was a bit inefficient but also it's unpacking the full TRAPI message here in the ARS api server,
+                # which can cost quite a bit of memory for large ARA responses. Now, we push all of those pre-merge
+                # operations to be processed by celery workers after the task queue, so we can keep the ARS server
+                # quick and focus our resource allocation on the celery workers.
+
+                # Store the body exactly as sent, compressed, never parsed here,
+                # and hand everything that needs the parsed message (result count,
+                # pre_merge_process, validation, notifications, the merge) to
+                # ingest_ara_response.
+                mesg.save_compressed_bytes(req.body)
+                # update_fields: a full save would write this instance's received_at (None) back
+                mesg.save(update_fields=['data', 'updated_at'])
+                child_pk = str(mesg.pk)
+                # Use on_commit so a worker can't read the row too early
+                transaction.on_commit(
+                    lambda: tasks.ingest_ara_response.apply_async((child_pk, status)))
+                # Return a small JsonResponse instead of the previous large mesg.to_dict()
+                return JsonResponse({"pk": child_pk, "status": "Accepted", "code": 202}, status=201)
 
             except Message.DoesNotExist:
                 return HttpResponse('Unknown state reference %s' % key, status=404)
 
-            except json.decoder.JSONDecodeError as e:
-                return HttpResponse('Can not decode json:<br>\n%s for the pk: %s' % (req.body, key), status=500)
-
             except Exception as e:
-                mesg.status = 'E'
-                mesg.code = 500
-                log_entry = {
-                    "message":"Internal ARS Server Error",
-                    "timestamp":mesg.updated_at,
-                    "level":"ERROR"
-                }
-                if 'logs' in data.keys():
-                    data['logs'].append(log_entry)
-                else:
-                    data['logs'] = [log_entry]
-                mesg.save_compressed_dict(data)
-                mesg.save()
                 logger.error("Unexpected error 12: {} with the pk: %s".format(traceback.format_exception(type(e), e, e.__traceback__), key))
+                if claimed:
+                    # If we get here some unexpected error happened on our end,
+                    # like failing to queue the ingest_ara_response task.
+                    # Here we set received_at back to None so that an ARA could
+                    # see this 500 and retry successfully. Setting received_at=None
+                    # also allows this message to get timed out appropriately, it
+                    # will just look like no response was ever received.
+                    Message.objects.filter(pk=key).update(received_at=None)
                 return HttpResponse('Internal server error', status=500)
     else:
         return HttpResponse('Method %s not supported!' % req.method, status=400)
