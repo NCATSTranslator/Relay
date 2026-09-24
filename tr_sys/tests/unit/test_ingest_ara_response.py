@@ -163,6 +163,24 @@ def test_message_no_longer_running_is_skipped(env):
     env["merge_enqueue"].assert_not_called()
 
 
+@pytest.mark.parametrize("decoded", [{}, None, ["not", "a", "dict"]])
+def test_undecodable_response_is_marked_error_400(env, decoded):
+    """decompress_dict returns {} on a JSON error; that must not become Done with 0 results."""
+    mesg = _message(results=[{"a": 1}])
+    mesg.decompress_dict.return_value = decoded
+    env["message_cls"].objects.get.return_value = mesg
+
+    result = tasks.ingest_ara_response.apply(args=(CHILD_PK, "D"))
+
+    assert result.state == "SUCCESS"
+    assert mesg.status == "E"
+    assert mesg.code == 400
+    mesg.save.assert_called_once_with(update_fields=["status", "code", "updated_at"])
+    env["parent"].notify_subscribers.assert_not_called()
+    env["pre_merge"].assert_not_called()
+    env["merge_enqueue"].assert_not_called()
+
+
 def _bare_message():
     stub = MagicMock()
     stub.pk = "round-trip"

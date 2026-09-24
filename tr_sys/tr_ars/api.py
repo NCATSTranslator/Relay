@@ -509,11 +509,15 @@ def message(req, key):
 
                 # Record the time that the message is received.
                 # This also checks if there is already a message with this pk with a received_at stamp,
-                # another way to reject duplicate ARA responses.
+                # another way to reject duplicate ARA responses. Excluding D/E repeats the
+                # status guards above atomically, in case catch_timeout marked it 598 since.
                 received_at_timestamp = timezone.now()
-                claimed = Message.objects.filter(pk=key, received_at__isnull=True).update(received_at=received_at_timestamp)
+                claimed = (Message.objects.filter(pk=key, received_at__isnull=True)
+                           .exclude(status__in=['D', 'E'])
+                           .update(received_at=received_at_timestamp))
                 if not claimed:
-                    return HttpResponse('ARS has already received a response for pk: %s' % str(key))
+                    return HttpResponse('ARS has already received a response for pk %s, '
+                                        'or is no longer accepting one' % str(key))
 
                 # Previously we had a pre-merge phase that ran here. It deserialized the json,
                 # ran some operations on it, serialized it again, and then queued it up for celery.

@@ -258,6 +258,17 @@ def ingest_ara_response(self, child_pk, status='D'):
         data = None
         try:
             data = mesg.decompress_dict()
+            if not isinstance(data, dict) or not data:
+                # decompress_dict swallows JSON errors and returns {}. The view no longer
+                # parses the body (so can't 500 the ARA like it used to), so catch a
+                # malformed response here instead of recording it as Done with 0 results.
+                # Most likely the ARA posted an error string/empty body; the raw bytes
+                # stay in data for inspection.
+                logger.error("Could not decode ARA response for pk %s from agent %s", child_pk, inforesid)
+                mesg.status = 'E'
+                mesg.code = 400
+                mesg.save(update_fields=['status', 'code', 'updated_at'])
+                return
             res = utils.get_safe(data, "message", "results")
             result_length = len(res) if res is not None else None
             span.set_attribute("ara_n_results", result_length if result_length is not None else -1)

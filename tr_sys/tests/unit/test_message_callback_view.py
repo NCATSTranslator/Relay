@@ -88,6 +88,21 @@ def test_duplicate_guards_reject_without_storing_or_enqueueing(env, mesg, expect
     env["enqueue"].assert_not_called()
 
 
+def test_claim_lost_to_a_timeout_is_rejected(env):
+    """The row passed the status guards but was marked 598 before the atomic claim."""
+    mesg = _mesg()
+    env["message_cls"].objects.get.return_value = mesg
+    claim = env["message_cls"].objects.filter.return_value.exclude
+    claim.return_value.update.return_value = 0
+
+    resp = api.message(_post(), KEY)
+
+    claim.assert_called_once_with(status__in=["D", "E"])
+    assert resp.status_code == 200
+    mesg.save_compressed_bytes.assert_not_called()
+    env["enqueue"].assert_not_called()
+
+
 def test_unknown_pk_is_404(env):
     env["message_cls"].objects.get.side_effect = env["message_cls"].DoesNotExist
     resp = api.message(_post(), KEY)
