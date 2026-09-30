@@ -3,7 +3,7 @@ ARS implementation
 
 ### Prerequisites
 
-Require python 3+, django 3.1+ and channels packages.
+Require python 3.10+, django 3.1+ and channels packages.
 
 Test your python environment
 ```bash
@@ -61,16 +61,3 @@ Run tests after new code development (also see .travis.yml)
 ```bash
 python server.py test
 ```
-
-[If desired] manipulate individual agents and their actors to the running ARS server
-
-```bash
-python tr_sys/manage.py loaddata ../data/fixtures/channels.json
-python tr_sys/manage.py loaddata ../data/fixtures/agents.json
-python tr_sys/manage.py loaddata ../data/fixtures/actors.json
-curl -d @tr_sys/tr_ars/agent_bte.json http://localhost:8000/ars/api/agents > response1.htm
-curl -d @tr_sys/tr_ars/actor_runbte.json http://localhost:8000/ars/api/actors > response2.htm 
-curl -d @tr_sys/tr_ara_unsecret/unsecretAgent.json http://localhost:8000/ars/api/agents > response1.htm
-curl -d @tr_sys/tr_ara_unsecret/unsecretActor.json http://localhost:8000/ars/api/actors > response2.htm 
-```
-
