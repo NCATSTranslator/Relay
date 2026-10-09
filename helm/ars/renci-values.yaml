@@ -103,7 +103,7 @@ mysql:
     # until that is confirmed. "basic" may not support online expansion.
     size: 120Gi
     storageClass: basic
-  # The busiest component: all 20 heavy worker slots and 16 gunicorn workers
+  # The busiest component: all 15 heavy worker slots and 16 gunicorn workers
   # contend here, and merges hold a row lock while reading and writing multi-MB
   # blobs. The MySQL default buffer pool is 128MB, which sends nearly every one
   # of those reads to disk; keep it at roughly half the memory limit.

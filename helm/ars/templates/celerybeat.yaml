@@ -36,7 +36,7 @@ spec:
           args:
             - >-
               cd /ars/tr_sys &&
-              celery -A tr_sys beat -l info
+              exec celery -A tr_sys beat -l info
               -s /tmp/celerybeat-schedule
           env:
             {{- include "ars.commonEnv" . | nindent 12 }}
@@ -44,16 +44,6 @@ spec:
             - name: settings
               mountPath: /ars/tr_sys/tr_sys/settings.py
               subPath: settings.py
-          livenessProbe:
-            exec:
-              command:
-                - /bin/sh
-                - -c
-                - "pgrep -f 'celery.*beat' || exit 1"
-            initialDelaySeconds: 30
-            periodSeconds: 20
-            timeoutSeconds: 5
-            failureThreshold: 3
           {{- with .Values.celerybeat.resources }}
           resources:
             {{- toYaml . | nindent 12 }}

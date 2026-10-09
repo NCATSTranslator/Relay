@@ -76,6 +76,8 @@ arsserver:
     gracefulTimeout: 120
     maxRequests: 1000
     maxRequestsJitter: 100
+  # Keep above gunicorn.gracefulTimeout so in-flight requests can finish on shutdown
+  terminationGracePeriodSeconds: 130
   resources:
     requests:
       cpu: 500m
@@ -98,6 +100,9 @@ celeryworkers:
     # RSS of the largest message they ever parsed, so without this a pod's
     # memory only ratchets upward (same idea as gunicorn's maxRequests).
     maxTasksPerChild: 20
+    # How long a stopping worker gets to finish its running merges/ingests before
+    # they're SIGKILLed and redelivered. Size it to the longest merge.
+    terminationGracePeriodSeconds: 300
     resources:
       requests:
         cpu: 500m
@@ -109,6 +114,7 @@ celeryworkers:
     queues: celery
     replicas: 1
     concurrency: 4
+    terminationGracePeriodSeconds: 60
     resources:
       requests:
         cpu: 100m

@@ -16,7 +16,7 @@ Components:
 {{- end }}
 
 Migrations run automatically via the {{ include "ars.fullname" . }}-migrate Job
-(post-install/post-upgrade hook); on a first install give it a minute before use.
+(post-install/pre-upgrade hook); on a first install give it a minute before use.
 
 To reach the API:
 {{- if .Values.ingress.enabled }}

@@ -22,6 +22,10 @@ spec:
         checksum/settings: {{ include "ars.settingsChecksum" . }}
     spec:
       {{- include "ars.podScheduling" . | nindent 6 }}
+      # Keep above gunicorn's --graceful-timeout so in-flight requests can finish.
+      # With Recreate, new pods only start once old ones are gone, so a longer
+      # grace period slows the upgrade but never overlaps pods against the quota.
+      terminationGracePeriodSeconds: {{ .Values.arsserver.terminationGracePeriodSeconds | default 130 }}
       initContainers:
         - name: wait-for-mysql
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
@@ -41,7 +45,7 @@ spec:
           args:
             - "-c"
             - >-
-              gunicorn tr_sys.wsgi:application
+              exec gunicorn tr_sys.wsgi:application
               --chdir /ars/tr_sys
               --bind 0.0.0.0:{{ .Values.arsserver.containerPort }}
               --worker-class {{ .Values.arsserver.gunicorn.workerClass | default "gthread" }}
