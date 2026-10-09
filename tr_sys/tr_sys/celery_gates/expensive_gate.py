@@ -16,6 +16,8 @@ ZKEY = os.getenv("ARS_EXPENSIVE_ZKEY", "ars:expensive_tokens")
 ARS_EXPENSIVE_TOKEN_LIMIT = int(os.getenv("ARS_EXPENSIVE_LIMIT", "12"))       # default token limit
 LEASE_MS = int(os.getenv("ARS_EXPENSIVE_LEASE_MS", "180000"))   # default lease 3 minutes (ms)
 RENEW_EVERY_SEC = int(os.getenv("ARS_EXPENSIVE_RENEW_SEC", "15"))  # renew interval
+# Celery retry budget for contention (no available token, or the merge db lock is held).
+TASK_MAX_RETRIES = int(os.getenv("ARS_EXPENSIVE_TASK_MAX_RETRIES", "100"))
 
 # Redis client
 r = redis.Redis.from_url(REDIS_URL, decode_responses=True)
@@ -64,8 +66,8 @@ def try_acquire(task_id: str, limit: int = ARS_EXPENSIVE_TOKEN_LIMIT) -> bool:
     script = _load_acquire_script()
     try:
         res = script(keys=[ZKEY], args=[now_ms(), LEASE_MS, limit, task_id])
-        logger.warning("try_acquire task=%s limit=%s res=%s redis=%s zkey=%s",
-                    task_id, limit, res, REDIS_URL, ZKEY)
+        logger.debug("try_acquire task=%s limit=%s res=%s zkey=%s",
+                    task_id, limit, res, ZKEY)
         return bool(res)
     except redis.RedisError:
         # On Redis failure, be conservative and deny (or you can choose to allow)
@@ -93,11 +95,27 @@ def exp_backoff_with_jitter(retries: int, base: int = 1, max_delay: int = 30) ->
     """
     Exponential backoff with jitter.
     `retries` is the current retry count (0..).
+
+    Use this for retrying genuine failures (e.g. a downstream error), NOT for
+    concurrency-limiter contention. Use constant_backoff_with_jitter for that.
     """
     rcount = max(0, int(retries or 0))
     delay = min(max_delay, base * (2 ** rcount))
-    delay = int(delay * random.uniform(0.8, 1.2)) #makes first retry ~2sec, next ~4sec, etc. capping at 30 sec
+    delay = int(delay * random.uniform(0.8, 1.2)) #makes first retry ~1sec, next ~2sec, etc. capping at 30 sec
     return max(1, delay)
+
+
+def constant_backoff_with_jitter(base: float = 2,
+                                 spread: float = 3) -> float:
+    """
+    Short, roughly-constant backoff with jitter. Intended to be used for lock contention and internal throttling.
+    Unlike exponential backoff, this keeps the task queue polling on a short, steady cadence so that a token
+    freed by a finishing task is picked up within a few seconds instead of sitting idle for the longer delays
+    used for failure retries. The delay is 2-5 seconds by default. Note that we don't want to go
+    too much faster than that because the retry process isn't exactly cheap, each failed check for available
+    workers adds another full round trip through the celery broker.
+    """
+    return base + random.random() * spread
 
 
 class LeaseRenewer:
