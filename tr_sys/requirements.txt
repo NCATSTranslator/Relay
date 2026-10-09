@@ -8,7 +8,6 @@ bleach==6.1.0
 Brotli==1.2.0
 celery==5.5.3
 certifi==2025.4.26
-channels==4.2.2
 charset-normalizer==3.4.2
 click==8.1.8
 click-didyoumean==0.3.1
@@ -89,7 +88,6 @@ wrapt==1.17.2
 wsproto==1.2.0
 zipp==3.20.2
 zstandard
-redis
 git+https://github.com/biothings/biothings_annotator#egg=biothings_annotator
 opentelemetry-api==1.43.0
 opentelemetry-sdk==1.43.0

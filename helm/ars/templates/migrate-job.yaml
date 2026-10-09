@@ -1,0 +1,57 @@
+{{- if .Values.migrations.enabled }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "ars.fullname" . }}-migrate
+  labels:
+    {{- include "ars.labels" . | nindent 4 }}
+    app.kubernetes.io/component: migrate
+  annotations:
+    # install: post-install, because the in-cluster MySQL doesn't exist yet
+    # pre-install. The web pods start in parallel; on a fresh database requests
+    # that touch not-yet-created tables can 500 until this completes.
+    # upgrade: pre-upgrade, so it runs against the MySQL that is already up and
+    # BEFORE any manifest changes. As post-upgrade it raced the StatefulSet
+    # rollout (an upgrade that touches mysql.* restarts that pod) and hung in
+    # wait-for-mysql; it also let new app code query columns not yet created.
+    # Consequence: migrations must stay backward compatible with the previous
+    # release's code (additive), since old pods keep running against them.
+    helm.sh/hook: post-install,pre-upgrade
+    helm.sh/hook-weight: "0"
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+spec:
+  backoffLimit: 3
+  template:
+    metadata:
+      labels:
+        {{- include "ars.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: migrate
+    spec:
+      {{- include "ars.podScheduling" . | nindent 6 }}
+      restartPolicy: Never
+      initContainers:
+        - name: wait-for-mysql
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: ["/bin/wait-for", "{{ include "ars.mysqlHost" . }}:{{ include "ars.mysqlPort" . }}", "-t", "300"]
+      containers:
+        - name: migrate
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          workingDir: /ars
+          command: ["python", "tr_sys/manage.py", "migrate", "--noinput"]
+          env:
+            {{- include "ars.commonEnv" . | nindent 12 }}
+          {{- with .Values.migrations.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          volumeMounts:
+            - name: settings
+              mountPath: /ars/tr_sys/tr_sys/settings.py
+              subPath: settings.py
+      volumes:
+        - name: settings
+          configMap:
+            name: {{ include "ars.fullname" . }}-settings
+{{- end }}
