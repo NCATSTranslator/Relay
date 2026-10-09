@@ -270,6 +270,12 @@ def ingest_ara_response(self, child_pk, status='D'):
                 mesg.save(update_fields=['status', 'code', 'updated_at'])
                 return
             res = utils.get_safe(data, "message", "results")
+            nodes = utils.get_safe(data, "message", "knowledge_graph", "nodes")
+            #Checking for a lack of nodes and setting results to an empty list if we have none
+            #This corrects an issue with PF queries coming back with one "result" but no nodes or edges
+            #Which messes up post-processing/finishing queries
+            if not nodes:
+                res = []
             result_length = len(res) if res is not None else None
             span.set_attribute("ara_n_results", result_length if result_length is not None else -1)
             parent.notify_subscribers({
@@ -289,7 +295,7 @@ def ingest_ara_response(self, child_pk, status='D'):
                 if "validate" in mesg.params.keys() and not mesg.params["validate"]:
                     valid = True
                 else:
-                    utils.remove_phantom_support_graphs(data)
+                    #utils.remove_phantom_support_graphs(data)
                     valid = utils.validate(data)
                 if not valid:
                     logger.debug("Validation problem found for agent %s with pk %s", agent_name, mesg.ref_id)

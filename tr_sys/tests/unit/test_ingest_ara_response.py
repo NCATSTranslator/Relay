@@ -19,7 +19,7 @@ CHILD_PK = "child-pk-1"
 PARENT_PK = "parent-pk-1"
 
 
-def _message(results, agent_name="ara-shepherd-test", params=None):
+def _message(results, agent_name="ara-shepherd-test", params=None, nodes=None):
     mesg = MagicMock()
     mesg.pk = CHILD_PK
     mesg.status = "R"
@@ -27,8 +27,10 @@ def _message(results, agent_name="ara-shepherd-test", params=None):
     mesg.actor_id = 7
     mesg.params = params if params is not None else {}
     mesg.updated_at = "2026-09-02T00:00:00"
-    body = {"message": {"results": results, "knowledge_graph": {}}} if results is not None \
-        else {"message": {}}
+    if nodes is None:
+        nodes = {"n0": {"categories": ["biolink:Gene"]}}
+    body = {"message": {"results": results, "knowledge_graph": {"nodes": nodes, "edges": {}}}} \
+        if results is not None else {"message": {}}
     mesg.decompress_dict.return_value = body
     return mesg
 
@@ -120,7 +122,23 @@ def test_no_results_records_zero_and_does_not_merge(env):
     assert mesg.result_count == 0
     assert mesg.status == "D"
     complete = env["parent"].notify_subscribers.call_args_list[0].args[0]
-    assert complete["ara_n_results"] is None
+    # no KG nodes either, so the Pathfinder empty-KG check reports 0 rather than None
+    assert complete["ara_n_results"] == 0
+    env["pre_merge"].assert_not_called()
+    env["merge_enqueue"].assert_not_called()
+
+
+def test_results_without_kg_nodes_are_treated_as_empty(env):
+    """Pathfinder can return one "result" with an empty KG; that must not be merged."""
+    mesg = _message(results=[{"a": 1}], nodes={})
+    env["message_cls"].objects.get.return_value = mesg
+
+    tasks.ingest_ara_response.apply(args=(CHILD_PK, "D"))
+
+    assert mesg.result_count == 0
+    assert mesg.status == "D"
+    complete = env["parent"].notify_subscribers.call_args_list[0].args[0]
+    assert complete["ara_n_results"] == 0
     env["pre_merge"].assert_not_called()
     env["merge_enqueue"].assert_not_called()
 
