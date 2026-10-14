@@ -96,9 +96,11 @@ def count_error(exc, attribute):
 
 
 def _otel_disabled():
-    #If we're running pytests, don't instrument OTEL.  We don't need to log the tests and OTEL breaks them anyway
-    return "pytest" in sys.modules
-
+    # Local dev: set ARS_DISABLE_OTEL=1 to skip tracing (avoids gRPC + fork crash on macOS)
+        if os.environ.get("ARS_DISABLE_OTEL") == "1":
+            return True
+        #If we're running pytests, don't instrument OTEL.  We don't need to log the tests and OTEL breaks them anyway
+        return "pytest" in sys.modules
 
 def configure_opentelemetry():
     """Set up the tracer provider plus the non-Django instrumentation.
