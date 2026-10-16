@@ -13,6 +13,8 @@ from tr_smartapi_client.smart_api_discover import SmartApiDiscover
 import traceback
 from django.utils import timezone
 from django.shortcuts import get_object_or_404
+from django.db import transaction
+from django.db.models import Q
 from opentelemetry import trace
 import time as sleeptime
 from .api import decrypt_secret
@@ -21,19 +23,9 @@ import base64
 import os
 import hashlib
 from requests.exceptions import RequestException, Timeout
-from tr_sys.celery_gates.context import (expensive_section)
 
 logger = get_task_logger(__name__)
 tracer = trace.get_tracer(__name__)
-
-# @shared_task(bind=True, acks_late=True, max_retries=50, default_retry_delay=2)
-# def test_expensive(self, seconds=10):
-#     logger.info(f"[{self.request.id}] before expensive section")
-#     with expensive_section(self):
-#         logger.info(f"[{self.request.id}] ✅ ENTER expensive section")
-#         time.sleep(seconds)
-#         logger.info(f"[{self.request.id}] ✅ EXIT expensive section")
-#     logger.info(f"[{self.request.id}] after expensive section")
 
 @shared_task(name="send-message-to-actor")
 def send_message(actor_dict, mesg_dict, timeout=300):
@@ -147,6 +139,9 @@ def send_message(actor_dict, mesg_dict, timeout=300):
                         child_pk=str(mesg.pk)
                         logger.info("Running pre_merge_process for agent %s with %s" % (agent_name, len(results)))
                         utils.pre_merge_process(message_to_merge,child_pk, agent_name, inforesid)
+                        if "validate" not in mesg.params.keys() or mesg.params["validate"]:
+                            # preserving previous behavior, only remove phantom support graphs when validate=true
+                            utils.remove_phantom_support_graphs(message_to_merge)
                     #Whether we did any additional processing or not, we need to save what we have
                     mesg.code = status_code
                     mesg.status = status
@@ -201,7 +196,6 @@ def send_message(actor_dict, mesg_dict, timeout=300):
             if "validate" in mesg.params.keys() and not mesg.params["validate"]:
                 valid = True
             else:
-                utils.remove_phantom_support_graphs(message_to_merge)
                 valid = utils.validate(message_to_merge)
             if valid:
                 if agent_name.startswith('ara-'):
@@ -214,8 +208,14 @@ def send_message(actor_dict, mesg_dict, timeout=300):
                     #parent = get_object_or_404(Message.objects.filter(pk=parent_pk))
                     #logging.info(f'parent merged_versions_list before going into merge&post-process for pk: %s are %s' % (parent_pk,parent.merged_versions_list))
                     #utils.merge_and_post_process(parent_pk,message_to_merge['message'],agent_name)
-                    #utils.merge_and_post_process(parent_pk,message_to_merge['message'],agent_name)
-                    utils.merge_and_post_process.apply_async((parent_pk,message_to_merge['message'],agent_name))
+
+                    # The task loads the body from this row instead of taking it in the
+                    # celery payload (rdata was already saved to it above), so enqueue
+                    # on_commit to guarantee the row is visible when a worker picks it up.
+                    merge_child_pk = mesg.pk
+                    transaction.on_commit(
+                        lambda: utils.merge_and_post_process.apply_async(
+                            (parent_pk, merge_child_pk, agent_name)))
                     logger.info("post async call for agent %s" % agent_name)
             else:
                 logger.debug("Validation problem found for agent %s with pk %s" % (agent_name, str(mesg.ref_id)))
@@ -228,6 +228,120 @@ def send_message(actor_dict, mesg_dict, timeout=300):
             logging.debug("Skipping merge and post for "+str(mesg.pk)+
                           " because the contributing message is in state: "+str(mesg.code))
 
+@shared_task(name="ingest-ara-response", bind=True, acks_late=True)
+def ingest_ara_response(self, child_pk, status='D'):
+    """Everything the ARA-callback django view used to do after receiving the body.
+
+    The view now stores the raw bytes and returns 201 without parsing them.
+    Parsing, pre_merge_process, validation and the resulting notifications all
+    happen here, so a multi-MB (sometimes tens of MB) callback never expands into
+    a large parsed dict inside an ARS api server gunicorn worker. Doing it here
+    means it gets handled by the celery workers instead.
+
+    `status` is the ARA-supplied tr_ars.message.status header, defaulting to 'D'.
+    """
+    with tracer.start_as_current_span("ingest_ara_response") as span:
+        span.set_attribute("pk", str(child_pk))
+        mesg = Message.objects.get(pk=child_pk)
+        if mesg.status != 'R':
+            # Already timed out by catch_timeout (or otherwise finished) while this
+            # task sat in the queue; don't flip it back to Done or merge it.
+            logger.info("Skipping ingest for pk %s, message is already in state %s (code %s)",
+                        child_pk, mesg.status, mesg.code)
+            return
+        actor = Actor.objects.get(pk=mesg.actor_id)
+        inforesid = actor.inforesid
+        agent_name = str(actor.agent.name)
+        parent = get_object_or_404(Message.objects.filter(pk=mesg.ref_id))
+        span.set_attribute("agent", inforesid)
+        code = 200
+        data = None
+        try:
+            data = mesg.decompress_dict()
+            if not isinstance(data, dict) or not data:
+                # decompress_dict swallows JSON errors and returns {}. The view no longer
+                # parses the body (so can't 500 the ARA like it used to), so catch a
+                # malformed response here instead of recording it as Done with 0 results.
+                # Most likely the ARA posted an error string/empty body; the raw bytes
+                # stay in data for inspection.
+                logger.error("Could not decode ARA response for pk %s from agent %s", child_pk, inforesid)
+                mesg.status = 'E'
+                mesg.code = 400
+                mesg.save(update_fields=['status', 'code', 'updated_at'])
+                return
+            res = utils.get_safe(data, "message", "results")
+            nodes = utils.get_safe(data, "message", "knowledge_graph", "nodes")
+            #Checking for a lack of nodes and setting results to an empty list if we have none
+            #This corrects an issue with PF queries coming back with one "result" but no nodes or edges
+            #Which messes up post-processing/finishing queries
+            if not nodes:
+                res = []
+            result_length = len(res) if res is not None else None
+            span.set_attribute("ara_n_results", result_length if result_length is not None else -1)
+            parent.notify_subscribers({
+                "event_type": "ara_response_complete",
+                "ara_name": inforesid,
+                "child_uuid": str(mesg.pk),
+                "ara_response_status": status,
+                "ara_n_results": result_length,
+            })
+            logger.info('received msg from agent: %s with parent pk: %s and result: %s',
+                        inforesid, mesg.ref_id, result_length)
+
+            if res is not None and result_length > 0:
+                mesg.result_count = result_length
+                mesg.result_stat = utils.ScoreStatCalc(res)
+                utils.pre_merge_process(data, child_pk, agent_name, inforesid)
+                if "validate" in mesg.params.keys() and not mesg.params["validate"]:
+                    valid = True
+                else:
+                    #utils.remove_phantom_support_graphs(data)
+                    valid = utils.validate(data)
+                if not valid:
+                    logger.debug("Validation problem found for agent %s with pk %s", agent_name, mesg.ref_id)
+                    mesg.status = 'E'
+                    mesg.code = 422
+                    mesg.save_compressed_dict(data)
+                    mesg.save()
+                    parent.notify_subscribers({
+                        "event_type": "ara_failed_validation",
+                        "ara_name": inforesid,
+                        "child_uuid": str(mesg.pk),
+                        "ara_response_status": 'E',
+                        "ara_n_results": result_length,
+                    })
+                    return
+                mesg.status = status
+                mesg.code = code
+                # pre_merge_process mutated data in place; the merge task loads the
+                # child row, so persist the processed form before enqueueing it.
+                mesg.save_compressed_dict(data)
+                mesg.save()
+                if agent_name.startswith('ara-'):
+                    parent_pk = mesg.ref_id
+                    transaction.on_commit(
+                        lambda: utils.merge_and_post_process.apply_async(
+                            (parent_pk, child_pk, agent_name)))
+                return
+
+            # No results: record that explicitly (None results means result_count 0)
+            mesg.status = status
+            mesg.code = code
+            mesg.result_count = 0
+            mesg.save()
+        except Exception as e:
+            logger.error("Unexpected error ingesting ARA response for pk %s: %s",
+                         child_pk, traceback.format_exception(type(e), e, e.__traceback__))
+            mesg.status = 'E'
+            mesg.code = 500
+            if isinstance(data, dict):
+                log_entry = {"message": "Internal ARS Server Error",
+                             "timestamp": str(mesg.updated_at), "level": "ERROR"}
+                data.setdefault('logs', []).append(log_entry)
+                mesg.save_compressed_dict(data)
+            mesg.save()
+
+
 @shared_task(name="catch_timeout")
 def catch_timeout_async():
     now =timezone.now()
@@ -236,14 +350,23 @@ def catch_timeout_async():
     max_time = now-timezone.timedelta(minutes=5)
     max_time_merged=now-timezone.timedelta(minutes=8)
     max_time_pathfinder = now-timezone.timedelta(minutes=5)
+    # Upper bound on how long a received ARA response may wait for ingest-ara-response
+    # to finish. Generous so a heavy-queue backlog doesn't time out real responses,
+    # but finite so a lost or crashed ingest task can't leave the parent waiting forever.
+    max_time_ingest = now-timezone.timedelta(minutes=20)
 
     #retrieving last 15 min running records might become overwhelming, so we might need to refine this filter to grab records between 4 min< x < 15 min or have 2 sets (for standard/pathfinder) queires
-    messages = Message.objects.filter(timestamp__gt=time_threshold, status__in='R').values_list('actor','id','timestamp','updated_at','params')
+    # Received-but-unfinished messages (received_at is set) are included regardless of timestamp,
+    # otherwise one whose ingest never completes would age out of the window before its deadline.
+    messages = Message.objects.filter(
+        Q(timestamp__gt=time_threshold) | Q(received_at__isnull=False),
+        status__in='R').values_list('actor','id','timestamp','updated_at','params','received_at')
     for mesg in messages:
         mpk=mesg[0]
         id = mesg[1]
         actor = Agent.objects.get(pk=mpk)
         timestamp=mesg[2]
+        received_at=mesg[5]
         query_type=mesg[4]['query_type'] if actor.name != 'ars-ars-agent' else None
 
         logging.info(f'actor: {actor} id: {mesg[1]} timestamp: {mesg[2]} updated_at {mesg[3]} query_type {query_type}')
@@ -263,6 +386,20 @@ def catch_timeout_async():
                 message.save(update_fields=['status','code','updated_at'])
             else:
                 continue
+        elif received_at is not None:
+            # If received_at is set, the agent has already responded in time
+            # and the message is headed to ingest-ara-response. We don't want
+            # to time out ARA responses based on our own concurrency
+            # bottleneck, so let it continue on unless ingest has clearly
+            # been lost, in which case time it out so the parent can finish.
+            if received_at < max_time_ingest:
+                logging.info(f'for actor: {actor.name}, and pk {str(id)}, response was received at {received_at} but ingest has not finished after 20 min, setting code to 598')
+                message = get_object_or_404(Message.objects.filter(pk=id))
+                message.code = 598
+                message.status = 'E'
+                message.updated_at = timezone.now()
+                message.save(update_fields=['status','code','updated_at'])
+            continue
         else:
             if query_type == 'standard' and timestamp < max_time:
                 logging.info(f'for actor: {actor.name}, and pk {str(id)} of query type: {query_type}, the status is still "Running" after 5 min, setting code to 598')

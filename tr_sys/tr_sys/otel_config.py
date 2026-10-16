@@ -18,13 +18,13 @@ from celery.signals import worker_process_init
 
 # Don't trace health checks and other noise endpoints.
 # Deployment env can override with its own comma separated list with OTEL_PYTHON_DJANGO_EXCLUDED_URLS
-DEFAULT_EXCLUDED_URLS = "ars/api/health,ars/api/retain"
+DEFAULT_EXCLUDED_URLS = "ars/api/health,ars/api/retain,ars/api/get_status"
 
 # Periodic tasks whose spans are identical every time they run: catch_timeout
 # every 3 minutes and celery's own daily result-backend housekeeping. Celery
 # traces each one twice, as apply_async/<task> and run/<task>. They're not
 # very useful and are noisy, so just drop them.
-DONT_TRACE_TASKS = ("catch_timeout", "celery.backend_cleanup")
+DONT_TRACE_TASKS = ("catch_timeout", "celery.backend_cleanup", "health_ping")
 
 # Calls with these methods aren't interesting for what we care about for the ARS
 DONT_TRACE_METHODS = frozenset(("GET", "HEAD", "OPTIONS"))
