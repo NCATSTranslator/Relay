@@ -106,10 +106,14 @@ def message_post_save(sender, instance, **kwargs):
                     #adding one last notification about last merge being done
                     logger.info('+++ merged_versions : %s' % (pmessage.merged_version))
                     logger.info('+++ merged_versions_list : %s' % (pmessage.merged_versions_list))
+                    merged_pk = pmessage.merged_version.id
+                    merged_version = get_object_or_404(Message.objects.filter(pk=merged_pk))
+                    result_stats = merged_version.result_stat
                     notification={
                         "event_type":"last_merged_completed",
                         "complete":True,
-                        "merged_versions_list":pmessage.merged_versions_list if pmessage.merged_versions_list is not None else []
+                        "merged_versions_list":pmessage.merged_versions_list if pmessage.merged_versions_list is not None else [],
+                        "results_stat": result_stats
                     }
                     pmessage.notify_subscribers(notification)
                     pmessage.status = 'D'

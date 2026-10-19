@@ -1417,42 +1417,31 @@ def canonizeMessage(kg,results):
 
 def ScoreStatCalc(results):
     stat={}
-    scoreList = []
+    confidence_list = []
     if results is not None and len(results)>0:
         for res in results:
-            if 'analyses' in res.keys() and res['analyses'] != [] and res['analyses'] is not None:
-                if len(res['analyses']) > 1:
-                    temp_score = []
-                    for analysis in res['analyses']:
-                        if 'score' in analysis.keys() and analysis['score'] is not None:
-                            temp_score.append(analysis['score'])
-                    if len(temp_score)>0:
-                        score = statistics.mean(temp_score)
-                    else:
-                        score = None
+            ordering_components = res.get('ordering_components')
+            if not isinstance(ordering_components, dict):
+                logging.debug(
+                    "Result has no valid ordering_components dictionary"
+                )
+                continue
 
-                elif len(res['analyses']) == 1:
-                    if 'score' in res['analyses'][0]:
-                        score = res['analyses'][0]['score']
-                    else:
-                        logging.debug('Result doesnt have score field')
-                        score = None
+            confidence = ordering_components.get('confidence')
 
-
-                if score is not None:
-                    scoreList.append(score)
+            if confidence is not None:
+                confidence_list.append(confidence)
             else:
-                logging.error("Results dont have the required fields")
-                return stat
+                logging.debug("Result doesnt have confidence field")
 
         try:
-            if len(scoreList) <= 1:
+            if len(confidence_list) <= 1:
                 return stat
-            stat['median'] = statistics.median(scoreList)
-            stat['mean'] = statistics.mean(scoreList)
-            stat['stdev'] = statistics.stdev(scoreList)
-            stat['minimum'] = min(scoreList)
-            stat['maximum'] = max(scoreList)
+            stat['median'] = statistics.median(confidence_list)
+            stat['mean'] = statistics.mean(confidence_list)
+            stat['stdev'] = statistics.stdev(confidence_list)
+            stat['minimum'] = min(confidence_list)
+            stat['maximum'] = max(confidence_list)
         except Exception as e:
             logging.error("Error in calculating statistics")
             logging.error(e.__traceback__)
