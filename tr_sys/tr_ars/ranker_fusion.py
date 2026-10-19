@@ -12,20 +12,20 @@ def _get_enabled():
 
 def _parse_ranker_weights():
     default_weights = {
-        "infores:aragorn": 0.9,
-        "infores:arax": 0.1,
+        "infores:shepherd-aragorn": 0.9,
+        "infores:shepherd-arax": 0.1,
     }
 
     try:
         aragorn_weight = float(
-            os.getenv("ARS_RRF_ARAGORN_WEIGHT", default_weights["infores:aragorn"])
+            os.getenv("ARS_RRF_ARAGORN_WEIGHT", default_weights["infores:shepherd-aragorn"])
         )
         if not math.isfinite(aragorn_weight) or aragorn_weight < 0 or aragorn_weight > 1:
             raise ValueError("ARAGORN weight must be between 0 and 1")
 
         return {
-            "infores:aragorn": aragorn_weight,
-            "infores:arax": round(1.0 - aragorn_weight, 8),
+            "infores:shepherd-aragorn": aragorn_weight,
+            "infores:shepherd-arax": round(1.0 - aragorn_weight, 8),
         }
     
     except ValueError as e:
@@ -120,10 +120,10 @@ def apply_weighted_rrf(data, ranker_results_by_source, weights, c_value):
     Args:
         data (dict): input data["message"]["results"] to be sorted in place
         ranker_results_by_source (dict): dict of already-ranked result lists from each ranker 
-        source "infores:aragorn" and "infores:arax" with the list order reflecting that 
+        source "infores:shepherd-aragorn" and "infores:shepherd-arax" with the list order reflecting that 
         ranker's ranking order.
         weights (dict): weights dict controlling each ranker's contribution for two rankers 
-        "infores:aragorn" and "infores:arax"
+        "infores:shepherd-aragorn" and "infores:shepherd-arax"
         c_value (float): RRF dampening constant. Each matched result gets contribution of weight / (c_value + rank)
 
     Returns: a summary dict suitable for logging.
