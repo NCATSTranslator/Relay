@@ -31,8 +31,8 @@ def test_parse_ranker_config(monkeypatch):
     rf_config = ranker_fusion.get_config()
 
     weights = {
-        "infores:aragorn": 0.8,
-        "infores:arax": 0.2,
+        "infores:shepherd-aragorn": 0.8,
+        "infores:shepherd-arax": 0.2,
     }
     
     assert rf_config == {
@@ -49,8 +49,8 @@ def test_parse_ranker_config_derives_arax_weight(monkeypatch):
     rf_config = ranker_fusion.get_config()
 
     assert rf_config["weights"] == {
-        "infores:aragorn": 0.7,
-        "infores:arax": 0.3,
+        "infores:shepherd-aragorn": 0.7,
+        "infores:shepherd-arax": 0.3,
     }
 
 
@@ -62,8 +62,8 @@ def test_parse_ranker_config_defaults_on_invalid(monkeypatch):
     rf_config = ranker_fusion.get_config()
     
     default_weights = {
-        "infores:aragorn": 0.9,
-        "infores:arax": 0.1,
+        "infores:shepherd-aragorn": 0.9,
+        "infores:shepherd-arax": 0.1,
     }
     default_c = 40
 
@@ -80,8 +80,8 @@ def test_parse_ranker_config_defaults_on_nan_weight(monkeypatch):
     rf_config = ranker_fusion.get_config()
 
     assert rf_config["weights"] == {
-        "infores:aragorn": 0.9,
-        "infores:arax": 0.1,
+        "infores:shepherd-aragorn": 0.9,
+        "infores:shepherd-arax": 0.1,
     }
 
 
@@ -95,22 +95,22 @@ def test_parse_ranker_config_reads_enabled_from_env(monkeypatch):
 
 def test_configured_source_matches_infores_directly():
     source = ranker_fusion.configured_source(
-        "infores:arax",
+        "infores:shepherd-arax",
         "ara-arax",
-        {"infores:arax": 0.2},
+        {"infores:shepherd-arax": 0.2},
     )
 
-    assert source == "infores:arax"
+    assert source == "infores:shepherd-arax"
 
 
 def test_configured_source_accepts_incoming_ara_agent_alias():
     source = ranker_fusion.configured_source(
         None,
         "ara-aragorn",
-        {"infores:aragorn": 0.8},
+        {"infores:shepherd-aragorn": 0.8},
     )
 
-    assert source == "infores:aragorn"
+    assert source == "infores:shepherd-aragorn"
 
 
 def test_weighted_rrf_sorts_results_and_adds_metadata():
@@ -122,10 +122,10 @@ def test_weighted_rrf_sorts_results_and_adds_metadata():
     summary = ranker_fusion.apply_weighted_rrf(
         data,
         {
-            "infores:aragorn": [result_a, result_b],
-            "infores:arax": [result_b, result_c],
+            "infores:shepherd-aragorn": [result_a, result_b],
+            "infores:shepherd-arax": [result_b, result_c],
         },
-        {"infores:aragorn": 0.5, "infores:arax": 0.5},
+        {"infores:shepherd-aragorn": 0.5, "infores:shepherd-arax": 0.5},
         60,
     )
 
@@ -137,8 +137,8 @@ def test_weighted_rrf_sorts_results_and_adds_metadata():
     ]
     assert data["message"]["results"][0]["rrf_rank"] == 1
     assert data["message"]["results"][0]["rrf_ranker_ranks"] == {
-        "infores:aragorn": 2,
-        "infores:arax": 1,
+        "infores:shepherd-aragorn": 2,
+        "infores:shepherd-arax": 1,
     }
     assert data["message"]["results"][0]["rrf_score"] > data["message"]["results"][1]["rrf_score"]
 
@@ -151,8 +151,8 @@ def test_weighted_rrf_keeps_unmatched_results_at_end_stably():
 
     summary = ranker_fusion.apply_weighted_rrf(
         data,
-        {"infores:aragorn": [result_a]},
-        {"infores:aragorn": 1.0},
+        {"infores:shepherd-aragorn": [result_a]},
+        {"infores:shepherd-aragorn": 1.0},
         60,
     )
 
@@ -174,10 +174,10 @@ def test_weighted_rrf_tied_scores_share_rank():
     summary = ranker_fusion.apply_weighted_rrf(
         data,
         {
-            "infores:aragorn": [result_a, result_b],
-            "infores:arax": [result_b, result_a],
+            "infores:shepherd-aragorn": [result_a, result_b],
+            "infores:shepherd-arax": [result_b, result_a],
         },
-        {"infores:aragorn": 0.5, "infores:arax": 0.5},
+        {"infores:shepherd-aragorn": 0.5, "infores:shepherd-arax": 0.5},
         60,
     )
 
@@ -195,7 +195,7 @@ def test_weighted_rrf_noops_without_matching_ranker_results():
     summary = ranker_fusion.apply_weighted_rrf(
         data,
         {"infores:other": [result_a]},
-        {"infores:aragorn": 1.0},
+        {"infores:shepherd-aragorn": 1.0},
         60,
     )
 
@@ -210,8 +210,8 @@ def test_weighted_rrf_noops_without_matching_answers():
 
     summary = ranker_fusion.apply_weighted_rrf(
         data,
-        {"infores:aragorn": [result_b]},
-        {"infores:aragorn": 1.0},
+        {"infores:shepherd-aragorn": [result_b]},
+        {"infores:shepherd-aragorn": 1.0},
         60,
     )
 
