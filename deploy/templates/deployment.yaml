@@ -55,6 +55,8 @@ spec:
               value: {{ .Values.arsserver.env.TR_ANNOTATOR }}
             - name : AES_MASTER_KEY
               value: {{ .Values.arsserver.env.AES_MASTER_KEY}}
+            - name : ANNOTATOR_QUERY_BACKEND
+              value: {{ .Values.arsserver.env.ANNOTATOR_QUERY_BACKEND}}
           {{- with .Values.arsserver.resources }}
           resources:
             {{- toYaml . | nindent 12 }}

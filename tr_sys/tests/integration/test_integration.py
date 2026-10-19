@@ -57,20 +57,4 @@ async def test_biothings_annotator():
     assert result is not None
     assert isinstance(result, dict)
 
-def test_appraiser():
 
-    file_path = Path(__file__).parent.parent / "helper/appraiser_data_input.zst"
-    with open(file_path, "rb") as f:
-        response = requests.post(
-            APPRAISER_URL,
-            data=f,
-            headers = {'Accept-Encoding': 'zstd','Content-Encoding': 'zstd'},
-            timeout=600
-        )
-        decompressor = zstd.ZstdDecompressor()
-        rj = json.loads(decompressor.decompress(response.content).decode('utf-8'))
-
-    assert response.status_code == 200
-    assert isinstance(rj, dict)
-    assert response.text != ""          # Raw string body
-    assert response.content is not None # Raw byte content

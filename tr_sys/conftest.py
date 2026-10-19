@@ -1,17 +1,13 @@
+
 import pytest
+from pytest_factoryboy import register
 from unittest.mock import MagicMock
+from factories import AgentFactory, ActorFactory, MessageFactory, ChannelFactory
 
-try:
-    from pytest_factoryboy import register
-    from factories import AgentFactory, ActorFactory, MessageFactory, ChannelFactory
-except ImportError:
-    register = None
-
-if register is not None:
-    register(AgentFactory)
-    register(ActorFactory)
-    register(ChannelFactory)
-    register(MessageFactory)
+register(AgentFactory)
+register(ActorFactory)
+register(ChannelFactory)
+register(MessageFactory)
 
 @pytest.fixture
 def new_user(db, user_factory):

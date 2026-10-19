@@ -501,6 +501,13 @@ def message(req, key):
                     status = req.headers['tr_ars.message.status']
                 res=utils.get_safe(data,"message","results")
                 #kg = utils.get_safe(data,"message", "knowledge_graph")
+
+                nodes = utils.get_safe(data,"message","knowledge_graph","nodes")
+                #Checking for a lack of nodes and setting results to an empty list if we have none
+                #This corrects an issue with PF queries coming back with one "result" but no nodes or edges
+                #Which messes up post-processing/finishing queries
+                if not nodes:
+                    res=[]
                 actor = Actor.objects.get(pk=mesg.actor_id)
                 inforesid =actor.inforesid
                 parent=get_object_or_404(Message.objects.filter(pk=mesg.ref_id))
@@ -543,7 +550,7 @@ def message(req, key):
                     if "validate" in mesg.params.keys() and not mesg.params["validate"]:
                         valid = True
                     else:
-                        utils.remove_phantom_support_graphs(message_to_merge)
+                        #utils.remove_phantom_support_graphs(message_to_merge)
                         valid = utils.validate(message_to_merge)
                     if valid:
                         if agent_name.startswith('ara-'):
@@ -757,8 +764,15 @@ def get_or_create_actor(data):
     try:
         actor = Actor.objects.get(
              agent=agent, path=data['path'])
-        if inforesid in inactive_actors:
-            actor.active=False
+        # Keep the active flag in sync with config.yaml's inactive_clients on every
+        # startup. This must be saved on its own: the saves below are conditional on
+        # the inforesid or channel changing, so without this an existing actor would
+        # keep whatever active value it already had and the config entry would be a
+        # no-op (the actor is also re-created on each restart by AppConfig.ready()).
+        should_be_active = inforesid not in inactive_actors
+        if actor.active != should_be_active:
+            actor.active = should_be_active
+            actor.save(update_fields=['active'])
         if (actor.inforesid is not None):
             if not actor.inforesid == inforesid:
                 inforesid_update=True

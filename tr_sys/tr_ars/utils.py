@@ -10,7 +10,6 @@ from django.db import transaction, DatabaseError
 import requests
 import statistics
 from .api import get_ars_actor, get_or_create_actor
-from . import scoring
 from .models import Message, Channel
 from scipy.stats import rankdata
 from celery import shared_task
@@ -20,8 +19,6 @@ import time as sleeptime
 import re
 from objsize import get_deep_size
 from django.shortcuts import get_object_or_404
-from .scoring import compute_from_results
-from . import ranker_fusion
 from collections import Counter
 from reasoner_pydantic import (
     Query as vQuery,
@@ -513,11 +510,6 @@ def pre_merge_process(data,key, agent_name,inforesid):
     mesg = get_object_or_404(Message.objects.filter(pk=key))
     logging.info("Pre node norm for "+str(key))
     try:
-        scrub_null_attributes(data)
-    except Exception as e:
-        logging.exception("Error in the scrubbing of null attributes")
-        raise e
-    try:
         logging.info("Skipping node normalization "+str(key))
         #normalize_nodes(data,agent_name,key)
         logging.info("node norm success for "+str(key))
@@ -542,7 +534,7 @@ def pre_merge_process(data,key, agent_name,inforesid):
         logging.exception("Error in ARS score normalization")
         raise e
 
-def post_process(mesg, key, agent_name, incoming_message=None):
+def post_process(mesg,key, agent_name):
 
     data = mesg.decompress_dict()
 
@@ -558,26 +550,6 @@ def post_process(mesg, key, agent_name, incoming_message=None):
         mesg.status=status
         mesg.code=code
         mesg.save()
-
-    logging.info("pre scrub null for agent %s and pk %s" % (agent_name, str(key)))
-    try:
-        scrub_null_attributes(data)
-    except Exception as e:
-        status='E'
-        code=444
-        logging.exception(f"Problem with the second scrubbing of null attributes for agent: {agent_name} pk: {str(key)}")
-        record_error(e)
-        post_processing_error(mesg,data,"Error in second scrubbing of null attributes")
-        log_tuple =[
-            "Error in second scrubbing of null attributes",
-            datetime.now().strftime('%H:%M:%S'),
-            "DEBUG"
-        ]
-        add_log_entry(data,log_tuple)
-        mesg.status=status
-        mesg.code=code
-        mesg.save()
-
     logging.info("Pre node annotation for agent %s pk: %s" % (agent_name, str(key)))
     try:
         annotate_nodes(mesg,data,agent_name)
@@ -606,38 +578,6 @@ def post_process(mesg, key, agent_name, incoming_message=None):
             appraise_confidence(results)
         except Exception as e:
             logging.exception("confidence calculations failed mesg for agent %s is %s: %s"% (agent_name, mesg.code, mesg.status))
-            record_error(e)
-        try:
-            rrf_summary = apply_ranker_fusion(mesg, data, incoming_agent_name=agent_name, incoming_message=incoming_message)
-            if rrf_summary.get("applied"):
-                logging.info(
-                    "Weighted RRF ranker fusion applied for agent %s pk %s: %s",
-                    agent_name,
-                    key,
-                    rrf_summary,
-                )
-                add_log_entry(
-                    data,
-                    [
-                        "Weighted RRF ranker fusion applied: %s" % rrf_summary,
-                        datetime.now().strftime('%H:%M:%S'),
-                        "DEBUG",
-                    ],
-                )
-                results = get_safe(data, "message", "results")
-            else:
-                logging.info(
-                    "Weighted RRF ranker fusion skipped for agent %s pk %s: %s",
-                    agent_name,
-                    key,
-                    rrf_summary,
-                )
-        except Exception as e:
-            logging.exception(
-                "Weighted RRF ranker fusion failed for agent %s pk %s",
-                agent_name,
-                key,
-            )
             record_error(e)
         try:
             mesg.result_count = len(results)
@@ -677,49 +617,6 @@ def post_process(mesg, key, agent_name, incoming_message=None):
         logging.exception("Final save failed")
         record_error(e)
     return mesg, code, status
-
-def apply_ranker_fusion(mesg, data, incoming_agent_name=None, incoming_message=None):
-    config = ranker_fusion.get_config()
-    if not config["enabled"]:
-        return {"applied": False, "reason": "disabled"}
-
-    if mesg.ref_id is None:
-        return {"applied": False, "reason": "missing_parent"}
-
-    if mesg.actor.inforesid != "infores:ars" and mesg.actor.agent.name != "ars-ars-agent":
-        return {"applied": False, "reason": "not_ars_merged_message"}
-
-    weights = config["weights"]
-    ranker_results_by_source = {}
-
-    incoming_source = ranker_fusion.configured_source(None, incoming_agent_name, weights)
-    if incoming_source is not None and incoming_message is not None:
-        incoming_results = get_safe(incoming_message, "results")
-        if incoming_results is None:
-            incoming_results = get_safe(incoming_message, "message", "results")
-        if incoming_results:
-            ranker_results_by_source[incoming_source] = incoming_results
-
-    children = (
-        Message.objects.select_related("actor", "actor__agent")
-        .filter(ref_id=mesg.ref_id, status="D")
-        .exclude(actor__inforesid="infores:ars")
-        .order_by("timestamp")
-    )
-    for child in children:
-        source = ranker_fusion.configured_source(child.actor.inforesid, child.actor.agent.name, weights)
-        if source is None:
-            continue
-
-        child_data = child.decompress_dict()
-        child_results = get_safe(child_data, "message", "results")
-        if child_results:
-            ranker_results_by_source[source] = child_results
-
-    if not ranker_results_by_source:
-        return {"applied": False, "reason": "no_configured_ranker_children"}
-
-    return ranker_fusion.apply_weighted_rrf(data, ranker_results_by_source, weights, config["c_value"])
 
 # def lock_merge(message):
 #     pass
@@ -866,7 +763,7 @@ def merge_and_post_process(self, parent_pk,message_to_merge, agent_name):
             with tracer.start_as_current_span("merge.post_process") as post_span:
                 post_span.set_attribute("merge.agent", agent_name)
                 post_span.set_attribute("merge.merged_pk", str(merged.id))
-                merged, code, status = post_process(merged, merged.id, agent_name, incoming_message=message_to_merge)
+                merged, code, status = post_process(merged, merged.id, agent_name)
                 post_span.set_attribute("merge.post_process.code", code)
                 post_span.set_attribute("merge.post_process.status", status)
             logging.info('post processing complete for agent %s with pk %s is returned & ready to be preprocessed' % (agent_name, str(merged.id)))
@@ -1096,71 +993,6 @@ def remove_blocked(mesg, data, blocklist=None):
         logging.info(e, exc_info=True)
         logging.info('error message %s' % str(e))
         raise e
-
-
-def scrub_null_attributes(data):
-    nodes = get_safe(data,"message","knowledge_graph","nodes")
-    edges = get_safe(data,"message","knowledge_graph","edges")
-    aux_graphs = get_safe(data,"message","auxiliary_graphs")
-    if nodes is not None:
-        for nodeId,nodeStuff in nodes.items():
-            nodeAttributes = get_safe(nodeStuff,"attributes")
-            if nodeAttributes is not None:
-                while None in nodeAttributes:
-                    logging.info("scrubnull: Found node attributes of None value")
-                    nodeAttributes.remove(None)
-
-    if edges is not None:
-        bad_sources = []
-        for edgeId, edgeStuff in edges.items():
-            edgeAttributes =get_safe(edgeStuff,"attributes")
-            if edgeAttributes is not None:
-                while None in edgeAttributes:
-                    edgeAttributes.remove(None)
-                for edgeAttribute in edgeAttributes:
-                    if "attributes" in edgeAttribute.keys():
-                        edgeAttributeAttributes= get_safe(edgeAttribute,"attributes")
-                        if edgeAttributeAttributes is None:
-                            logging.info("scrubnull: Found edge attributes of None value")
-                            edgeAttribute['attributes']=[]
-
-            edgeSources=get_safe(edgeStuff, "sources")
-            sources_to_remove = {}
-            for edge_source in edgeSources:
-                if 'resource_id' not in edge_source.keys() or edge_source["resource_id"] is None:
-                    #logging.info('found Null in resource_id : %s' % (edge_source))
-                    if edgeId not in sources_to_remove.keys():
-                        sources_to_remove[edgeId]=[edge_source]
-                    else:
-                        sources_to_remove[edgeId].append(edge_source)
-
-                if 'upstream_resource_ids' not in edge_source.keys() or ('upstream_resource_ids' in edge_source.keys() and edge_source["upstream_resource_ids"] is None):
-                    #logging.info('found Null in upstream_resource_ids : %s' % (edge_source))
-                    edge_source["upstream_resource_ids"]=[]
-                if 'upstream_resource_ids' in edge_source.keys() and isinstance(edge_source['upstream_resource_ids'], list):
-                    while None in edge_source["upstream_resource_ids"]:
-                        edge_source["upstream_resource_ids"].remove(None)
-
-
-            if len(sources_to_remove)>0:
-                logging.info("scrubnull: Found bad sources "+str(len(sources_to_remove)))
-                bad_sources.append(sources_to_remove)
-            for key, sources in sources_to_remove.items():
-                for source in sources:
-                    edgeSources.remove(source)
-        log_tuple =[
-            "Removed the following bad sources: "+ str(bad_sources),
-            datetime.now().strftime('%H:%M:%S'),
-            "DEBUG"
-        ]
-        #add_log_entry(data,log_tuple)
-    if aux_graphs is not None:
-        for aux_graph_id,aux_graph in aux_graphs.items():
-            if 'attributes' in aux_graph.keys() and aux_graph['attributes'] is None:
-                aux_graph['attributes']=[]
-                logging.info("scrubnull: Found bad attributes in aux graphs")
-
-
 
 def appraise(mesg, data, agent_name, compress = True):
     CopyForMax = copy.deepcopy(data)
@@ -1852,6 +1684,10 @@ def appraise_confidence(results):
             "clinical_evidence":0.0,
             "novelty":0.0
         }
+    results.sort(
+        key=lambda result: result["ordering_components"]["confidence"],
+        reverse=True,
+    )
 
 def get_confidence(result):
     """
