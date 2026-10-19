@@ -96,7 +96,7 @@ def test_parse_ranker_config_reads_enabled_from_env(monkeypatch):
 def test_configured_source_matches_infores_directly():
     source = ranker_fusion.configured_source(
         "infores:shepherd-arax",
-        "ara-arax",
+        "ara-shepherd-arax",
         {"infores:shepherd-arax": 0.2},
     )
 
@@ -106,7 +106,7 @@ def test_configured_source_matches_infores_directly():
 def test_configured_source_accepts_incoming_ara_agent_alias():
     source = ranker_fusion.configured_source(
         None,
-        "ara-aragorn",
+        "ara-shepherd-aragorn",
         {"infores:shepherd-aragorn": 0.8},
     )
 
