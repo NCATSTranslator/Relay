@@ -547,11 +547,13 @@ def message(req, key):
                     #utils.pre_merge_process(message_to_merge,key, agent_name, inforesid)
                     if mesg.data and 'results' in mesg.data and mesg.data['results'] != None and len(mesg.data['results']) > 0:
                         mesg = Message.create(name=mesg.name, status=status, actor=mesg.actor, ref=mesg)
-                    if "validate" in mesg.params.keys() and not mesg.params["validate"]:
-                        valid = True
+
+                    if "validate" in mesg.params.keys() and mesg.params["validate"]:
+                        #valid = utils.validate(message_to_merge)
+                        pass
                     else:
+                        valid = True
                         #utils.remove_phantom_support_graphs(message_to_merge)
-                        valid = utils.validate(message_to_merge)
                     if valid:
                         if agent_name.startswith('ara-'):
                             logger.info("pre async call for agent %s" % agent_name)

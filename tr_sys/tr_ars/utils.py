@@ -284,7 +284,8 @@ class TranslatorMessage():
 
 def mergeMessages(messageList,pk):
     messageListCopy = copy.deepcopy(messageList)
-    message = messageListCopy.pop()
+    #message = messageListCopy.pop()
+    message=messageListCopy.pop()
     merged = mergeMessagesRecursive(message,messageListCopy, pk)
 
     return merged
@@ -294,29 +295,10 @@ def mergeMessagesRecursive(mergedMessage,messageList,pk):
     logging.info(f'Merging new pk: {pk} recursively.  Currently {str(len(messageList))} messages left in the queue')
     logging.info(f'Current messages list in the queue: {messageList}')
     if len(messageList)==0:
-        try:
-            results = mergedMessage.getResults()
-            if results is not None:
-                logging.info(f'Averaing normalized scores for {pk}')
-                try:
-                    results = results.getRaw()
-                    for result in results:
-                        if "normalized_score" in result.keys():
-                            ns = result["normalized_score"]
-                            if isinstance(ns,list) and len(ns)>0:
-                                result["normalized_score"]= sum(ns) / len(ns)
-                        else:
-                            logging.info('there is no normalized_score in result.keys()')
-                except Exception as e:
-                    print(e)
-                    logging.debug(e.__traceback__)
-                    record_error(e)
-        except Exception as e:
-            logging.debug(e.__traceback__)
-            record_error(e)
         if mergedMessage is not None:
-            mergedMessage.status='Done'
-            mergedMessage.code = 200
+            mergedMessageObject=get_object_or_404(Message.objects.filter(pk=pk))
+            mergedMessageObject.status='Done'
+            mergedMessageObject.code = 200
         else:
             logging.info(f'Merged Message was NoneType for : {pk}')
         return mergedMessage
@@ -324,31 +306,31 @@ def mergeMessagesRecursive(mergedMessage,messageList,pk):
         currentMessage = messageList.pop()
         #merge Knowledge Graphs
         logging.info(f'Merging knowledge graphs for {pk}')
-        ckg = currentMessage.getKnowledgeGraph().getRaw()
-        mkg = mergedMessage.getKnowledgeGraph().getRaw()
+        ckg = currentMessage["knowledge_graph"]
+        mkg = mergedMessage["knowledge_graph"]
         mergedKnowledgeGraph = mergeDicts(ckg, mkg)
         logging.info(f'Merging knowledge graphs complete for {pk}')
 
         #merge Results
         logging.info(f'Merging results for {pk}')
-        currentResultMap= currentMessage.getResultMap()
-        mergedResultMap=mergedMessage.getResultMap()
+        currentResultMap= getResultMap(currentMessage["results"])
+        mergedResultMap= getResultMap(mergedMessage["results"])
         mergedResults=mergeDicts(currentResultMap,mergedResultMap)
         logging.info(f'Merging results complete for {pk}')
 
         #merge Aux Graphs
         logging.info(f'Merging aux graphs for {pk}')
-        currentAux = currentMessage.getAuxiliaryGraphs()
-        mergedAux=mergedMessage.getAuxiliaryGraphs()
+        currentAux = currentMessage["auxiliary_graphs"]
+        mergedAux=mergedMessage["auxiliary_graphs"]
         mergedAux=mergeDicts(currentAux,mergedAux)
         logging.info(f'Merging aux graphs complete for {pk}')
         logging.info(f'Merging: creating and converting for {pk}')
 
         values = mergedResultMap.values()
-        newResults= Results(list(values))
-        mergedMessage.setResults(newResults)
-        mergedMessage.setKnowledgeGraph(KnowledgeGraph(mergedKnowledgeGraph))
-        mergedMessage.setAuxGraphs(mergedAux)
+        #newResults= Results(list(values))
+        mergedMessage["results"]=list(values)
+        mergedMessage["knowledge_graph"]=mergedKnowledgeGraph
+        mergedMessage["auxiliary_graphs"]=mergedAux
         logging.info(f'Merging: creating and converting complete for {pk}')
 
         return mergeMessagesRecursive(mergedMessage,messageList,pk)
@@ -900,10 +882,10 @@ def remove_blocked(mesg, data, blocklist=None):
             blocklist = json.load(f)
         #blocked_version = createMessage(get_ars_actor())
         #data=mesg.data
-        results = get_safe(data,"message","results")
-        nodes = get_safe(data,"message","knowledge_graph","nodes")
-        edges = get_safe(data,"message","knowledge_graph","edges")
-        aux_graphs = get_safe(data,"message","auxiliary_graphs")
+        results = get_safe(data,"results")
+        nodes = get_safe(data,"knowledge_graph","nodes")
+        edges = get_safe(data,"knowledge_graph","edges")
+        aux_graphs = get_safe(data,"auxiliary_graphs")
         analyses_count = 0
         removed_nodes=[]
         #The set of ids of nodes that need to be removed is the intersection of the Nodes keys and the blocklist
@@ -1592,19 +1574,19 @@ def createMessage(actor,parent_pk):
 
 def get_msg_stats(mesg_dict):
     stats={}
-    for component in mesg_dict['message'].keys():
+    for component in mesg_dict.keys():
         if component == "knowledge_graph":
             for subComp in ["nodes", "edges"]:
-                stats[f'{component}_{subComp}']=len(get_safe(mesg_dict, "message", f'{component}',f'{subComp}'))
+                stats[f'{component}_{subComp}']=len(get_safe(mesg_dict, f'{component}',f'{subComp}'))
         else:
-            stats[component]=len(get_safe(mesg_dict, "message", f"{component}"))
+            stats[component]=len(mesg_dict[component])
     return stats
 
 @app.task(name="merge_received")
 def merge_received(parent,message_to_merge, agent_name, counter=0):
     current_merged_pk=parent.merged_version_id
     logging.info("Beginning merge for agent %s with current_pk: %s" %(agent_name,str(current_merged_pk)))
-    t_to_merge_message=TranslatorMessage(message_to_merge)
+    #t_to_merge_message=TranslatorMessage(message_to_merge)
     new_merged_message = createMessage(get_ars_actor(),str(parent.pk))
     logging.info("the merged_pk for agent %s is %s" % (agent_name, str(new_merged_message.pk)))
     new_merged_message.save()
@@ -1613,11 +1595,12 @@ def merge_received(parent,message_to_merge, agent_name, counter=0):
         if current_merged_pk is not None :
             current_merged_message=get_object_or_404(Message.objects.filter(pk=current_merged_pk))
             current_message_dict = get_safe(current_merged_message.to_dict(),"fields","data","message")
-            t_current_merged_message=TranslatorMessage(current_message_dict)
+            #t_current_merged_message=TranslatorMessage(current_message_dict)
+
             if current_message_dict is not None:
                 merged=mergeMessages([
-                    t_current_merged_message,
-                    t_to_merge_message,
+                    current_message_dict,
+                    message_to_merge
                 ],
                 str(new_merged_message.pk))
             else:
@@ -1626,13 +1609,12 @@ def merge_received(parent,message_to_merge, agent_name, counter=0):
         #If not, we make the newcomer the current "merged" Message
         else:
             logging.info("first merge done on agent: %s" % agent_name)
-            merged = t_to_merge_message
+            merged = message_to_merge
 
 
-        merged_dict = merged.to_dict()
-        logging.info('the keys for merged_dict are %s' % merged_dict['message'].keys())
-        stats = get_msg_stats(merged_dict)
-        new_merged_message.save_compressed_dict(merged_dict)
+
+        stats = get_msg_stats(merged)
+        new_merged_message.save_compressed_dict(merged)
         # new_merged_message.data = merged_dict
         new_merged_message.status='R'
         new_merged_message.code=202
@@ -1777,3 +1759,21 @@ def get_confidence(result):
             score_product = score_product * (1 - analysis["score"])
     confidence_score = 1 - score_product
     return confidence_score
+def getResultMap(results):
+    if results is not None:
+        map ={}
+        for result in results:
+            nodes = set()
+            nb = result["node_bindings"]
+            for nodeid in nb.keys():
+                binding=nb.get(nodeid)
+                if len(binding)>1:
+                    logging.debug("Multiple bindings found for a single node")
+                else:
+                    for binding_id in binding["ids"]:
+                        nodes.add(binding_id)
+            print("nodes Done")
+            map[frozenset(nodes)]=result
+        return map
+    else:
+        return None
