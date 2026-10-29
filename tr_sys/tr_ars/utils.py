@@ -293,7 +293,7 @@ def mergeMessages(messageList,pk):
 def mergeMessagesRecursive(mergedMessage,messageList,pk):
     #need to clean things up and average our normalized scores now that they're all in
     logging.info(f'Merging new pk: {pk} recursively.  Currently {str(len(messageList))} messages left in the queue')
-    logging.info(f'Current messages list in the queue: {messageList}')
+    #logging.info(f'Current messages list in the queue: {messageList}')
     if len(messageList)==0:
         if mergedMessage is not None:
             mergedMessageObject=get_object_or_404(Message.objects.filter(pk=pk))
@@ -346,20 +346,20 @@ def mergeDicts(dcurrent,dmerged):
         if key in dmerged.keys():
             mv=dmerged[key]
             if key == 'node_bindings':
-                cvv = [{node_key:node_value[0]} for node_key, node_value in cv.items() if 'id' in node_value[0]]
-                mvv = [{node_key:node_value[0]} for node_key, node_value in mv.items() if 'id' in node_value[0]]
+                cvv = [{node_key:node_value} for node_key, node_value in cv.items() if 'ids' in node_value]
+                mvv = [{node_key:node_value} for node_key, node_value in mv.items() if 'ids' in node_value]
                 if (all(isinstance(x, dict) for x in mvv)
                     and all(isinstance(y, dict) for y in cvv)):
                     cmap={}
                     mmap={}
                     for cd in cvv:
                         for cd_key, cd_val in cd.items():
-                            if 'id' in cd_val:
-                                cmap[cd_val['id']]=cd_val
+                            if 'ids' in cd_val:
+                                cmap[frozenset(cd_val['ids'])]=cd_val
                     for md in mvv:
                         for md_key, md_val in md.items():
-                            if 'id' in md_val:
-                                mmap[md_val['id']]=md_val
+                            if 'ids' in md_val:
+                                mmap[frozenset(md_val['ids'])]=md_val
 
                     for ck in cmap.keys():
                         if ck in mmap.keys():
@@ -553,7 +553,7 @@ def post_process(mesg, key, agent_name, incoming_message=None):
         mesg.save()
 
 
-    results = get_safe(data,"message","results")
+    results = get_safe(data,"results")
     if results is not None and len(results)>0:
         logging.info("calculating Confidence for agent %s and pk %s" % (agent_name, str(key)))
         try:
@@ -949,10 +949,11 @@ def remove_blocked(mesg, data, blocklist=None):
                     if node_bindings is not None:
                         for k in node_bindings.keys():
                             nb=node_bindings[k]
-                            for c in nb:
-                                the_id = get_safe(c,"id")
+                            the_ids= get_safe(nb,"ids")
+                            for the_id in the_ids:
                                 if the_id in nodes_to_remove and result not in results_to_remove:
                                     results_to_remove.append(result)
+                                    break
 
 
                     analyses=get_safe(result,"analyses")
@@ -963,10 +964,10 @@ def remove_blocked(mesg, data, blocklist=None):
                             if edge_bindings is not None:
                                 for edge_id,bindings in edge_bindings.items():
                                     bindings_to_remove=[]
-                                    for binding in bindings:
-                                        if binding['id'] in edges_to_remove:
+                                    for binding_id in bindings["ids"]:
+                                        if binding_id in edges_to_remove:
                                             if(len(bindings)>1):
-                                                bindings_to_remove.append(binding)
+                                                bindings_to_remove.append(binding_id)
                                             elif analysis not in analyses_to_remove:
                                                 analyses_to_remove.append(analysis)
                                     for br in bindings_to_remove:
@@ -1594,7 +1595,8 @@ def merge_received(parent,message_to_merge, agent_name, counter=0):
         #If at least one merger has already occurred, we merge the newcomer into that
         if current_merged_pk is not None :
             current_merged_message=get_object_or_404(Message.objects.filter(pk=current_merged_pk))
-            current_message_dict = get_safe(current_merged_message.to_dict(),"fields","data","message")
+            current_test=current_merged_message.to_dict()
+            current_message_dict = get_safe(current_merged_message.to_dict(),"fields","data")
             #t_current_merged_message=TranslatorMessage(current_message_dict)
 
             if current_message_dict is not None:

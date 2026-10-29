@@ -203,7 +203,7 @@ class Message(ARSModel):
                         original_data = json.loads(json_data)
 
                         if isinstance(original_data, dict):
-                            message = original_data.get("message")
+                            message = original_data
                             if isinstance(message, dict):
                                 logger.info("✅ Parsed dict keys: %s; message keys: %s", list(original_data.keys()), list(message.keys()))
                             else:
