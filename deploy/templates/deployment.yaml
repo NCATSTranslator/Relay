@@ -102,6 +102,8 @@ spec:
               value: {{ .Values.celeryworker.env.ARS_EXPENSIVE_ZKEY | quote }}
             - name: CELERY_CONCURRENCY
               value: {{ .Values.celeryworker.env.CELERY_CONCURRENCY | quote }}
+            - name : ANNOTATOR_QUERY_BACKEND
+              value: {{ .Values.arsserver.env.ANNOTATOR_QUERY_BACKEND}}
 
           {{- with .Values.celeryworker.resources }}
           resources:
