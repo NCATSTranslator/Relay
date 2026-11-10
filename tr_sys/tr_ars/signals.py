@@ -108,12 +108,22 @@ def message_post_save(sender, instance, **kwargs):
                     logger.info('+++ merged_versions_list : %s' % (pmessage.merged_versions_list))
                     merged_pk = pmessage.merged_version.id
                     merged_version = get_object_or_404(Message.objects.filter(pk=merged_pk))
-                    result_stats = merged_version.result_stat
+
+                    merged_data = merged_version.decompress_dict()
+                    message_data = merged_data.get('message', {})
+
+                    results = message_data.get('results')
+                    auxiliary_graphs = message_data.get('auxiliary_graphs')
+
+                    result_count = len(results) if isinstance(results, list) else 0
+                    aux_graph_count = len(auxiliary_graphs) if isinstance(auxiliary_graphs, dict) else 0
+
                     notification={
                         "event_type":"last_merged_completed",
                         "complete":True,
                         "merged_versions_list":pmessage.merged_versions_list if pmessage.merged_versions_list is not None else [],
-                        "results_stat": result_stats
+                        "results_count": result_count,
+                        "aux_graph_count": aux_graph_count,
                     }
                     pmessage.notify_subscribers(notification)
                     pmessage.status = 'D'
