@@ -1,0 +1,42 @@
+name: Tests
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+
+permissions:
+  contents: read
+
+jobs:
+  unit:
+    name: Unit tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      # Keep in step with the Dockerfile, deploy/Jenkinsfile and tr_sys/tox.ini.
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            tr_sys/requirements.txt
+
+      # mysqlclient has no Linux wheels, so it is compiled during install.
+      - name: Install system packages
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends default-libmysqlclient-dev pkg-config
+
+      # Same package set as the Docker image, plus test tools.
+      - name: Install dependencies
+        run: pip install -r tr_sys/requirements.txt
+
+      # Unit tests only: in-memory SQLite, no services. Integration tests are
+      # excluded by default (see tr_sys/pytest.ini).
+      - name: Run unit tests
+        working-directory: tr_sys
+        run: pytest
