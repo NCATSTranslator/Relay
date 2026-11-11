@@ -1,10 +1,6 @@
 import requests
 import os
-import json
 import pytest
-from pathlib import Path
-import gzip
-import zstandard as zstd
 from tests.helper.generate import get_curie
 from biothings_annotator import annotator
 
