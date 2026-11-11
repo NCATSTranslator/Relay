@@ -147,5 +147,24 @@ pipeline {
                 }
             }
         }
+        // Runs after the deploy so it checks the build that was just deployed.
+        // The tox stage above runs only the unit tests.
+        stage('Integration tests') {
+            steps {
+                script {
+                    try {
+                        withPythonEnv('python3.11') {
+                            sh '''
+                                . venv/bin/activate
+                                tox -c tr_sys/tox.ini -e integration
+                            '''
+                        }
+                    }
+                    catch (err) {
+                        print err
+                    }
+                }
+            }
+        }
     }
 }

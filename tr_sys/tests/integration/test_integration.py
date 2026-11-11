@@ -8,6 +8,9 @@ import zstandard as zstd
 from tests.helper.generate import get_curie
 from biothings_annotator import annotator
 
+# Everything here calls a live service; excluded by default, run with: pytest -m integration
+pytestmark = pytest.mark.integration
+
 hostname=os.getenv('TARGET_HOST') if os.getenv("TARGET_HOST") is not None else 'ars.ci.transltr.io'
 NORMALIZER_URL=os.getenv("TR_NORMALIZER") if os.getenv("TR_NORMALIZER") is not None else "https://nodenormalization-sri.renci.org/1.5/get_normalized_nodes"
 APPRAISER_URL=os.getenv("TR_APPRAISE") if os.getenv("TR_APPRAISE") is not None else "https://answerappraiser.ci.transltr.io/get_appraisal"
