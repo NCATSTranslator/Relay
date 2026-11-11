@@ -12,7 +12,6 @@ from biothings_annotator import annotator
 pytestmark = pytest.mark.integration
 
 hostname=os.getenv('TARGET_HOST') if os.getenv("TARGET_HOST") is not None else 'ars.ci.transltr.io'
-APPRAISER_URL=os.getenv("TR_APPRAISE") if os.getenv("TR_APPRAISE") is not None else "https://answerappraiser.ci.transltr.io/get_appraisal"
 
 def test_agent_endopoint():
     response = requests.get("https://"+hostname+"/ars/api/agents")
