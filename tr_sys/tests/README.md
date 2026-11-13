@@ -68,7 +68,21 @@ Tests were also conducted to validate interactions with external services:
 
 ## Continuous Integration
 
-All unit and integration tests are automatically executed for every pull request to the Relay GitHub repository. Tests are run inside an isolated **tox** virtual environment to ensure consistent and reliable results across different development setups.
+- **Unit tests** run on every pull request through GitHub Actions (`.github/workflows/tests.yml`) and again in Jenkins before the image is built. They use an in-memory SQLite database (`tr_sys/settings_test.py`) and need no running services.
+- **Integration tests** call live services, so they are excluded by default. Jenkins runs them after deploying to CI, so they check the build that was just deployed.
+
+Both install `tr_sys/requirements.txt`, which is the root `requirements.txt` (what the Docker image installs) plus test-only tools.
+
+## Running the tests locally
+
+```bash
+pip install -r tr_sys/requirements.txt
+cd tr_sys
+pytest                                  # unit tests
+pytest -m integration                   # integration tests (needs network access)
+```
+
+Or with tox, from the repository root: `tox -c tr_sys/tox.ini` or `tox -c tr_sys/tox.ini -e integration`.
 
 ---
 
