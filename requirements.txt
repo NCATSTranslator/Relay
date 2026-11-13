@@ -108,7 +108,6 @@ setuptools==70.3.0
 greenlet~=3.0.0
 gevent~=24.2.1
 gunicorn~=22.0.0
-mysqlclient~=2.2.0
 twisted~=24.7.0
 daphne~=3.0.2
 simplejson~=3.17.6
