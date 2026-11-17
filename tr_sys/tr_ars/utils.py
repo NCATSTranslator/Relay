@@ -965,10 +965,11 @@ def remove_blocked(mesg, data, blocklist=None):
                                             #If we removed ALL the support graphs, the edge itself is no good
                                             if len(attribute['value'])==0 and edge_id not in edges_to_remove:
                                                 edges_to_remove.append(edge_id)
-                #Now that we have ALL of the edges to remove, we do the actual removing
+                # Now that we have ALL of the edges to remove, we do the actual removing
                 for edge_id in edges_to_remove:
                     del edges[edge_id]
-                #We do the same for results
+
+                # We do the same for results
                 if results is not None:
                     results_to_remove = []
                     for result in results:
@@ -981,9 +982,11 @@ def remove_blocked(mesg, data, blocklist=None):
                                     if the_id in nodes_to_remove and result not in results_to_remove:
                                         results_to_remove.append(result)
 
-                        analyses=get_safe(result,"analyses")
+                        analyses = get_safe(result,"analyses")
                         if analyses is not None:
                             analyses_to_remove=[]
+                            path_bindings_removed_count = 0
+                            support_graphs_to_remove = []
                             for analysis in analyses:
                                 edge_bindings = get_safe(analysis,"edge_bindings")
                                 if edge_bindings is not None:
@@ -998,35 +1001,42 @@ def remove_blocked(mesg, data, blocklist=None):
                                         for br in bindings_to_remove:
                                             bindings.remove(br)
 
-                                #adding new section to account for pathfinder queries having path bindings instead of
-                                #edge bindings.  MDW 08/17/26
+                                # adding new section to account for pathfinder queries having path bindings instead of
+                                # edge bindings.  MDW 08/17/26
+                                # path_bindings_to_remove = []
+
                                 path_bindings = get_safe(analysis,"path_bindings")
                                 if path_bindings is not None:
-                                    for path_id,path_bindings in path_bindings.items():
-                                        path_bindings_to_remove=[]
-                                        for path_binding in path_bindings:
+                                    for path_id, path_binding_list in path_bindings.items():
+                                        bindings_to_remove=[]
+                                        for path_binding in path_binding_list:
                                             if path_binding["id"] in aux_graphs_to_remove:
-                                                if(len(path_bindings)>1):
-                                                    path_bindings_to_remove.append(path_binding)
+                                                if len(path_binding_list) > 1:
+                                                    bindings_to_remove.append(path_binding)
                                                 elif analysis not in analyses_to_remove:
                                                     analyses_to_remove.append(analysis)
-                                    for pr in path_bindings_to_remove:
-                                        path_bindings.remove(pr)
 
-                                support_graphs=get_safe(analysis,"support_graphs")
-                                support_graphs_to_remove=[]
-                                if support_graphs is not None and len(support_graphs)>0:
+                                        for pr in bindings_to_remove:
+                                            path_binding_list.remove(pr)
+                                            path_bindings_removed_count += 1
+
+                                support_graphs = get_safe(analysis,"support_graphs")
+                                if support_graphs is not None and len(support_graphs) > 0:
                                     for sg in support_graphs:
                                         if sg in edges_to_remove:
                                             support_graphs_to_remove.append(sg)
+
                                     for sg in support_graphs_to_remove:
                                         support_graphs.remove(sg)
+
                             for analysis in analyses_to_remove:
                                 analyses_count+=1
                                 analyses.remove(analysis)
+
                             if len(analyses)==0 and result not in results_to_remove:
                                 #if removing the bad analyses leaves us with a result that would have none, we remove the result
                                 results_to_remove.append(result)
+
                     for result in results_to_remove:
                         results.remove(result)
 
@@ -1053,10 +1063,11 @@ def remove_blocked(mesg, data, blocklist=None):
             span.set_attribute("remove_blocked.results_removed", results_count)
             span.set_attribute("remove_blocked.aux_graphs_removed", aux_count)
             span.set_attribute("remove_blocked.analyses_removed", analyses_count)
-
-            span.set_attribute("remove_blocked.path_bindings_removed", len(path_bindings_to_remove))
-            span.set_attribute("remove_blocked.support_graphs_removed", len(support_graphs_to_remove))
             span.set_attribute("remove_blocked.removed_nodes", len(removed_nodes))
+
+            span.set_attribute("remove_blocked.path_bindings_removed", path_bindings_removed_count)
+            span.set_attribute("remove_blocked.support_graphs_removed", len(support_graphs_to_remove))
+            logging.info("remove_blocked OTEL attributes: %s", dict(span.attributes))
 
             log_json = {
                 "nodes":nodes_count,
