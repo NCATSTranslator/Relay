@@ -9,7 +9,10 @@ https://docs.djangoproject.com/en/1.11/howto/deployment/wsgi/
 
 import os
 from django.core.wsgi import get_wsgi_application
+from tr_sys.gc_tuning import apply_gc_threshold
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "tr_sys.settings")
 
 application = get_wsgi_application()
+
+apply_gc_threshold()

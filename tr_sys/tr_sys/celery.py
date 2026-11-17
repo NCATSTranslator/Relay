@@ -4,7 +4,9 @@ import os
 
 from celery import Celery
 from celery.schedules import crontab
+from celery.signals import worker_process_init
 
+from .gc_tuning import apply_gc_threshold
 from .otel_config import configure_opentelemetry
 
 # set the default Django settings module for the 'celery' program.
@@ -25,6 +27,13 @@ app.conf.broker_connection_retry_on_startup = True
 
 # Load task modules from all registered Django app configs.
 app.autodiscover_tasks()
+
+
+@worker_process_init.connect
+def tune_gc(**kwargs):
+    # Runs once in each worker process
+    apply_gc_threshold()
+
 
 @app.task(bind=True)
 def debug_task(self):
