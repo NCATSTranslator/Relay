@@ -542,7 +542,7 @@ def post_process(mesg, key, agent_name, incoming_message=None):
         code=444
         log_tuple =[
             f'node annotation internal error: {str(e)}',
-            datetime.now().strftime('%H:%M:%S'),
+            format_log_timestamp(),
             "DEBUG"
         ]
         add_log_entry(data,log_tuple)
@@ -575,7 +575,7 @@ def post_process(mesg, key, agent_name, incoming_message=None):
                     data,
                     [
                         "Weighted RRF ranker fusion applied: %s" % rrf_summary,
-                        datetime.now().strftime('%H:%M:%S'),
+                        format_log_timestamp(),
                         "DEBUG",
                     ],
                 )
@@ -604,7 +604,7 @@ def post_process(mesg, key, agent_name, incoming_message=None):
             post_processing_error(mesg,data,"Error in score stat calculation")
             log_tuple =[
                 "Error in score stat calculation",
-                datetime.now().strftime('%H:%M:%S'),
+                format_log_timestamp(),
                 "DEBUG"
             ]
             add_log_entry(data,log_tuple)
@@ -1015,7 +1015,7 @@ def remove_blocked(mesg, data, blocklist=None):
         logging.info('Removing results containing the following %s from PK: %s' % (str(nodes_to_remove), str(mesg.id)))
         log_tuple =[
             'Removed the following bad nodes: '+ str(list_of_names),
-            datetime.now().strftime('%H:%M:%S'),
+            format_log_timestamp(),
             "DEBUG"
         ]
         add_log_entry(data,log_tuple)
@@ -1034,7 +1034,7 @@ def remove_blocked(mesg, data, blocklist=None):
         }
         log_tuple_counts =[
             'Removed the following counts: '+ str(log_json),
-            datetime.now().strftime('%H:%M:%S'),
+            format_log_timestamp(),
             "DEBUG"
         ]
         add_log_entry(data,log_tuple_counts)
@@ -1116,7 +1116,7 @@ def appraise(mesg, data, agent_name, compress = True):
                 logging.error('results returned from appraiser is None')
             log_tuple =[
                 "Error in Appraiser "+ str(e),
-                datetime.now().strftime('%H:%M:%S'),
+                format_log_timestamp(),
                 "ERROR"
             ]
             add_log_entry(data,log_tuple)
@@ -1779,3 +1779,14 @@ def getResultMap(results):
         return map
     else:
         return None
+def format_log_timestamp(value=None):
+    if value is None:
+        value = datetime.now(timezone.utc)
+    if value.tzinfo is None or value.utcoffset() is None:
+        raise ValueError("Log timestamp must include timezone information")
+
+    return (
+        value.astimezone(timezone.utc)
+        .isoformat(timespec="milliseconds")
+        .replace("+00:00", "Z")
+    )
