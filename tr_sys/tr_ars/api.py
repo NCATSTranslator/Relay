@@ -586,8 +586,8 @@ def message(req, key):
                     mesg.result_count = 0
                 mesg.save()
 
-                return HttpResponse(json.dumps(mesg.to_dict(), indent=2),
-                                    status=201)
+                return HttpResponse(json.dumps({"pk": str(mesg.pk)}),
+                                    content_type='application/json', status=201)
 
             except Message.DoesNotExist:
                 return HttpResponse('Unknown state reference %s' % key, status=404)
