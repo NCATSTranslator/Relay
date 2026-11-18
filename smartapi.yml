@@ -36,9 +36,7 @@ servers:
   - url: https://ars.ci.transltr.io/
     description: ITRB CI server
     x-maturity: staging
-  - url: https://ars-dev.transltr.io
-    description: Non-ITRB dev (internal use)
-    x-maturity: development
+
 tags:
   - name: 1.3.0
   - name: translator
