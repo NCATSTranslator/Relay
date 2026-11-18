@@ -568,6 +568,8 @@ def post_process(mesg, key, agent_name, incoming_message=None):
         record_error(e)
         mesg.status=status
         mesg.code=code
+        # this save can mark the parent Done, so store the block-list filtered data with it
+        mesg.save_compressed_dict(data)
         mesg.save()
 
 
