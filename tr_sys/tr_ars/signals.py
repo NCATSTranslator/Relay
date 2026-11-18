@@ -34,7 +34,7 @@ def message_post_save(sender, instance, **kwargs):
     logger.debug('+++ post_save message: %s with the code: %s' % (message, message.code))
     # now broadcast the message to all actors only if it has code=200 and is a parent node
     if message.code == 202 and message.ref == None:
-        if len(Message.objects.filter(ref__pk=message.pk)) == 0: # make sure we haven't already done this broadcast
+        if not Message.objects.filter(ref__pk=message.pk).exists(): # make sure we haven't already done this broadcast
             matching_actors=[]
             for actor in Actor.objects.all():
                 for ch in actor.channel:
@@ -51,26 +51,29 @@ def message_post_save(sender, instance, **kwargs):
         pmessage = message.ref
         if pmessage.status != 'D':
             logger.info('+++ Parent message not Done for: %s' % (str(pmessage.id)))
-            children = Message.objects.filter(ref__pk=pmessage.pk)
+            children = list(Message.objects.filter(ref__pk=pmessage.pk).values(
+                'id', 'status', 'code', 'result_count', 'actor__agent__name'))
             logger.info('%s: %d children' % (pmessage.pk, len(children)))
             finished = True
             merge_count=0
             orig_count=0
             for child in children:
-                if child.status not in ['D', 'S', 'E', 'U']:
+                child_status = child['status']
+                child_agent = child['actor__agent__name']
+                if child_status not in ['D', 'S', 'E', 'U']:
                     finished = False
-                    logger.info('+++ Parent message %s not Done because of child: %s in state %s' % (str(pmessage.id),str(child.id),str(child.status)))
+                    logger.info('+++ Parent message %s not Done because of child: %s in state %s' % (str(pmessage.id),str(child['id']),str(child_status)))
 
-                if child.status == 'D' and child.actor.agent.name.startswith('ar') and (child.result_count is not None and child.result_count > 0):
-                    if child.actor.agent.name == 'ars-ars-agent':
+                if child_status == 'D' and child_agent.startswith('ar') and (child['result_count'] is not None and child['result_count'] > 0):
+                    if child_agent == 'ars-ars-agent':
                         merge_count += 1
                     else:
                         orig_count += 1
-                if child.status == 'E' and child.actor.agent.name == 'ars-ars-agent':
-                    if child.code == 444:
+                if child_status == 'E' and child_agent == 'ars-ars-agent':
+                    if child['code'] == 444:
                         merge_count += 1
                     else:
-                        logger.info('+++ a merged message Errored out, removing its count from orig_count pk: %s & parent_pk: %s'% (str(child.pk),str(pmessage.id)))
+                        logger.info('+++ a merged message Errored out, removing its count from orig_count pk: %s & parent_pk: %s'% (str(child['id']),str(pmessage.id)))
                         orig_count -= 1
             logger.info('+++ so far parent_pk: %s merge_count: %s & orig_count: %s '% (str(pmessage),merge_count,orig_count))
             if finished and merge_count == orig_count:
