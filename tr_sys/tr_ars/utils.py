@@ -1,6 +1,7 @@
 import copy
 import json
 import time as t
+from datetime import time, datetime, timezone
 import gzip
 import logging
 import traceback
@@ -1170,16 +1171,8 @@ def annotate_nodes(mesg,data,agent_name):
         with tracer.start_as_current_span("annotator") as span:
             try:
                 atr = annotator.Annotator(query_backend="es")
-                loop = asyncio.get_event_loop()
-                # Check if an event loop is already running
-                if loop.is_running():
-                    # Use create_task to schedule the coroutine in the running loop
-                    logging.info('event loop is already running')
-                    rj = asyncio.ensure_future(atr.annotate_curie_list(curie_list))
-                else:
-                    # If no loop is running, create one and run it
-                    logging.info('event loop is not running so creating one')
-                    rj = loop.run_until_complete(atr.annotate_curie_list(curie_list))
+                rj = asyncio.run(atr.annotate_curie_list(curie_list))
+
 
                 # r = requests.post(ANNOTATOR_URL,json=nodes_message,headers=headers)
                 # r.raise_for_status()
