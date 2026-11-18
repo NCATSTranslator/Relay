@@ -553,7 +553,7 @@ def post_process(mesg, key, agent_name, incoming_message=None):
         mesg.save()
 
 
-    results = get_safe(data,"results")
+    results = get_safe(data,"message","results")
     if results is not None and len(results)>0:
         logging.info("calculating Confidence for agent %s and pk %s" % (agent_name, str(key)))
         try:
@@ -882,10 +882,10 @@ def remove_blocked(mesg, data, blocklist=None):
             blocklist = json.load(f)
         #blocked_version = createMessage(get_ars_actor())
         #data=mesg.data
-        results = get_safe(data,"results")
-        nodes = get_safe(data,"knowledge_graph","nodes")
-        edges = get_safe(data,"knowledge_graph","edges")
-        aux_graphs = get_safe(data,"auxiliary_graphs")
+        results = get_safe(data,"message","results")
+        nodes = get_safe(data,"message","knowledge_graph","nodes")
+        edges = get_safe(data,"message","knowledge_graph","edges")
+        aux_graphs = get_safe(data,"message","auxiliary_graphs")
         analyses_count = 0
         removed_nodes=[]
         #The set of ids of nodes that need to be removed is the intersection of the Nodes keys and the blocklist
@@ -1169,7 +1169,7 @@ def annotate_nodes(mesg,data,agent_name):
         logging.info('sending %s curie ides to the annotator'% len(curie_list))
         with tracer.start_as_current_span("annotator") as span:
             try:
-                atr = annotator.Annotator()
+                atr = annotator.Annotator(query_backend="es")
                 loop = asyncio.get_event_loop()
                 # Check if an event loop is already running
                 if loop.is_running():
@@ -1596,7 +1596,7 @@ def merge_received(parent,message_to_merge, agent_name, counter=0):
         if current_merged_pk is not None :
             current_merged_message=get_object_or_404(Message.objects.filter(pk=current_merged_pk))
             current_test=current_merged_message.to_dict()
-            current_message_dict = get_safe(current_merged_message.to_dict(),"fields","data")
+            current_message_dict = get_safe(current_merged_message.to_dict(),"fields","data", "message")
             #t_current_merged_message=TranslatorMessage(current_message_dict)
 
             if current_message_dict is not None:
@@ -1615,8 +1615,8 @@ def merge_received(parent,message_to_merge, agent_name, counter=0):
 
 
 
+        new_merged_message.save_compressed_dict({"message":merged})
         stats = get_msg_stats(merged)
-        new_merged_message.save_compressed_dict(merged)
         # new_merged_message.data = merged_dict
         new_merged_message.status='R'
         new_merged_message.code=202
