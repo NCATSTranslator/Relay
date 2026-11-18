@@ -895,6 +895,8 @@ def block(req,key):
         mesg = get_object_or_404(Message.objects.filter(pk=key))
         data = mesg.decompress_dict()
         report=utils.remove_blocked(mesg,data)
+        mesg.save_compressed_dict(data)
+        mesg.save()
         httpjson = {
             "pk":report[0],
             "blocked_nodes":report[1],

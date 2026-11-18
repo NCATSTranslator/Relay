@@ -892,6 +892,7 @@ def merge_and_post_process(self, parent_pk,message_to_merge, agent_name):
     return
 
 def remove_blocked(mesg, data, blocklist=None):
+    """Remove block-listed nodes and edges depending on them, from data in place."""
     try:
         #logging.info("Getting the length of the dictionary in {} bytes".format(get_deep_size(data)))
         if blocklist is None:
@@ -1055,12 +1056,6 @@ def remove_blocked(mesg, data, blocklist=None):
             "DEBUG"
         ]
         add_log_entry(data,log_tuple_counts)
-        #mesg.status='D'
-        #mesg.code=200
-        mesg.save_compressed_dict(data)
-        #mesg.data=data
-        mesg.save()
-
         return (str(mesg.id),removed_nodes,results_to_remove)
     except Exception as e:
         logging.error("Problem with removing results from block list ")
