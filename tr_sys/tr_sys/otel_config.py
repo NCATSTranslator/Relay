@@ -45,6 +45,13 @@ class ARSSampler(ParentBased):
     def should_sample(self, parent_context, trace_id, name, kind=None, attributes=None, *args, **kwargs):
         if any(name.endswith(f"/{task}") for task in DONT_TRACE_TASKS):
             return SamplingResult(Decision.DROP)
+        parent = trace.get_current_span(parent_context).get_span_context()
+        # A call we make out to another service with no span around it isn't
+        # part of any request or task, so it would be a one-span trace that
+        # tells us nothing. In practice these come from startup, like the
+        # smart-api.info lookup made while the URL patterns are built.
+        if kind == SpanKind.CLIENT and not parent.is_valid:
+            return SamplingResult(Decision.DROP)
         if kind == SpanKind.SERVER:
             if attributes and attributes.get("http.method") in DONT_TRACE_METHODS:
                 return SamplingResult(Decision.DROP)
@@ -63,7 +70,6 @@ class ARSSampler(ParentBased):
             # request by using the _root sampler instead of following the
             # parent. Celery tasks also have a remote parent, but they aren't
             # SERVER spans, so they still follow whatever queued them.
-            parent = trace.get_current_span(parent_context).get_span_context()
             if parent.is_valid and parent.is_remote and not parent.trace_flags.sampled:
                 return self._root.should_sample(parent_context, trace_id, name, kind, attributes, *args, **kwargs)
         return super().should_sample(parent_context, trace_id, name, kind, attributes, *args, **kwargs)
