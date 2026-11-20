@@ -36,6 +36,10 @@ class ARSSampler(ParentBased):
     The excluded-URL list above can only match on path, so it can't cover any of
     these: beat tasks aren't requests at all, and the rest are defined by the
     method or by the request not matching a route.
+
+    We also ignore the sampling decision upstream callers send in
+    their traceparent header; the ARS always decides sampling behavior
+    and not the caller. The parent trace id is still kept and used.
     """
 
     def should_sample(self, parent_context, trace_id, name, kind=None, attributes=None, *args, **kwargs):
@@ -55,6 +59,13 @@ class ARSSampler(ParentBased):
             # named after the method too, and we want those.
             if name == "HTTP" or name == (attributes or {}).get("http.method"):
                 return SamplingResult(Decision.DROP)
+            # Ignore a traceparent sampled flag set to off on an incoming
+            # request by using the _root sampler instead of following the
+            # parent. Celery tasks also have a remote parent, but they aren't
+            # SERVER spans, so they still follow whatever queued them.
+            parent = trace.get_current_span(parent_context).get_span_context()
+            if parent.is_valid and parent.is_remote and not parent.trace_flags.sampled:
+                return self._root.should_sample(parent_context, trace_id, name, kind, attributes, *args, **kwargs)
         return super().should_sample(parent_context, trace_id, name, kind, attributes, *args, **kwargs)
 
 
