@@ -363,6 +363,18 @@ def mergeDicts(dcurrent,dmerged):
         cv=dcurrent[key]
         if key in dmerged.keys():
             mv=dmerged[key]
+
+
+            if mv is None or isinstance(mv, str):
+                if isinstance(mv, str) and isinstance(cv, str) and mv == cv:
+                    continue
+
+            if is_missing(mv):
+                if not is_missing(cv):
+                    dmerged[key] = cv
+                continue
+
+
             if key == 'node_bindings':
                 cvv = [{node_key:node_value[0]} for node_key, node_value in cv.items() if 'id' in node_value[0]]
                 mvv = [{node_key:node_value[0]} for node_key, node_value in mv.items() if 'id' in node_value[0]]
@@ -418,11 +430,11 @@ def mergeDicts(dcurrent,dmerged):
                                 logging.error(e.__traceback__)
                                 count_error(e, "merge.attribute_errors")
 
-                return dmerged
+                continue
             #analyses are a special case in which we just append them at the result level
             elif key == 'analyses':
                 dmerged[key]=mv+cv
-                return dmerged
+                continue
             elif (isinstance(cv,dict) and isinstance(mv,dict)):
                 #print("merging dicts")
                 dmerged[key]=mergeDicts(cv,mv)
@@ -481,10 +493,11 @@ def mergeDicts(dcurrent,dmerged):
                     #instances in which we don't care
                     #1) They're the same thing
                     #2) Either one is None
+                    if is_missing(cv):
+                        continue
                     if ((isinstance(mv, typing.Hashable)
                     and isinstance(cv, typing.Hashable)
-                    and mv==cv) or cv is None
-                    or mv is None):
+                    and mv==cv)):
                         continue
                     else:
                         if key == 'score':
@@ -505,7 +518,6 @@ def mergeDicts(dcurrent,dmerged):
             dmerged[key]=cv
         #print("value is now "+str(dmerged[key]))
     return dmerged
-
 
 def pre_merge_process(data,key, agent_name,inforesid):
     mesg = get_object_or_404(Message.objects.filter(pk=key))
@@ -1763,3 +1775,12 @@ def get_confidence(result):
             score_product = score_product * (1 - analysis["score"])
     confidence_score = 1 - score_product
     return confidence_score
+
+def is_missing(value):
+    return (
+        value is None
+        or(
+            isinstance(value, str)
+            and value.strip().casefold() in {"","none","null"}
+        )
+    )
