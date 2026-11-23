@@ -5,23 +5,23 @@ from contextlib import contextmanager
 from celery.exceptions import Retry, MaxRetriesExceededError
 from opentelemetry import trace
 from opentelemetry.trace import Status, StatusCode
-from .expensive_gate import try_acquire, release, LeaseRenewer, exp_backoff_with_jitter, ARS_EXPENSIVE_TOKEN_LIMIT
+from .expensive_gate import (try_acquire, release, LeaseRenewer, constant_backoff_with_jitter,
+                             ARS_EXPENSIVE_TOKEN_LIMIT, TASK_MAX_RETRIES)
 from celery.utils.log import get_task_logger
 logger = get_task_logger(__name__)
 tracer = trace.get_tracer(__name__)
 
 @contextmanager
-def expensive_section(task_self, limit: int = ARS_EXPENSIVE_TOKEN_LIMIT):
+def expensive_section(task_self, limit: int = ARS_EXPENSIVE_TOKEN_LIMIT, max_retries: int = TASK_MAX_RETRIES):
     """
     Usage: inside a Celery task with `bind=True`:
-        with expensive_section(self):
+        with expensive_section(self, max_retries=TASK_MAX_RETRIES):
             # do expensive work
     If acquire fails -> raises self.retry(...) to requeue quickly.
     """
     # require task_self (bind=True)
     task_id = str(task_self.request.id)
     retries = getattr(task_self.request, "retries", 0) or 0
-    delay = exp_backoff_with_jitter(getattr(task_self.request, "retries", 0))
     # We're intentionally creating two different spans here:
     # `expensive_gate.acquire` says whether this attempt got a token and how many attempts it took
     with tracer.start_as_current_span(
@@ -31,16 +31,17 @@ def expensive_section(task_self, limit: int = ARS_EXPENSIVE_TOKEN_LIMIT):
         span.set_attribute("gate.limit", limit)
         span.set_attribute("gate.attempt", retries + 1)
         try:
-            # Try to acquire; if fail -> retry right away with backoff
+            # Try to acquire; if fail -> retry after a quick delay
             acquired = try_acquire(task_id, limit=limit)
             span.set_attribute("gate.acquired", bool(acquired))
             span.set_attribute("gate.result", "acquired" if acquired else "unavailable")
             if not acquired:
+                delay = constant_backoff_with_jitter()
                 span.set_attribute("gate.retry_delay_seconds", delay)
                 # Use task_self.request.retries (celery increments retries on retry()).
-                logger.debug("Task %s could not acquire token; retrying in %ss (retries=%s)", task_id, delay, getattr(task_self.request, "retries", 0))
+                logger.debug("Task %s could not acquire token; retrying in %.1fs (retries=%s)", task_id, delay, retries)
                 # We raise self.retry so Celery releases the worker and requeues.
-                raise task_self.retry(countdown=delay)
+                raise task_self.retry(countdown=delay, max_retries=max_retries)
         except MaxRetriesExceededError:
             # Out of retries — fail gracefully and log
             span.set_attribute("gate.result", "budget_exhausted")
