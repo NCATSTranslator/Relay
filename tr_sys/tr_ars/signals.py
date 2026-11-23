@@ -1,4 +1,3 @@
-from django.shortcuts import get_object_or_404
 from django.db.models.signals import post_save, pre_save
 from django.dispatch import receiver
 import sys, logging
@@ -81,8 +80,16 @@ def message_post_save(sender, instance, **kwargs):
                 logger.info('Children count is: %s.' % (str(len(children))))
                 logger.info('Merge count is:  %s' % (str(merge_count)))
                 logger.info('Original count is: %s.' % (str(orig_count)))
+                # pmessage is the copy of the parent this child loaded when it was created. A merge
+                # records itself on a different copy (merge_and_post_process), so pmessage can be out of sync.
+                # Re-read the merge fields to make sure they are current before attempting to update the parent.
+                recorded = Message.objects.filter(pk=pmessage.pk).values(
+                    'merged_version_id', 'merged_versions_list').first()
+                if recorded is not None:
+                    pmessage.merged_version_id = recorded['merged_version_id']
+                    pmessage.merged_versions_list = recorded['merged_versions_list']
                 #create an empty merged message
-                if merge_count==0 and orig_count==0:
+                if (merge_count==0 and orig_count==0) or pmessage.merged_version_id is None:
                     empty_merged_mesg= createMessage(get_ars_actor(),str(pmessage.pk))
                     empty_data = pmessage.decompress_dict()
                     empty_data['message']['results']=[]
@@ -109,8 +116,7 @@ def message_post_save(sender, instance, **kwargs):
                     #adding one last notification about last merge being done
                     logger.info('+++ merged_versions : %s' % (pmessage.merged_version))
                     logger.info('+++ merged_versions_list : %s' % (pmessage.merged_versions_list))
-                    merged_pk = pmessage.merged_version.id
-                    merged_version = get_object_or_404(Message.objects.filter(pk=merged_pk))
+                    merged_version = pmessage.merged_version
 
                     merged_data = merged_version.decompress_dict()
                     message_data = merged_data.get('message', {})
